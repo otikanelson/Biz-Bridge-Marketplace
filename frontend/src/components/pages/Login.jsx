@@ -93,48 +93,33 @@ const Login = () => {
   return (
     <div className="flex flex-col min-h-screen">
       {/* Header */}
-      <header className="bg-black text-white p-4">
-        <div className="container mx-auto flex justify-between items-center">
-          <div className="flex items-center">
-            <span
-              onClick={() => navigate("/")}
-              className="text-red-500 text-5xl select-none font-bold cursor-pointer"
-            >
-              𐐒
-            </span>
-            <span
-              onClick={() => navigate("/")}
-              className="text-white text-4xl select-none font-bold cursor-pointer"
-            >
-              B
-            </span>
-            <span
-              onClick={() => navigate("/")}
-              className="text-red-500 text-2xl select-none cursor-pointer font-semibold ml-5"
-            >
-              BizBridge
-            </span>
+      <header className="bg-black text-white w-full top-0 z-10 fixed border-red-400 border-b-2">
+        {/* Main Header */}
+        <div className="py-2">
+          <div className="container mx-auto px-4 flex items-center justify-between">
+            {/* Logo */}
+            <div className="flex items-center cursor-pointer" onClick={() => navigate('/')}>
+              <span className="text-red-500 text-4xl select-none font-bold">𐐒</span>
+              <span className="text-white text-3xl select-none font-bold">B</span>
+              <span className="text-red-500 text-lg select-none font-semibold ml-3">BizBridge</span>
+            </div>
+
+
+            {/* Navigation */}
+            <div className="flex items-center space-x-6">
+              <div className="flex items-center space-x-1 cursor-pointer hover:text-red-400" onClick={() => navigate('/profile')}>
+              </div>
+                <span className="cursor-pointer hover:text-red-400 text-sm" onClick={() => navigate('/')}>
+                  Home
+                </span>
+                <span className="cursor-pointer text-red-400 text-sm">
+                  Login
+                </span>
+                <span className="cursor-pointer hover:text-red-400 text-sm" onClick={() => navigate('/signup')}>
+                  Register
+                </span>
+              </div>
           </div>
-          <nav className="flex space-x-8">
-            <span
-              onClick={() => navigate("/")}
-              className="hover:text-red-400 cursor-pointer"
-            >
-              Home
-            </span>
-            <span
-              onClick={() => navigate("/login")}
-              className="text-red-400 cursor-pointer"
-            >
-              Login
-            </span>
-            <span
-              onClick={() => navigate("/signup")}
-              className="hover:text-red-400 cursor-pointer"
-            >
-              Register
-            </span>
-          </nav>
         </div>
       </header>
 

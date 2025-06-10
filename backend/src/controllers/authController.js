@@ -1,4 +1,4 @@
-// backend/src/controllers/authController.js
+// backend/src/controllers/authController.js - FIXED: No Double Hashing
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import User from "../models/user.js";
@@ -16,7 +16,7 @@ const generateToken = (user) => {
   );
 };
 
-// Register User
+// Register User - FIXED: Let schema middleware handle password hashing
 export const registerUser = async (req, res) => {
   try {
     console.log('Registration attempt:', { ...req.body, password: '[HIDDEN]' });
@@ -24,10 +24,10 @@ export const registerUser = async (req, res) => {
     const {
       email, username, password, role,
       // Customer fields
-      fullName,
+      fullName, customerLga,
       // Artisan fields  
       contactName, contactPhone, businessName, yearEstablished,
-      staffStrength, isCAC, contactAddress, city, lga, websiteURL
+      staffStrength, isCAC, contactAddress, lga, websiteURL
     } = req.body;
 
     // Validation
@@ -50,32 +50,46 @@ export const registerUser = async (req, res) => {
       });
     }
 
-    // Hash password
-    const salt = await bcrypt.genSalt(12);
-    const hashedPassword = await bcrypt.hash(password, salt);
-
-    // Create user data
+    // ✅ FIXED: DON'T manually hash password - let schema middleware do it
+    // Create user data with plain password
     const userData = {
       email,
       username,
-      password: hashedPassword,
+      password, // ✅ Plain password - schema will hash it automatically
       role
     };
 
     // Add role-specific fields
     if (role === "customer") {
       userData.fullName = fullName;
+      
+      // LAGOS-ONLY: Always set Lagos as city/state, only collect LGA
+      userData.customerLocation = {
+        city: 'Lagos',     
+        state: 'Lagos',    
+        lga: customerLga || null  
+      };
+      
     } else if (role === "artisan") {
       userData.contactName = contactName;
       userData.phoneNumber = contactPhone;
       userData.businessName = businessName;
-      userData.yearEstablished = yearEstablished;
-      userData.staffStrength = staffStrength;
-      userData.isCACRegistered = isCAC === "Yes";
-      userData.address = contactAddress;
-      userData.city = city;
-      userData.localGovernmentArea = lga;
-      userData.websiteURL = websiteURL;
+      
+      // LAGOS-ONLY: Always set Lagos as city/state, only collect LGA
+      userData.location = {
+        address: contactAddress || null,
+        city: 'Lagos',     
+        state: 'Lagos',    
+        lga: lga || null   
+      };
+      
+      // Business information
+      userData.business = {
+        yearEstablished: yearEstablished ? parseInt(yearEstablished) : null,
+        staffStrength: staffStrength ? parseInt(staffStrength) : null,
+        isCACRegistered: isCAC === "Yes",
+        websiteURL: websiteURL || null
+      };
     }
 
     // Add profile image if provided
@@ -83,34 +97,39 @@ export const registerUser = async (req, res) => {
       userData.profileImage = req.file.path;
     }
 
-    // Create user
+    // Create user - schema middleware will hash the password automatically
     const user = new User(userData);
-    await user.save();
+    await user.save(); // ✅ Password gets hashed here by schema middleware
 
     // Generate token
     const token = generateToken(user);
 
-    console.log('User registered successfully:', user._id);
+    console.log('✅ User registered successfully:', user._id);
 
     res.status(201).json({
       success: true,
       message: "Registration successful!",
       token,
       user: {
+        _id: user._id,
         id: user._id,
         username: user.username,
         email: user.email,
         role: user.role,
-        ...(role === 'customer' && { fullName: user.fullName }),
+        ...(role === 'customer' && { 
+          fullName: user.fullName,
+          customerLocation: user.customerLocation
+        }),
         ...(role === 'artisan' && { 
           contactName: user.contactName,
-          businessName: user.businessName 
+          businessName: user.businessName,
+          location: user.location
         })
       }
     });
 
   } catch (error) {
-    console.error("Registration error:", error);
+    console.error("❌ Registration error:", error);
     res.status(500).json({
       success: false,
       message: "Registration failed",
@@ -119,10 +138,10 @@ export const registerUser = async (req, res) => {
   }
 };
 
-// Login User
+// Login User - CLEANED UP VERSION
 export const loginUser = async (req, res) => {
   try {
-    console.log('Login attempt:', req.body.email);
+    console.log('🔑 Login attempt:', req.body.email);
     
     const { email, password } = req.body;
 
@@ -134,7 +153,7 @@ export const loginUser = async (req, res) => {
       });
     }
 
-    // Find user
+    // Find user with password field
     const user = await User.findOne({ email }).select('+password');
     if (!user) {
       return res.status(401).json({
@@ -143,8 +162,8 @@ export const loginUser = async (req, res) => {
       });
     }
 
-    // Check password
-    const isMatch = await bcrypt.compare(password, user.password);
+    // Check password using schema method (which uses bcrypt.compare)
+    const isMatch = await user.comparePassword(password);
     if (!isMatch) {
       return res.status(401).json({
         success: false,
@@ -155,27 +174,32 @@ export const loginUser = async (req, res) => {
     // Generate token
     const token = generateToken(user);
 
-    console.log('User logged in successfully:', user._id);
+    console.log('✅ User logged in successfully:', user._id);
 
     res.status(200).json({
       success: true,
       message: "Login successful",
       token,
       user: {
+        _id: user._id,
         id: user._id,
         username: user.username,
         email: user.email,
         role: user.role,
-        ...(user.role === 'customer' && { fullName: user.fullName }),
+        ...(user.role === 'customer' && { 
+          fullName: user.fullName,
+          customerLocation: user.customerLocation
+        }),
         ...(user.role === 'artisan' && { 
           contactName: user.contactName,
-          businessName: user.businessName 
+          businessName: user.businessName,
+          location: user.location
         })
       }
     });
 
   } catch (error) {
-    console.error("Login error:", error);
+    console.error("❌ Login error:", error);
     res.status(500).json({
       success: false,
       message: "Login failed",
@@ -187,7 +211,7 @@ export const loginUser = async (req, res) => {
 // Get Current User
 export const getCurrentUser = async (req, res) => {
   try {
-    const user = await User.findById(req.user.userId).select('-password');
+    const user = await User.findById(req.user._id).select('-password');
     if (!user) {
       return res.status(404).json({
         success: false,
@@ -195,12 +219,35 @@ export const getCurrentUser = async (req, res) => {
       });
     }
     
+    console.log('✅ Current user data fetched for:', user.username);
+    
     res.json({
       success: true,
-      user
+      user: {
+        _id: user._id,
+        id: user._id,
+        username: user.username,
+        email: user.email,
+        role: user.role,
+        profileImage: user.profileImage,
+        isActive: user.isActive,
+        isVerified: user.isVerified,
+        createdAt: user.createdAt,
+        ...(user.role === 'customer' && { 
+          fullName: user.fullName,
+          customerLocation: user.customerLocation 
+        }),
+        ...(user.role === 'artisan' && { 
+          contactName: user.contactName,
+          businessName: user.businessName,
+          phoneNumber: user.phoneNumber,
+          location: user.location,
+          business: user.business
+        })
+      }
     });
   } catch (error) {
-    console.error("Get current user error:", error);
+    console.error("❌ Get current user error:", error);
     res.status(500).json({
       success: false,
       message: "Failed to get user data"

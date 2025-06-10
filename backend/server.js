@@ -12,11 +12,13 @@ dotenv.config();
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Import routes
+// ========== IMPORT ROUTES ==========
 import authRoutes from './src/routes/authRoutes.js';
 import serviceRoutes from './src/routes/serviceRoutes.js';
-import adminRoutes from './src/routes/adminRoutes.js'; // ✅ New admin routes
-import userRoutes from './src/routes/userRoutes.js';   // ✅ New user routes
+import userRoutes from './src/routes/userRoutes.js';
+import profileRoutes from './src/routes/profileRoutes.js';
+import serviceRequestRoutes from './src/routes/serviceRequestRoutes.js';  // ✅ NEW
+import bookingRoutes from './src/routes/bookingRoutes.js';              // ✅ ENHANCED
 
 const app = express();
 
@@ -94,11 +96,13 @@ if (process.env.NODE_ENV === 'development') {
   });
 }
 
-// API Routes
+// ========== API ROUTES ==========
 app.use('/api/auth', authRoutes);
 app.use('/api/services', serviceRoutes);
-app.use('/api/admin', adminRoutes);   // ✅ Admin routes for managing featured artisans
-app.use('/api/users', userRoutes);    // ✅ User routes for public featured artisans
+app.use('/api/users', userRoutes);
+app.use('/api/profiles', profileRoutes);
+app.use('/api/service-requests', serviceRequestRoutes);  // ✅ NEW: Service request system
+app.use('/api/bookings', bookingRoutes);                // ✅ ENHANCED: Enhanced booking system
 
 // Health check route
 app.get('/api/health', (req, res) => {
@@ -108,8 +112,12 @@ app.get('/api/health', (req, res) => {
     database: mongoose.connection.readyState === 1 ? 'Connected' : 'Disconnected',
     timestamp: new Date().toISOString(),
     features: {
+      authentication: true,
+      services: true,
+      userProfiles: true,
+      serviceRequests: true,  // ✅ NEW
+      bookingSystem: true,    // ✅ ENHANCED
       featuredArtisans: true,
-      adminPanel: true,
       serviceSearch: true
     }
   });
@@ -143,13 +151,27 @@ app.get('/api/test-db', async (req, res) => {
 app.get('/', (req, res) => {
   res.json({
     message: 'Welcome to BizBridge API',
-    version: '1.0.0',
+    version: '2.0.0',
     status: 'active',
     features: {
       authentication: true,
       services: true,
-      adminPanel: true,
+      userProfiles: true,
+      serviceRequests: true,    // ✅ NEW: Service request system
+      enhancedBookings: true,   // ✅ ENHANCED: Full booking lifecycle
+      messaging: true,          // ✅ NEW: In-app messaging
+      reviews: true,            // ✅ NEW: Dual review system
+      milestones: true,         // ✅ NEW: Project milestones
+      analytics: true,          // ✅ NEW: Booking analytics
       featuredArtisans: true
+    },
+    endpoints: {
+      serviceRequests: '/api/service-requests',
+      bookings: '/api/bookings',
+      auth: '/api/auth',
+      services: '/api/services',
+      profiles: '/api/profiles',
+      users: '/api/users'
     }
   });
 });
@@ -191,13 +213,13 @@ app.listen(PORT, () => {
   console.log(`🚀 Port: ${PORT}`);
   console.log(`🚀 Environment: ${process.env.NODE_ENV}`);
   console.log(`🚀 API URL: http://localhost:${PORT}`);
-  console.log(`🚀 Features: Authentication, Services, Admin Panel, Featured Artisans`);
+  console.log('🚀 ================================');
+  console.log('🔥 NEW FEATURES AVAILABLE:');
+  console.log('   📝 Service Requests System');
+  console.log('   📅 Enhanced Booking Management');
+  console.log('   💬 In-app Messaging');
+  console.log('   ⭐ Dual Review System');
+  console.log('   🎯 Project Milestones');
+  console.log('   📊 Booking Analytics');
   console.log('🚀 ================================\n');
-  
-  if (process.env.NODE_ENV === 'development') {
-    console.log('💡 Development Tips:');
-    console.log('   - Run "node scripts/createAdmin.js" to create admin user');
-    console.log('   - Use admin panel to feature artisans');
-    console.log('   - Featured artisans will appear on homepage\n');
-  }
 });

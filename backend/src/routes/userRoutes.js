@@ -1,72 +1,51 @@
 // backend/src/routes/userRoutes.js
 import express from 'express';
-import User from '../models/user.js';
+import { protect } from '../middleware/authMiddleware.js';
+import { uploadProfileImage } from '../middleware/upload.js';
+import {
+  getUserProfile,
+  getMyProfile,
+  updateMyProfile,
+  uploadProfileImage as uploadImage,
+  getFeaturedArtisans
+} from '../controllers/userController.js';
 
 const router = express.Router();
 
 // @desc    Get featured artisans (public)
 // @route   GET /api/users/featured
 // @access  Public
-router.get('/featured', async (req, res) => {
-  try {
-    const { limit = 4 } = req.query;
-    
-    console.log('🌟 Getting featured artisans for homepage, limit:', limit);
-    
-    // Use the static method from User model
-    const featuredArtisans = await User.getFeaturedArtisans(parseInt(limit));
-    
-    console.log(`🌟 Found ${featuredArtisans.length} featured artisans`);
-    
-    res.json({
-      success: true,
-      count: featuredArtisans.length,
-      artisans: featuredArtisans
-    });
-  } catch (error) {
-    console.error('🌟 Get featured artisans error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to retrieve featured artisans',
-      error: error.message
-    });
-  }
-});
+router.get('/featured', getFeaturedArtisans);
 
-// @desc    Get artisan profile by ID (public)
+// @desc    Get current user's own profile (private view)
+// @route   GET /api/users/me/profile
+// @access  Private
+router.get('/me/profile', protect, getMyProfile);
+
+// @desc    Update current user's profile
+// @route   PUT /api/users/me/profile
+// @access  Private
+router.put('/me/profile', protect, updateMyProfile);
+
+// @desc    Upload profile image
+// @route   POST /api/users/me/profile/image
+// @access  Private
+router.post('/me/profile/image', protect, uploadProfileImage.single('profileImage'), uploadImage);
+
+// @desc    Get any user's profile by ID (public view, but context-aware if authenticated)
 // @route   GET /api/users/:userId
-// @access  Public
-router.get('/:userId', async (req, res) => {
-  try {
-    const user = await User.findById(req.params.userId)
-      .select('-password -adminPermissions')
-      .populate('services');
-
-    if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: 'User not found'
-      });
-    }
-
-    // Increment profile views if it's an artisan
-    if (user.role === 'artisan') {
-      user.profileViews = (user.profileViews || 0) + 1;
-      await user.save();
-    }
-
-    res.json({
-      success: true,
-      user
-    });
-  } catch (error) {
-    console.error('Get user profile error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to retrieve user profile',
-      error: error.message
-    });
+// @access  Public (but adds user context if logged in)
+router.get('/:userId', (req, res, next) => {
+  // Optional authentication middleware - adds user context if token is present
+  const authHeader = req.headers.authorization;
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    // User is authenticated, add context
+    protect(req, res, next);
+  } else {
+    // User is not authenticated, proceed without user context
+    req.user = null;
+    next();
   }
-});
+}, getUserProfile);
 
 export default router;

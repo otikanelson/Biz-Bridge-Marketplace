@@ -1,7 +1,7 @@
 // backend/src/routes/serviceRoutes.js - FIXED VERSION
 import express from 'express';
 import { protect, authorize } from '../middleware/authMiddleware.js';
-import { handleUploadErrors } from '../middleware/uploadMiddleware.js';
+import { handleUploadError } from '../middleware/upload.js'; // ✅ FIXED: Import from correct file
 import {
   createService,
   getServiceById,
@@ -29,9 +29,9 @@ router.use(protect);
 // ✅ SPECIFIC ARTISAN ROUTES - These MUST come BEFORE the /:serviceId route
 router.get('/my-services', authorize('artisan'), getMyServices);
 
-// ✅ ARTISAN-ONLY routes for managing services
-router.post('/', authorize('artisan'), handleUploadErrors, createService);
-router.put('/:serviceId', authorize('artisan'), handleUploadErrors, updateService);
+// ✅ ARTISAN-ONLY routes for managing services with proper upload handling
+router.post('/', authorize('artisan'), handleUploadError, createService);
+router.put('/:serviceId', authorize('artisan'), handleUploadError, updateService);
 router.delete('/:serviceId', authorize('artisan'), deleteService);
 router.patch('/:serviceId/status', authorize('artisan'), toggleServiceStatus);
 

@@ -1,6 +1,6 @@
 // frontend/src/context/AuthContext.jsx
-import React, { createContext, useState, useContext, useEffect } from 'react';
-import { registerCustomer, registerArtisan, loginUser, logoutUser, getCurrentUser } from '../api/auth';
+import React, { createContext, useContext, useState, useEffect } from 'react';
+import { getCurrentUser, loginUser, logoutUser, setAuthToken, registerCustomer, registerArtisan } from '../api/auth';
 
 const AuthContext = createContext();
 
@@ -15,144 +15,166 @@ export const useAuth = () => {
 export const AuthProvider = ({ children }) => {
   const [currentUser, setCurrentUser] = useState(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [userType, setUserType] = useState(null);
   const [loading, setLoading] = useState(true);
   const [authError, setAuthError] = useState(null);
 
-  // Load user on app start
+  // Initialize authentication state
   useEffect(() => {
-    loadUser();
+    initializeAuth();
   }, []);
 
-  const loadUser = async () => {
+  const initializeAuth = async () => {
+    console.log('🔑 Initializing authentication...');
     setLoading(true);
-    setAuthError(null);
     
     try {
       const token = localStorage.getItem('token');
+      
       if (!token) {
-        console.log('No token found, user not authenticated');
+        console.log('🔑 No token found');
+        setIsAuthenticated(false);
+        setCurrentUser(null);
         setLoading(false);
         return;
       }
 
-      console.log('Token found, checking user authentication...');
+      console.log('🔑 Token found, verifying user...');
+      
+      // Set the token for API calls
+      setAuthToken(token);
+      
+      // Get current user data
       const response = await getCurrentUser();
       
       if (response.success && response.user) {
-        console.log('User authenticated successfully:', response.user.role);
+        console.log('🔑 User authenticated:', response.user.username, 'Role:', response.user.role);
         setCurrentUser(response.user);
         setIsAuthenticated(true);
-        setUserType(response.user.role);
         setAuthError(null);
       } else {
-        throw new Error('Invalid response from server');
+        console.log('🔑 Invalid token, clearing auth');
+        handleAuthFailure();
       }
     } catch (error) {
-      console.error('Authentication check failed:', error);
-      setAuthError(error.message || 'Authentication failed');
-      // Clear invalid token
-      localStorage.removeItem('token');
-      setIsAuthenticated(false);
-      setCurrentUser(null);
-      setUserType(null);
+      console.error('🔑 Auth initialization error:', error);
+      handleAuthFailure();
     } finally {
       setLoading(false);
     }
   };
 
-  const registerNewCustomer = async (formData) => {
-    setLoading(true);
-    setAuthError(null);
-    
-    try {
-      console.log('Attempting customer registration...');
-      const response = await registerCustomer(formData);
-      
-      if (response.success && response.user) {
-        console.log('Customer registration successful');
-        setCurrentUser(response.user);
-        setIsAuthenticated(true);
-        setUserType('customer');
-        setAuthError(null);
-        return { success: true };
-      } else {
-        throw new Error(response.message || 'Registration failed');
-      }
-    } catch (error) {
-      console.error('Customer registration failed:', error);
-      setAuthError(error.message || 'Registration failed');
-      return { success: false, error };
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const registerNewArtisan = async (formData) => {
-    setLoading(true);
-    setAuthError(null);
-    
-    try {
-      console.log('Attempting artisan registration...');
-      const response = await registerArtisan(formData);
-      
-      if (response.success && response.user) {
-        console.log('Artisan registration successful');
-        setCurrentUser(response.user);
-        setIsAuthenticated(true);
-        setUserType('artisan');
-        setAuthError(null);
-        return { success: true };
-      } else {
-        throw new Error(response.message || 'Registration failed');
-      }
-    } catch (error) {
-      console.error('Artisan registration failed:', error);
-      setAuthError(error.message || 'Registration failed');
-      return { success: false, error };
-    } finally {
-      setLoading(false);
-    }
+  const handleAuthFailure = () => {
+    localStorage.removeItem('token');
+    setAuthToken(null);
+    setCurrentUser(null);
+    setIsAuthenticated(false);
   };
 
   const login = async (credentials) => {
-    setLoading(true);
+    console.log('🔑 Attempting login for:', credentials.email);
     setAuthError(null);
     
     try {
-      console.log('Attempting login for:', credentials.email);
       const response = await loginUser(credentials);
       
-      if (response.success && response.user) {
-        console.log('Login successful for user:', response.user.role);
+      if (response.success && response.user && response.token) {
+        console.log('🔑 Login successful:', response.user.username);
         setCurrentUser(response.user);
         setIsAuthenticated(true);
-        setUserType(response.user.role);
         setAuthError(null);
-        return { success: true };
+        
+        return { success: true, user: response.user };
       } else {
-        throw new Error(response.message || 'Login failed');
+        const errorMsg = response.message || 'Login failed';
+        setAuthError(errorMsg);
+        return { success: false, message: errorMsg };
       }
     } catch (error) {
-      console.error('Login failed:', error);
-      setAuthError(error.message || 'Login failed');
-      return { success: false, error };
-    } finally {
-      setLoading(false);
+      console.error('🔑 Login error:', error);
+      const errorMsg = error.message || 'Login failed. Please try again.';
+      setAuthError(errorMsg);
+      return { success: false, message: errorMsg };
+    }
+  };
+
+  // ✅ NEW: Register customer function
+  const registerNewCustomer = async (formData) => {
+    console.log('🔑 Registering new customer...');
+    setAuthError(null);
+    
+    try {
+      const response = await registerCustomer(formData);
+      
+      if (response.success && response.user && response.token) {
+        console.log('🔑 Customer registration successful:', response.user.username);
+        setCurrentUser(response.user);
+        setIsAuthenticated(true);
+        setAuthError(null);
+        
+        return { success: true, user: response.user };
+      } else {
+        const errorMsg = response.message || 'Registration failed';
+        setAuthError(errorMsg);
+        return { success: false, message: errorMsg };
+      }
+    } catch (error) {
+      console.error('🔑 Customer registration error:', error);
+      const errorMsg = error.message || 'Registration failed. Please try again.';
+      setAuthError(errorMsg);
+      return { success: false, message: errorMsg };
+    }
+  };
+
+  // ✅ NEW: Register artisan function
+  const registerNewArtisan = async (formData) => {
+    console.log('🔑 Registering new artisan...');
+    setAuthError(null);
+    
+    try {
+      const response = await registerArtisan(formData);
+      
+      if (response.success && response.user && response.token) {
+        console.log('🔑 Artisan registration successful:', response.user.username);
+        setCurrentUser(response.user);
+        setIsAuthenticated(true);
+        setAuthError(null);
+        
+        return { success: true, user: response.user };
+      } else {
+        const errorMsg = response.message || 'Registration failed';
+        setAuthError(errorMsg);
+        return { success: false, message: errorMsg };
+      }
+    } catch (error) {
+      console.error('🔑 Artisan registration error:', error);
+      const errorMsg = error.message || 'Registration failed. Please try again.';
+      setAuthError(errorMsg);
+      return { success: false, message: errorMsg };
     }
   };
 
   const logout = () => {
-    console.log('User logging out...');
-    logoutUser();
+    console.log('🔑 Logging out user');
+    logoutUser(); // This clears the token
     setCurrentUser(null);
     setIsAuthenticated(false);
-    setUserType(null);
     setAuthError(null);
   };
 
-  const clearError = () => {
-    setAuthError(null);
+  // Get user type helper
+  const userType = currentUser?.role || null;
+
+  // Get display name helper
+  const getDisplayName = () => {
+    if (!currentUser) return 'User';
+    
+    if (currentUser.role === 'customer') {
+      return currentUser.fullName || currentUser.username || 'Customer';
+    } else if (currentUser.role === 'artisan') {
+      return currentUser.contactName || currentUser.businessName || currentUser.username || 'Artisan';
+    } else {
+      return currentUser.username || 'User';
+    }
   };
 
   const value = {
@@ -161,13 +183,22 @@ export const AuthProvider = ({ children }) => {
     userType,
     loading,
     authError,
-    registerNewCustomer,
-    registerNewArtisan,
     login,
     logout,
-    clearError,
-    setAuthError
+    registerNewCustomer, // ✅ NEW: Added customer registration
+    registerNewArtisan,  // ✅ NEW: Added artisan registration
+    getDisplayName,
+    // Add a method to refresh user data
+    refreshUser: initializeAuth
   };
+
+  console.log('🔑 AuthContext state:', {
+    isAuthenticated,
+    userType,
+    loading,
+    hasUser: !!currentUser,
+    username: currentUser?.username
+  });
 
   return (
     <AuthContext.Provider value={value}>

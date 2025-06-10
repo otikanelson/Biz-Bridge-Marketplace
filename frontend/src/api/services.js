@@ -98,21 +98,56 @@ export const getServiceById = async (serviceId) => {
 // Example for the createService function
 export const createService = async (serviceData) => {
   try {
+    console.log("📝 Creating service with data:", serviceData);
+    
     // Create FormData for file uploads
     const formData = new FormData();
     
-    // Add text fields with explicit string conversion
-    Object.keys(serviceData).forEach(key => {
-      if (key === 'serviceImage' && serviceData[key]) {
-        formData.append('images', serviceData[key]);
-      } else if (key === 'locations' || key === 'tags') {
-        if (serviceData[key] && serviceData[key].length) {
-          formData.append(key, JSON.stringify(serviceData[key]));
-        }
-      } else if (serviceData[key] !== undefined && serviceData[key] !== null) {
-        formData.append(key, String(serviceData[key]));
+    // ✅ FIXED: Add text fields with explicit string conversion
+    const textFields = ['title', 'description', 'category', 'price', 'duration'];
+    
+    textFields.forEach(field => {
+      if (serviceData[field] !== undefined && serviceData[field] !== null) {
+        formData.append(field, String(serviceData[field]));
       }
     });
+    
+    // Add isActive status (explicitly as string)
+    formData.append('isActive', String(serviceData.isActive === true));
+    
+    // Add locations as JSON string
+    if (serviceData.locations && serviceData.locations.length > 0) {
+      formData.append('locations', JSON.stringify(serviceData.locations));
+    }
+    
+    // Add tags if available (as JSON array)
+    if (serviceData.tags && serviceData.tags.length > 0) {
+      formData.append('tags', JSON.stringify(serviceData.tags));
+    }
+    
+    // ✅ FIXED: Handle service image properly
+    if (serviceData.serviceImage && serviceData.serviceImage instanceof File) {
+      console.log("📸 Adding service image:", serviceData.serviceImage.name);
+      formData.append('images', serviceData.serviceImage);
+    }
+    
+    // ✅ FIXED: Handle multiple images if available
+    if (serviceData.images && Array.isArray(serviceData.images)) {
+      serviceData.images.forEach((image, index) => {
+        if (image instanceof File) {
+          console.log(`📸 Adding image ${index + 1}:`, image.name);
+          formData.append('images', image);
+        }
+      });
+    }
+    
+    // Log FormData entries for debugging
+    console.log("📝 FormData contents:");
+    for (let pair of formData.entries()) {
+      console.log(pair[0] + ': ' + (pair[1] instanceof File ? 
+        `File(${pair[1].name}, ${pair[1].size} bytes)` : 
+        pair[1]));
+    }
     
     const response = await axios.post(`${API_URL}/services`, formData, {
       headers: {
@@ -121,9 +156,10 @@ export const createService = async (serviceData) => {
       }
     });
     
+    console.log("✅ Service created successfully:", response.data);
     return response.data;
   } catch (error) {
-    console.error("Service creation error:", error.response || error);
+    console.error("❌ Service creation error:", error.response || error);
     throw error.response?.data || { message: 'Failed to create service' };
   }
-}
+};

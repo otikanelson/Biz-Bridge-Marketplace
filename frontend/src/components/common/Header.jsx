@@ -2,7 +2,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import NotificationSystem from '../notifications/NotificationSystem';
 
 const Header = () => {
   const navigate = useNavigate();

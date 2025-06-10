@@ -1,14 +1,23 @@
-// controllers/serviceController.js - FIXED VERSION with proper search
+// backend/src/controllers/serviceController.js - COMPLETE FIXED VERSION
 import Service from '../models/service.js';
 import User from '../models/user.js';
+import { getFileUrl } from '../middleware/upload.js';
 
 // @desc    Create a new service
 // @route   POST /api/services
 // @access  Private - Artisans only
 export const createService = async (req, res) => {
   try {
-    console.log("Service creation request body:", req.body);
-    console.log("Service creation request files:", req.files);
+    console.log("📝 Service creation request:", {
+      body: req.body,
+      filesCount: req.files ? req.files.length : 0,
+      files: req.files ? req.files.map(f => ({ 
+        originalname: f.originalname, 
+        filename: f.filename,
+        path: f.path,
+        size: f.size 
+      })) : []
+    });
     
     const {
       title, description, category, price, duration, locations, tags, isActive
@@ -64,12 +73,30 @@ export const createService = async (req, res) => {
       isActive: isActive === 'true' || isActive === true
     });
 
-    // Add image URLs if available
+    // ✅ FIXED: Handle image uploads properly
     if (req.files && req.files.length > 0) {
-      service.images = req.files.map(file => file.path);
+      console.log('📸 Processing uploaded images...');
+      
+      // Convert file paths to proper URLs for storage
+      const imageUrls = req.files.map(file => {
+        const fileUrl = getFileUrl(file.path);
+        console.log('📸 Image processed:', {
+          originalPath: file.path,
+          convertedUrl: fileUrl,
+          filename: file.filename
+        });
+        return fileUrl;
+      });
+      
+      service.images = imageUrls;
+      console.log('📸 Final service images:', service.images);
+    } else {
+      console.log('📸 No images uploaded');
+      service.images = [];
     }
 
     await service.save();
+    console.log('✅ Service saved with ID:', service._id);
 
     // Update artisan's services array
     await User.findByIdAndUpdate(
@@ -83,7 +110,7 @@ export const createService = async (req, res) => {
       service
     });
   } catch (error) {
-    console.error('Create service error:', error);
+    console.error('❌ Create service error:', error);
     res.status(500).json({
       success: false,
       message: 'Failed to create service',
@@ -116,6 +143,161 @@ export const getServiceById = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to retrieve service',
+      error: error.message
+    });
+  }
+};
+
+// @desc    Update service
+// @route   PUT /api/services/:serviceId
+// @access  Private - Artisan owner only
+export const updateService = async (req, res) => {
+  try {
+    console.log("📝 Service update request:", {
+      serviceId: req.params.serviceId,
+      body: req.body,
+      filesCount: req.files ? req.files.length : 0
+    });
+
+    const service = await Service.findById(req.params.serviceId);
+
+    if (!service) {
+      return res.status(404).json({
+        success: false,
+        message: 'Service not found'
+      });
+    }
+
+    // Check ownership
+    if (service.artisan.toString() !== req.user._id.toString()) {
+      return res.status(403).json({
+        success: false,
+        message: 'Not authorized to update this service'
+      });
+    }
+
+    const {
+      title, description, category, price, duration, locations, tags, isActive, removeImages
+    } = req.body;
+
+    // Update basic fields
+    if (title) service.title = title;
+    if (description) service.description = description;
+    if (category) service.category = category;
+    if (price) service.price = price;
+    if (duration) service.duration = duration;
+
+    // Update locations
+    if (locations) {
+      try {
+        service.locations = typeof locations === 'string' ? JSON.parse(locations) : locations;
+      } catch (error) {
+        console.error('Error parsing locations during update:', error);
+      }
+    }
+    
+    // Update active status
+    if (isActive !== undefined) {
+      service.isActive = isActive === 'true' || isActive === true;
+    }
+    
+    // Update tags safely
+    if (tags) {
+      if (typeof tags === 'string') {
+        try {
+          service.tags = JSON.parse(tags);
+        } catch (e) {
+          service.tags = tags.split(',').map(tag => tag.trim());
+        }
+      } else if (Array.isArray(tags)) {
+        service.tags = tags;
+      }
+    }
+
+    // ✅ FIXED: Handle image removal
+    if (removeImages && removeImages.length > 0) {
+      const imagesToRemove = typeof removeImages === 'string' ? JSON.parse(removeImages) : removeImages;
+      service.images = service.images.filter(img => !imagesToRemove.includes(img));
+      console.log('🗑️ Removed images:', imagesToRemove);
+    }
+
+    // ✅ FIXED: Handle new image uploads
+    if (req.files && req.files.length > 0) {
+      console.log('📸 Processing new uploaded images...');
+      
+      const newImageUrls = req.files.map(file => {
+        const fileUrl = getFileUrl(file.path);
+        console.log('📸 New image processed:', {
+          originalPath: file.path,
+          convertedUrl: fileUrl,
+          filename: file.filename
+        });
+        return fileUrl;
+      });
+      
+      // Add new images to existing ones
+      service.images = [...(service.images || []), ...newImageUrls];
+      console.log('📸 Updated service images:', service.images);
+    }
+
+    await service.save();
+    console.log('✅ Service updated successfully');
+
+    res.status(200).json({
+      success: true,
+      message: 'Service updated successfully',
+      service
+    });
+  } catch (error) {
+    console.error('❌ Update service error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to update service',
+      error: error.message
+    });
+  }
+};
+
+// @desc    Delete service
+// @route   DELETE /api/services/:serviceId
+// @access  Private - Artisan owner only
+export const deleteService = async (req, res) => {
+  try {
+    const service = await Service.findById(req.params.serviceId);
+
+    if (!service) {
+      return res.status(404).json({
+        success: false,
+        message: 'Service not found'
+      });
+    }
+
+    // Check ownership
+    if (service.artisan.toString() !== req.user._id.toString()) {
+      return res.status(403).json({
+        success: false,
+        message: 'Not authorized to delete this service'
+      });
+    }
+
+    // Remove service from artisan's services array
+    await User.findByIdAndUpdate(
+      req.user._id,
+      { $pull: { services: service._id } }
+    );
+
+    // Delete the service
+    await Service.findByIdAndDelete(req.params.serviceId);
+
+    res.status(200).json({
+      success: true,
+      message: 'Service deleted successfully'
+    });
+  } catch (error) {
+    console.error('Delete service error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to delete service',
       error: error.message
     });
   }
@@ -198,15 +380,21 @@ export const getAllServices = async (req, res) => {
       .skip(skip)
       .limit(limitNum);
 
-    console.log(`📋 Found ${services.length} services out of ${total} total`);
+    // Calculate pagination info
+    const totalPages = Math.ceil(total / limitNum);
+
+    console.log(`📋 Retrieved ${services.length} services (page ${pageNum}/${totalPages})`);
 
     res.status(200).json({
       success: true,
-      count: services.length,
-      total,
-      totalPages: Math.ceil(total / limitNum),
-      currentPage: pageNum,
-      services
+      services,
+      pagination: {
+        currentPage: pageNum,
+        totalPages,
+        totalResults: total,
+        hasNextPage: pageNum < totalPages,
+        hasPrevPage: pageNum > 1
+      }
     });
   } catch (error) {
     console.error('Get all services error:', error);
@@ -218,386 +406,65 @@ export const getAllServices = async (req, res) => {
   }
 };
 
-// @desc    Search services for customers (dedicated search endpoint)
-// @route   GET /api/services/search
+// @desc    Get services by artisan ID
+// @route   GET /api/services/artisan/:artisanId
 // @access  Public
-export const searchServicesForCustomers = async (req, res) => {
+export const getArtisanServices = async (req, res) => {
   try {
-    const { 
-      category, 
-      location, 
-      search,
-      page = 1,
-      limit = 12,
-      sort = 'newest'
-    } = req.query;
+    const { artisanId } = req.params;
+    const { active = 'true' } = req.query;
 
-    console.log('🔍 Customer search params:', { category, location, search, page, limit, sort });
+    console.log('👤 Getting services for artisan:', artisanId, 'Active only:', active);
 
-    // Build query for active services only
-    const query = { isActive: true };
-
-    // Apply category filter
-    if (category && category !== '') {
-      query.category = { $regex: new RegExp(category, 'i') };
+    // Build query
+    const query = { artisan: artisanId };
+    if (active === 'true') {
+      query.isActive = true;
     }
 
-    // Apply location filter
-    if (location && location !== '') {
-      query.$or = [
-        { 'locations.name': { $regex: new RegExp(location, 'i') } },
-        { 'locations.lga': { $regex: new RegExp(location, 'i') } }
-      ];
-    }
-
-    // Apply text search filter
-    if (search && search !== '') {
-      // Use $or to search across multiple fields
-      const searchRegex = { $regex: new RegExp(search, 'i') };
-      query.$and = query.$and || [];
-      query.$and.push({
-        $or: [
-          { title: searchRegex },
-          { description: searchRegex },
-          { tags: searchRegex },
-          { category: searchRegex }
-        ]
-      });
-    }
-
-    console.log('🔍 Search query:', JSON.stringify(query, null, 2));
-
-    // Determine sort order
-    let sortOption = {};
-    switch (sort) {
-      case 'oldest':
-        sortOption = { createdAt: 1 };
-        break;
-      case 'title':
-        sortOption = { title: 1 };
-        break;
-      case 'popular':
-        sortOption = { 'ratings.average': -1, createdAt: -1 };
-        break;
-      case 'newest':
-      default:
-        sortOption = { createdAt: -1 };
-    }
-
-    // Convert page and limit to numbers
-    const pageNum = Math.max(1, parseInt(page));
-    const limitNum = Math.min(50, Math.max(1, parseInt(limit)));
-    const skip = (pageNum - 1) * limitNum;
-
-    // Count total documents for pagination
-    const total = await Service.countDocuments(query);
-
-    // Fetch services with pagination and populate artisan info
     const services = await Service.find(query)
-      .populate('artisan', 'contactName businessName profileImage phoneNumber localGovernmentArea city')
-      .sort(sortOption)
-      .skip(skip)
-      .limit(limitNum);
+      .populate('artisan', 'contactName businessName profileImage')
+      .sort({ createdAt: -1 });
 
-    console.log(`🔍 Search found ${services.length} services out of ${total} total`);
+    console.log(`👤 Found ${services.length} services for artisan ${artisanId}`);
 
     res.status(200).json({
       success: true,
-      count: services.length,
-      total,
-      totalPages: Math.ceil(total / limitNum),
-      currentPage: pageNum,
       services,
-      searchParams: { category, location, search } // Include search params for debugging
+      count: services.length
     });
   } catch (error) {
-    console.error('🔍 Customer search error:', error);
+    console.error('Get artisan services error:', error);
     res.status(500).json({
       success: false,
-      message: 'Failed to search services',
+      message: 'Failed to retrieve artisan services',
       error: error.message
     });
   }
 };
 
-// @desc    Get featured services (from featured artisans)
-// @route   GET /api/services/featured
-// @access  Public
-export const getFeaturedServices = async (req, res) => {
-  try {
-    const { limit = 6 } = req.query;
-    
-    console.log('⭐ Getting featured services, limit:', limit);
-    
-    // Get featured artisans first
-    const featuredArtisans = await User.find({
-      role: 'artisan',
-      isFeatured: true,
-      isActive: true,
-      $or: [
-        { featuredUntil: null },
-        { featuredUntil: { $gt: new Date() } }
-      ]
-    })
-    .sort({ featuredOrder: 1, createdAt: -1 })
-    .limit(parseInt(limit))
-    .select('_id');
-
-    if (featuredArtisans.length === 0) {
-      // Fallback to regular services if no featured artisans
-      const services = await Service.find({ isActive: true })
-        .populate('artisan', 'contactName businessName profileImage')
-        .sort({ 'ratings.average': -1, createdAt: -1 })
-        .limit(parseInt(limit));
-
-      return res.status(200).json({
-        success: true,
-        count: services.length,
-        services,
-        source: 'fallback'
-      });
-    }
-
-    // Get one service from each featured artisan
-    const featuredArtisanIds = featuredArtisans.map(artisan => artisan._id);
-    
-    const services = await Service.aggregate([
-      // Match active services from featured artisans
-      { $match: { 
-        isActive: true, 
-        artisan: { $in: featuredArtisanIds } 
-      }},
-      // Group by artisan and get the best service from each
-      { $group: {
-        _id: '$artisan',
-        service: { $first: '$ROOT' }
-      }},
-      // Replace root with the service
-      { $replaceRoot: { newRoot: '$service' } },
-      // Limit results
-      { $limit: parseInt(limit) },
-      // Lookup artisan details
-      { $lookup: {
-        from: 'users',
-        localField: 'artisan',
-        foreignField: '_id',
-        as: 'artisan'
-      }},
-      { $unwind: '$artisan' },
-      // Project only needed artisan fields
-      { $addFields: {
-        'artisan.contactName': '$artisan.contactName',
-        'artisan.businessName': '$artisan.businessName',
-        'artisan.profileImage': '$artisan.profileImage',
-        'artisan._id': '$artisan._id'
-      }}
-    ]);
-
-    console.log(`⭐ Found ${services.length} featured services from featured artisans`);
-
-    res.status(200).json({
-      success: true,
-      count: services.length,
-      services,
-      source: 'featured_artisans'
-    });
-  } catch (error) {
-    console.error('⭐ Get featured services error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to retrieve featured services',
-      error: error.message
-    });
-  }
-};
-
-// @desc    Get services for authenticated artisan
+// @desc    Get current user's services
 // @route   GET /api/services/my-services
 // @access  Private - Artisans only
 export const getMyServices = async (req, res) => {
   try {
-    console.log("Getting services for user:", req.user._id);
-    
+    console.log('🔧 Getting services for current user:', req.user._id);
+
     const services = await Service.find({ artisan: req.user._id })
       .sort({ createdAt: -1 });
-    
-    console.log(`Found ${services.length} services for artisan`);
-    
+
+    console.log(`🔧 Found ${services.length} services for user`);
+
     res.status(200).json({
       success: true,
-      count: services.length,
-      services
+      services,
+      count: services.length
     });
   } catch (error) {
     console.error('Get my services error:', error);
     res.status(500).json({
       success: false,
       message: 'Failed to retrieve your services',
-      error: error.message
-    });
-  }
-};
-
-// @desc    Get all services by an artisan
-// @route   GET /api/services/artisan/:artisanId
-// @access  Public
-export const getArtisanServices = async (req, res) => {
-  try {
-    const { active } = req.query;
-    
-    // Build query
-    const query = { artisan: req.params.artisanId };
-    
-    // Filter by active status if specified
-    if (active !== undefined) {
-      query.isActive = active === 'true' || active === true;
-    } else {
-      // Default to active services only for public access
-      query.isActive = true;
-    }
-    
-    const services = await Service.find(query)
-      .sort({ createdAt: -1 });
-
-    res.status(200).json({
-      success: true,
-      count: services.length,
-      services
-    });
-  } catch (error) {
-    console.error('Get artisan services error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to retrieve services',
-      error: error.message
-    });
-  }
-};
-
-// @desc    Update service
-// @route   PUT /api/services/:serviceId
-// @access  Private - Artisan owner only
-export const updateService = async (req, res) => {
-  try {
-    const service = await Service.findById(req.params.serviceId);
-
-    if (!service) {
-      return res.status(404).json({
-        success: false,
-        message: 'Service not found'
-      });
-    }
-
-    // Check ownership
-    if (service.artisan.toString() !== req.user._id.toString()) {
-      return res.status(403).json({
-        success: false,
-        message: 'Not authorized to update this service'
-      });
-    }
-
-    // Update service fields
-    const {
-      title, description, category, price, duration, locations, isActive, tags
-    } = req.body;
-
-    // Update all provided fields
-    if (title) service.title = title;
-    if (description) service.description = description;
-    if (category) service.category = category;
-    if (price) service.price = price;
-    if (duration) service.duration = duration;
-    
-    // Parse locations safely
-    if (locations) {
-      try {
-        service.locations = typeof locations === 'string' ? JSON.parse(locations) : locations;
-      } catch (error) {
-        console.error('Error parsing locations during update:', error);
-      }
-    }
-    
-    // Update active status
-    if (isActive !== undefined) {
-      service.isActive = isActive === 'true' || isActive === true;
-    }
-    
-    // Update tags safely
-    if (tags) {
-      if (typeof tags === 'string') {
-        try {
-          service.tags = JSON.parse(tags);
-        } catch (e) {
-          service.tags = tags.split(',').map(tag => tag.trim());
-        }
-      } else if (Array.isArray(tags)) {
-        service.tags = tags;
-      }
-    }
-
-    // Handle new images if provided
-    if (req.files && req.files.length > 0) {
-      const newImages = req.files.map(file => file.path);
-      service.images = [...service.images, ...newImages];
-    }
-
-    await service.save();
-
-    res.status(200).json({
-      success: true,
-      message: 'Service updated successfully',
-      service
-    });
-  } catch (error) {
-    console.error('Update service error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to update service',
-      error: error.message
-    });
-  }
-};
-
-// @desc    Delete service
-// @route   DELETE /api/services/:serviceId
-// @access  Private - Artisan owner only
-export const deleteService = async (req, res) => {
-  try {
-    const service = await Service.findById(req.params.serviceId);
-
-    if (!service) {
-      return res.status(404).json({
-        success: false,
-        message: 'Service not found'
-      });
-    }
-
-    // Check ownership
-    if (service.artisan.toString() !== req.user._id.toString()) {
-      return res.status(403).json({
-        success: false,
-        message: 'Not authorized to delete this service'
-      });
-    }
-
-    // Remove service from artisan's services array
-    await User.findByIdAndUpdate(
-      req.user._id,
-      { $pull: { services: service._id } }
-    );
-
-    // Delete the service
-    await Service.findByIdAndDelete(req.params.serviceId);
-
-    res.status(200).json({
-      success: true,
-      message: 'Service deleted successfully'
-    });
-  } catch (error) {
-    console.error('Delete service error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to delete service',
       error: error.message
     });
   }
@@ -625,20 +492,141 @@ export const toggleServiceStatus = async (req, res) => {
       });
     }
 
-    // Toggle the isActive status
+    // Toggle status
     service.isActive = !service.isActive;
     await service.save();
+
+    console.log(`🔄 Service ${service._id} status toggled to: ${service.isActive}`);
 
     res.status(200).json({
       success: true,
       message: `Service ${service.isActive ? 'activated' : 'deactivated'} successfully`,
-      isActive: service.isActive
+      service
     });
   } catch (error) {
     console.error('Toggle service status error:', error);
     res.status(500).json({
       success: false,
       message: 'Failed to update service status',
+      error: error.message
+    });
+  }
+};
+
+export const getFeaturedServices = async (req, res) => {
+  try {
+    const { limit = 6 } = req.query;
+    const limitNum = Math.min(20, Math.max(1, parseInt(limit)));
+
+    const services = await Service.find({ 
+      isActive: true 
+    })
+      .populate('artisan', 'contactName businessName profileImage')
+      .sort({ createdAt: -1 })
+      .limit(limitNum);
+
+    res.status(200).json({
+      success: true,
+      services,
+      count: services.length
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Failed to retrieve featured services',
+      error: error.message
+    });
+  }
+};
+
+// @desc    Search services for customers
+// @route   GET /api/services/search
+// @access  Public
+export const searchServicesForCustomers = async (req, res) => {
+  try {
+    const { 
+      q: query, 
+      category, 
+      location,
+      page = 1,
+      limit = 12,
+      sort = 'newest'
+    } = req.query;
+
+    console.log('🔍 Customer service search:', { query, category, location, page, limit, sort });
+
+    // Build search query - only active services
+    const searchQuery = { isActive: true };
+    const orConditions = [];
+
+    // Text search across multiple fields
+    if (query && query.trim() !== '') {
+      const searchRegex = new RegExp(query.trim(), 'i');
+      orConditions.push(
+        { title: searchRegex },
+        { description: searchRegex },
+        { tags: searchRegex },
+        { category: searchRegex }
+      );
+    }
+
+    // Category filter
+    if (category && category !== '') {
+      searchQuery.category = { $regex: new RegExp(category, 'i') };
+    }
+
+    // Location filter
+    if (location && location !== '') {
+      orConditions.push(
+        { 'locations.name': { $regex: new RegExp(location, 'i') } },
+        { 'locations.lga': { $regex: new RegExp(location, 'i') } }
+      );
+    }
+
+    // Add OR conditions to main query
+    if (orConditions.length > 0) {
+      searchQuery.$or = orConditions;
+    }
+
+    // Sort options
+    let sortOption = { createdAt: -1 }; // Default: newest first
+    if (sort === 'oldest') sortOption = { createdAt: 1 };
+    if (sort === 'title') sortOption = { title: 1 };
+
+    // Pagination
+    const pageNum = Math.max(1, parseInt(page));
+    const limitNum = Math.min(50, Math.max(1, parseInt(limit)));
+    const skip = (pageNum - 1) * limitNum;
+
+    // Execute search
+    const total = await Service.countDocuments(searchQuery);
+    const services = await Service.find(searchQuery)
+      .populate('artisan', 'contactName businessName profileImage')
+      .sort(sortOption)
+      .skip(skip)
+      .limit(limitNum);
+
+    const totalPages = Math.ceil(total / limitNum);
+
+    console.log(`🔍 Search returned ${services.length} services (${total} total)`);
+
+    res.status(200).json({
+      success: true,
+      services,
+      pagination: {
+        currentPage: pageNum,
+        totalPages,
+        totalResults: total,
+        hasNextPage: pageNum < totalPages,
+        hasPrevPage: pageNum > 1
+      },
+      searchQuery: { query, category, location }
+    });
+  } catch (error) {
+    console.error('Search services error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to search services',
       error: error.message
     });
   }

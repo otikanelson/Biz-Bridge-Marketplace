@@ -1,779 +1,920 @@
+// src/components/pages/Dashboard.jsx - Updated with real API calls
 import React, { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
-import SearchFilters from "../layout/SearchFIlters";
-import { getFeaturedArtisans } from "../../api/admin";
 
 const Dashboard = () => {
   const { currentUser, userType, logout } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
 
-  // States for customer dashboard
+  // Search states (for customers only)
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('');
+  const [selectedLocation, setSelectedLocation] = useState('');
+
+  // Dashboard data states
   const [savedArtisans, setSavedArtisans] = useState([]);
   const [bookingHistory, setBookingHistory] = useState([]);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [searchLocation, setSearchLocation] = useState("");
   const [featuredArtisans, setFeaturedArtisans] = useState([]);
-
-  // States for artisan dashboard
   const [serviceRequests, setServiceRequests] = useState([]);
   const [services, setServices] = useState([]);
+  const [dashboardStats, setDashboardStats] = useState({});
 
-  // Mock data for customer dashboard
-  const mockSavedArtisans = [
-    {
-      id: 1,
-      name: "John Woodworks",
-      category: "Woodworking",
-      location: "Lagos",
-      rating: 4.8,
-      imageUrl: "",
-    },
-    {
-      id: 2,
-      name: "Sarah Ceramics",
-      category: "Pottery",
-      location: "Abuja",
-      rating: 4.5,
-      imageUrl: "",
-    },
+  // Loading and error states
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  // Success message from navigation state
+  const [successMessage, setSuccessMessage] = useState('');
+
+  // Job categories for search
+  const categories = [
+    'Woodworking', 'Pottery & Ceramics', 'Jewelry Making', 'Textile Art', 
+    'Leathercraft', 'Metalwork', 'Basket Weaving', 'Beadwork',
+    'Calabash Decoration', 'Glass Blowing', 'Leather Shoes', 'Embroidery',
+    'Soap Making', 'Candle Making', 'Hair Braiding & Styling'
   ];
 
-  const mockBookingHistory = [
-    {
-      id: 101,
-      artisanName: "Jane Textiles",
-      serviceName: "Custom Fabric Weaving",
-      date: "2025-02-15",
-      status: "Completed",
-      price: "₦25,000",
-    },
-    {
-      id: 102,
-      artisanName: "Michael Arts",
-      serviceName: "Portrait Painting",
-      date: "2025-03-02",
-      status: "Scheduled",
-      price: "₦40,000",
-    },
-    {
-      id: 103,
-      artisanName: "John Woodworks",
-      serviceName: "Custom Coffee Table",
-      date: "2025-01-20",
-      status: "In Progress",
-      price: "₦65,000",
-    },
+  // Lagos LGAs for search
+  const locations = [
+    'Agege', 'Ajeromi-Ifelodun', 'Alimosho', 'Amuwo-Odofin', 'Badagry',
+    'Epe', 'Eti-Osa', 'Ibeju-Lekki', 'Ifako-Ijaiye', 'Ikeja',
+    'Ikorodu', 'Kosofe', 'Lagos Island', 'Lagos Mainland', 'Mushin',
+    'Ojo', 'Oshodi-Isolo', 'Shomolu', 'Surulere', 'Yaba'
   ];
 
-  const mockFeaturedArtisans = [
-    {
-      id: 201,
-      name: "Emma Jewelry",
-      businessName: "Elegant Gems",
-      category: "Jewelry Making",
-      description: "Specializing in handcrafted silver and gold jewelry",
-      location: "Lagos",
-      rating: 4.9,
-      imageUrl: "../../assets/mosaic.jpg",
-      price: "From ₦15,000",
-    },
-    {
-      id: 202,
-      name: "David Leatherworks",
-      businessName: "Precision Leather",
-      category: "Leathercraft",
-      description:
-        "Creating premium leather products including bags, wallets, and custom items.",
-      location: "Port Harcourt",
-      rating: 4.7,
-      imageUrl: "",
-      price: "From ₦8,000",
-    },
-    {
-      id: 203,
-      name: "Aisha Textiles",
-      businessName: "Heritage Fabrics",
-      category: "Textile Art",
-      description:
-        "Traditional and contemporary textile designs, specializing in adire and aso-oke.",
-      location: "Ibadan",
-      rating: 4.8,
-      imageUrl: "",
-      price: "From ₦12,000",
-    },
-  ];
-
-  // Mock data for artisan dashboard
-  const mockServiceRequests = [
-    {
-      id: 301,
-      customerName: "James Anderson",
-      serviceName: "Custom Dining Table",
-      requestDate: "2025-03-01",
-      proposedDate: "2025-03-20",
-      budget: "₦120,000",
-      status: "Pending",
-      message:
-        "Looking for a handcrafted wooden dining table for 6 people. Would like to discuss wood options.",
-    },
-    {
-      id: 302,
-      customerName: "Linda Wright",
-      serviceName: "Decorative Wall Shelf",
-      requestDate: "2025-03-02",
-      proposedDate: "2025-03-15",
-      budget: "₦45,000",
-      status: "Accepted",
-      message:
-        "Need a decorative floating shelf for my living room, approximately 1.5m in length.",
-    },
-    {
-      id: 303,
-      customerName: "Robert Johnson",
-      serviceName: "Office Desk",
-      requestDate: "2025-02-28",
-      proposedDate: "2025-03-25",
-      budget: "₦85,000",
-      status: "Pending",
-      message:
-        "Looking for a custom desk with specific measurements to fit my home office space.",
-    },
-  ];
-
-  const mockServices = [
-    {
-      id: 401,
-      title: "Custom Furniture Making",
-      category: "Woodworking",
-      bookings: 12,
-      isActive: true,
-    },
-    {
-      id: 402,
-      title: "Wood Carving",
-      category: "Woodworking",
-      bookings: 8,
-      isActive: true,
-    },
-    {
-      id: 403,
-      title: "Furniture Restoration",
-      category: "Woodworking",
-      bookings: 5,
-      isActive: false,
-    },
-  ];
-
-  // ✅ Load featured artisans on component mount
+  // Check for success message from navigation
   useEffect(() => {
-    const loadFeaturedArtisans = async () => {
+    if (location.state?.message) {
+      setSuccessMessage(location.state.message);
+      // Clear the message after showing it
+      setTimeout(() => setSuccessMessage(''), 5000);
+      // Clear the state to prevent showing again on refresh
+      navigate(location.pathname, { replace: true });
+    }
+  }, [location.state, navigate, location.pathname]);
+
+  // Load dashboard data on component mount
+  useEffect(() => {
+    loadDashboardData();
+  }, [userType]);
+
+  // API call functions
+  const loadDashboardData = async () => {
+    setIsLoading(true);
+    setError(null);
+    
+    try {
+      if (userType === 'customer') {
+        await loadCustomerData();
+      } else if (userType === 'artisan') {
+        await loadArtisanData();
+      }
+    } catch (error) {
+      console.error('Error loading dashboard data:', error);
+      setError('Failed to load dashboard data. Please refresh the page.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Load customer-specific data
+  const loadCustomerData = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const headers = {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      };
+
+      // Load customer bookings
+      const bookingsResponse = await fetch('http://localhost:5000/api/bookings/my-bookings?limit=5', {
+        headers
+      });
+      
+      if (bookingsResponse.ok) {
+        const bookingsData = await bookingsResponse.json();
+        setBookingHistory(bookingsData.bookings || []);
+      }
+
+      // Load customer service requests
+      const requestsResponse = await fetch('http://localhost:5000/api/service-requests/my-requests?limit=5', {
+        headers
+      });
+      
+      if (requestsResponse.ok) {
+        const requestsData = await requestsResponse.json();
+        setServiceRequests(requestsData.requests || []);
+      }
+
+      // Load featured artisans for discovery
       try {
-        console.log('📊 Dashboard: Loading featured artisans...');
-        const response = await getFeaturedArtisans(3); // Get 3 featured artisans for dashboard
-        
-        if (response.success && response.artisans && response.artisans.length > 0) {
-          console.log('📊 Dashboard: Featured artisans loaded:', response.artisans.length);
-          setFeaturedArtisans(response.artisans);
-        } else {
-          console.log('📊 Dashboard: No featured artisans found, using mock data');
-          // Use mock data as fallback
-          setFeaturedArtisans(mockFeaturedArtisans);
+        const featuredResponse = await getFeaturedArtisans(6);
+        if (featuredResponse.success && featuredResponse.artisans) {
+          setFeaturedArtisans(featuredResponse.artisans);
         }
       } catch (error) {
-        console.error('📊 Dashboard: Error loading featured artisans:', error);
-        // Use mock data on error
-        setFeaturedArtisans(mockFeaturedArtisans);
+        console.error('Error loading featured artisans:', error);
       }
-    };
 
-    // Only load featured artisans for customer dashboard
-    if (userType === 'customer') {
-      loadFeaturedArtisans();
+      // TODO: Load saved artisans from user preferences
+      setSavedArtisans([]); // Placeholder for now
+
+    } catch (error) {
+      console.error('Error loading customer data:', error);
+      throw error;
     }
-  }, [userType]); // ✅ Add userType as dependency
+  };
 
-  // Load mock data
-  useEffect(() => {
-    setSavedArtisans(mockSavedArtisans);
-    setBookingHistory(mockBookingHistory);
-    setServiceRequests(mockServiceRequests);
-    setServices(mockServices);
-  }, []);
+  // Load artisan-specific data
+  const loadArtisanData = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const headers = {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      };
+
+      // Load artisan's bookings (work)
+      const bookingsResponse = await fetch('http://localhost:5000/api/bookings/my-work?limit=5', {
+        headers
+      });
+      
+      if (bookingsResponse.ok) {
+        const bookingsData = await bookingsResponse.json();
+        setBookingHistory(bookingsData.bookings || []);
+      }
+
+      // Load incoming service requests
+      const requestsResponse = await fetch('http://localhost:5000/api/service-requests/inbox?limit=5', {
+        headers
+      });
+      
+      if (requestsResponse.ok) {
+        const requestsData = await requestsResponse.json();
+        setServiceRequests(requestsData.requests || []);
+      }
+
+      // Load artisan's services
+      const servicesResponse = await fetch('http://localhost:5000/api/services/my-services', {
+        headers
+      });
+      
+      if (servicesResponse.ok) {
+        const servicesData = await servicesResponse.json();
+        setServices(servicesData.services || []);
+      }
+
+      // Load booking analytics
+      const analyticsResponse = await fetch('http://localhost:5000/api/bookings/analytics', {
+        headers
+      });
+      
+      if (analyticsResponse.ok) {
+        const analyticsData = await analyticsResponse.json();
+        setDashboardStats(analyticsData.analytics || {});
+      }
+
+    } catch (error) {
+      console.error('Error loading artisan data:', error);
+      throw error;
+    }
+  };
+
+  // Search handler (customers only)
+  const handleSearch = () => {
+    const searchParams = new URLSearchParams();
+    
+    if (searchQuery && searchQuery.trim()) {
+      searchParams.set('search', searchQuery.trim());
+    }
+    if (selectedCategory && selectedCategory !== '') {
+      searchParams.set('category', selectedCategory);
+    }
+    if (selectedLocation && selectedLocation !== '') {
+      searchParams.set('location', selectedLocation);
+    }
+    
+    const queryString = searchParams.toString();
+    navigate(queryString ? `/services?${queryString}` : '/services');
+  };
+
+  const handleKeyPress = (e) => {
+    if (e.key === 'Enter') {
+      handleSearch();
+    }
+  };
 
   const handleLogout = () => {
     logout();
-    navigate("/");
+    navigate('/');
   };
 
-  const handleSearch = (filters) => {
-    // ✅ Fixed search navigation
-    navigate(`/services?job=${filters.jobCategory}&location=${filters.location}`);
-  };
-
-  // ✅ Add missing function for artisan click
-  const handleArtisanClick = (artisan) => {
-    // Navigate to artisan profile if it's real data (has _id)
-    if (artisan._id && !artisan._id.toString().startsWith('mock')) {
-      navigate(`/artisan/${artisan._id}`);
-    } else if (artisan.id) {
-      // For mock data, navigate to mock profile
-      navigate(`/artisan/${artisan.id}`);
+  // Helper function to get status badge color
+  const getStatusBadgeColor = (status) => {
+    switch (status?.toLowerCase()) {
+      case 'pending': return 'bg-yellow-100 text-yellow-800';
+      case 'viewed': return 'bg-blue-100 text-blue-800';
+      case 'negotiating': return 'bg-purple-100 text-purple-800';
+      case 'quoted': return 'bg-indigo-100 text-indigo-800';
+      case 'accepted': return 'bg-green-100 text-green-800';
+      case 'confirmed': return 'bg-green-100 text-green-800';
+      case 'in_progress': return 'bg-blue-100 text-blue-800';
+      case 'completed': return 'bg-gray-100 text-gray-800';
+      case 'cancelled': return 'bg-red-100 text-red-800';
+      case 'declined': return 'bg-red-100 text-red-800';
+      default: return 'bg-gray-100 text-gray-800';
     }
   };
 
-  const handleViewServiceDetails = (requestId) => {
-    // In a real app, navigate to service request details page
-    console.log(`View details for request ${requestId}`);
+  // Helper function to format date
+  const formatDate = (dateString) => {
+    try {
+      return new Date(dateString).toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric'
+      });
+    } catch (error) {
+      return 'Date not available';
+    }
   };
 
-  const handleAcceptRequest = (requestId) => {
-    // In a real app, would call API to accept request
-    setServiceRequests(
-      serviceRequests.map((request) =>
-        request.id === requestId ? { ...request, status: "Accepted" } : request
-      )
-    );
+  // Helper function to format price
+  const formatPrice = (price) => {
+    if (typeof price === 'number') {
+      return `₦${price.toLocaleString()}`;
+    }
+    if (typeof price === 'string' && price.includes('₦')) {
+      return price;
+    }
+    return `₦${price || 0}`;
   };
 
-  const handleDeclineRequest = (requestId) => {
-    // In a real app, would call API to decline request
-    setServiceRequests(
-      serviceRequests.map((request) =>
-        request.id === requestId ? { ...request, status: "Declined" } : request
-      )
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-red-500 mx-auto"></div>
+          <p className="text-gray-600 mt-4">Loading your dashboard...</p>
+        </div>
+      </div>
     );
-  };
+  }
 
   return (
     <div className="flex flex-col min-h-screen">
       {/* Header */}
-      <header className="bg-black text-white p-4">
-        <div className="container mx-auto flex justify-between items-center">
-          <div className="flex items-center">
-            <span
-              onClick={() => navigate("/")}
-              className="text-red-500 text-5xl select-none font-bold cursor-pointer"
-            >
-              𐐒
-            </span>
-            <span
-              onClick={() => navigate("/")}
-              className="text-white text-4xl select-none font-bold cursor-pointer"
-            >
-              B
-            </span>
-            <span
-              onClick={() => navigate("/")}
-              className="text-red-500 text-2xl select-none cursor-pointer font-semibold ml-5"
-            >
-              BizBridge
-            </span>
+      <header className="bg-black text-white sticky top-0 z-50">
+        {/* Top Bar */}
+        <div className="border-b border-gray-800 py-2">
+          <div className="container mx-auto px-4 flex justify-between items-center text-sm">
+            <div className="flex items-center space-x-4">
+              <span>📞 Customer Service: +234 800 123 4567</span>
+              <span>🚚 Free delivery on orders above ₦50,000</span>
+            </div>
+            <div className="flex items-center space-x-4">
+              <span>🌍 Lagos, Nigeria</span>
+              <span>💰 NGN</span>
+            </div>
           </div>
-          <nav className="flex space-x-8">
-            <span onClick={() => navigate("/")} className="hover:text-red-400 cursor-pointer">
-              Home
-            </span>
-            <span
-              onClick={() => navigate("/dashboard")}
-              className="text-red-400 cursor-pointer"
-            >
-              Dashboard
-            </span>
+        </div>
 
-            <span
-              onClick={handleLogout}
-              className="hover:text-red-400 cursor-pointer"
-            >
-              Logout
-            </span>
-          </nav>
+        {/* Main Header */}
+        <div className="py-4">
+          <div className="container mx-auto px-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center">
+                <span onClick={() => navigate('/')} className="text-red-500 text-5xl select-none font-bold cursor-pointer">𐐒</span>
+                <span onClick={() => navigate('/')} className="text-white text-4xl select-none font-bold cursor-pointer">B</span>
+                <span onClick={() => navigate('/')} className="text-red-500 text-2xl select-none cursor-pointer font-semibold ml-5">BizBridge</span>
+              </div>
+
+              {/* Search Bar - Only for customers */}
+              {userType === 'customer' && (
+                <div className="flex-1 max-w-4xl mx-8">
+                  <div className="flex">
+                    <input
+                      type="text"
+                      placeholder="Search for services..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      onKeyPress={handleKeyPress}
+                      className="flex-1 px-4 py-2 text-black rounded-l-md focus:outline-none focus:ring-2 focus:ring-red-500"
+                    />
+                    <select
+                      value={selectedCategory}
+                      onChange={(e) => setSelectedCategory(e.target.value)}
+                      className="px-3 py-2 text-black bg-gray-100 border-l focus:outline-none focus:ring-2 focus:ring-red-500"
+                    >
+                      <option value="">All Categories</option>
+                      {categories.map(category => (
+                        <option key={category} value={category}>{category}</option>
+                      ))}
+                    </select>
+                    <select
+                      value={selectedLocation}
+                      onChange={(e) => setSelectedLocation(e.target.value)}
+                      className="px-3 py-2 text-black bg-gray-100 border-l focus:outline-none focus:ring-2 focus:ring-red-500"
+                    >
+                      <option value="">All Locations</option>
+                      {locations.map(location => (
+                        <option key={location} value={location}>{location}</option>
+                      ))}
+                    </select>
+                    <button
+                      onClick={handleSearch}
+                      className="bg-red-500 text-white px-6 py-2 rounded-r-md hover:bg-red-600 transition"
+                    >
+                      🔍
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* User Menu */}
+              <div className="flex items-center space-x-6">
+                <div className="text-xs cursor-pointer hover:text-red-400" onClick={() => navigate('/dashboard')}>
+                  <div>Your</div>
+                  <div className="font-bold">Dashboard</div>
+                </div>
+
+                <div className="text-xs cursor-pointer hover:text-red-400" onClick={() => navigate(userType === 'customer' ? '/bookings' : '/ServicesManagement')}>
+                  <div>Your</div>
+                  <div className="font-bold">{userType === 'customer' ? 'Bookings' : 'Services'}</div>
+                </div>
+
+                <div className="text-xs cursor-pointer hover:text-red-400" onClick={() => navigate('/profile')}>
+                  <div>Your</div>
+                  <div className="font-bold">Profile</div>
+                </div>
+
+                <div className="text-xs cursor-pointer hover:text-red-400" onClick={handleLogout}>
+                  <div>Sign</div>
+                  <div className="font-bold">Out</div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </header>
 
       {/* Main Content */}
-      <div className="bg-white flex-grow py-12">
+      <main className="flex-1 bg-gray-50 py-8">
         <div className="container mx-auto px-4">
-          <h1 className="text-3xl font-bold mb-8">
-            Welcome,{" "}
-            {currentUser?.username || currentUser?.contactName || "User"}!
-          </h1>
-
-          {/* Customer Dashboard Content */}
-          {userType === "customer" && (
-            <div className="space-y-8">
-              {/* Search Section */}
-              <div className="bg-white p-6 border border-gray-200 rounded-lg shadow-sm">
-                <h2 className="text-xl font-semibold mb-4">Find Artisans</h2>
-                <SearchFilters
-                  compact={true}
-                  onSearch={handleSearch}
-                />
-              </div>
-
-              {/* ✅ Featured Artisans Section - Fixed */}
-              <div>
-                <h2 className="text-2xl font-bold mb-4">Featured Artisans</h2>
-                {featuredArtisans.length > 0 ? (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {featuredArtisans.map(artisan => (
-                      <div 
-                        key={artisan._id || artisan.id} 
-                        className="bg-white border-2 border-red-200 rounded-lg overflow-hidden shadow-sm hover:shadow-md transition cursor-pointer"
-                        onClick={() => handleArtisanClick(artisan)}
-                      >
-                        <div className="relative">
-                          <img 
-                            src={artisan.profileImage || artisan.imageUrl || 'https://via.placeholder.com/300x200?text=Featured+Artisan'} 
-                            alt={artisan.businessName} 
-                            className="w-full h-48 object-cover"
-                            onError={(e) => {
-                              e.target.src = 'https://via.placeholder.com/300x200?text=Featured+Artisan';
-                            }}
-                          />
-                          {/* Featured Badge */}
-                          <div className="absolute top-2 right-2 bg-yellow-500 text-white px-2 py-1 rounded-full text-xs font-bold">
-                            ⭐ FEATURED
-                          </div>
-                          {/* Verification Badge */}
-                          {artisan.isCACRegistered && (
-                            <div className="absolute top-2 left-2 bg-green-500 text-white px-2 py-1 rounded-full text-xs font-bold">
-                              ✓ VERIFIED
-                            </div>
-                          )}
-                        </div>
-                        <div className="p-4">
-                          <h3 className="font-bold text-lg mb-1">{artisan.businessName}</h3>
-                          <p className="text-sm text-gray-600 mb-2">{artisan.contactName || artisan.name}</p>
-                          <p className="text-sm text-gray-700 mb-3 line-clamp-2">
-                            {artisan.description || 'Quality craftsmanship and professional service'}
-                          </p>
-                          <div className="flex justify-between items-center text-sm">
-                            <span className="text-gray-700">
-                              {artisan.localGovernmentArea ? 
-                                `${artisan.localGovernmentArea}, ${artisan.city}` : 
-                                artisan.location}
-                            </span>
-                            {artisan.rating && (
-                              <div className="flex items-center">
-                                <svg className="w-4 h-4 text-yellow-400" fill="currentColor" viewBox="0 0 20 20">
-                                  <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                                </svg>
-                                <span className="ml-1 text-sm font-medium">{artisan.rating}</span>
-                              </div>
-                            )}
-                          </div>
-                          {artisan.price && (
-                            <div className="mt-2 text-sm font-semibold text-red-500">
-                              {artisan.price}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-center py-12 bg-gray-50 rounded-lg">
-                    <h3 className="text-lg font-medium text-gray-900 mb-2">No Featured Artisans Yet</h3>
-                    <p className="text-gray-500">Check back soon for our premium service providers!</p>
-                  </div>
-                )}
-              </div>
-
-              {/* Booking History */}
-              <div>
-                <div className="flex flex-row items-baseline justify-between ">
-                  <h2 className="text-2xl font-bold mb-4">Recent Bookings</h2>
-                  {userType === "customer" && (
-                    <span
-                      onClick={() => navigate("/bookings")}
-                      className="hover:text-red-600 font-semibold cursor-pointer"
-                    >
-                      More →{" "}
-                    </span>
-                  )}
-                </div>
-                <div className="bg-white border rounded-lg overflow-hidden">
-                  {bookingHistory.length > 0 ? (
-                    <div className="overflow-x-auto">
-                      <table className="min-w-full divide-y divide-gray-200">
-                        <thead className="bg-gray-50">
-                          <tr>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                              Artisan
-                            </th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                              Service
-                            </th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                              Date
-                            </th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                              Price
-                            </th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                              Status
-                            </th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                              Action
-                            </th>
-                          </tr>
-                        </thead>
-                        <tbody className="bg-white divide-y divide-gray-200">
-                          {bookingHistory.map((booking) => (
-                            <tr key={booking.id}>
-                              <td className="px-6 py-4 whitespace-nowrap">
-                                {booking.artisanName}
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap">
-                                {booking.serviceName}
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap">
-                                {new Date(booking.date).toLocaleDateString()}
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap">
-                                {booking.price}
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap">
-                                <span
-                                  className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
-                                  ${
-                                    booking.status === "Completed"
-                                      ? "bg-green-100 text-green-800"
-                                      : booking.status === "Scheduled"
-                                      ? "bg-blue-100 text-blue-800"
-                                      : "bg-yellow-100 text-yellow-800"
-                                  }`}
-                                >
-                                  {booking.status}
-                                </span>
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm">
-                                <button className="text-red-600 hover:text-red-900">
-                                  Details
-                                </button>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  ) : (
-                    <div className="p-6 text-center">
-                      <p className="text-gray-500">
-                        You don't have any bookings yet.
-                      </p>
-                      <button
-                        onClick={() => navigate("/services")}
-                        className="mt-4 bg-red-500 text-white py-2 px-4 rounded hover:bg-red-600 transition"
-                      >
-                        Find Services
-                      </button>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Saved Artisans */}
-              <div>
-                <h2 className="text-2xl font-bold mb-4">Saved Artisans</h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                  {savedArtisans.length > 0 ? (
-                    savedArtisans.map((artisan) => (
-                      <div
-                        key={artisan.id}
-                        className="bg-white border rounded-lg overflow-hidden shadow-sm flex p-4"
-                      >
-                        <img
-                          src={artisan.imageUrl}
-                          alt={artisan.name}
-                          className="w-16 h-16 rounded-full object-cover"
-                        />
-                        <div className="ml-4">
-                          <h3 className="font-semibold">{artisan.name}</h3>
-                          <p className="text-sm text-gray-600">
-                            {artisan.category}
-                          </p>
-                          <div className="flex items-center mt-1">
-                            <svg
-                              className="w-4 h-4 text-yellow-400"
-                              fill="currentColor"
-                              viewBox="0 0 20 20"
-                            >
-                              <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                            </svg>
-                            <span className="ml-1 text-sm">
-                              {artisan.rating}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                    ))
-                  ) : (
-                    <div className="col-span-full p-6 bg-gray-50 rounded-lg text-center">
-                      <p className="text-gray-500">
-                        You haven't saved any artisans yet.
-                      </p>
-                      <button
-                        onClick={() => navigate("/services")}
-                        className="mt-4 bg-red-500 text-white py-2 px-4 rounded hover:bg-red-600 transition"
-                      >
-                        Browse Artisans
-                      </button>
-                    </div>
-                  )}
-                </div>
-              </div>
+          {/* Success Message */}
+          {successMessage && (
+            <div className="mb-6 bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded">
+              <span className="block sm:inline">{successMessage}</span>
+              <span 
+                className="float-right cursor-pointer font-bold"
+                onClick={() => setSuccessMessage('')}
+              >
+                ×
+              </span>
             </div>
           )}
 
-          {/* Artisan Dashboard Content */}
-          {userType === "artisan" && (
-            <div className="space-y-8">
-              {/* Summary Cards */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="bg-white p-6 border border-gray-200 rounded-lg shadow-sm">
-                  <h2 className="text-xl font-semibold mb-4">Services</h2>
-                  <p className="text-3xl font-bold text-gray-700">
-                    {services.length}
-                  </p>
-                  <p className="text-sm text-gray-500 mt-1">Active services</p>
-                  <button
-                    onClick={() => navigate("/ServicesAdd")}
-                    className="mt-4 bg-red-500 text-white py-2 px-4 rounded hover:bg-red-600 transition"
-                  >
-                    Add New Service
-                  </button>
-                </div>
-
-                <div className="bg-white p-6 border border-gray-200 rounded-lg shadow-sm">
-                  <h2 className="text-xl font-semibold mb-4">Requests</h2>
-                  <p className="text-3xl font-bold text-gray-700">
-                    {
-                      serviceRequests.filter(
-                        (request) => request.status === "Pending"
-                      ).length
-                    }
-                  </p>
-                  <p className="text-sm text-gray-500 mt-1">Pending requests</p>
-                  <button
-                    onClick={() =>
-                      document
-                        .getElementById("requests-section")
-                        .scrollIntoView({ behavior: "smooth" })
-                    }
-                    className="mt-4 bg-gray-200 text-gray-800 py-2 px-4 rounded hover:bg-gray-300 transition"
-                  >
-                    View All
-                  </button>
-                </div>
-
-                <div className="bg-white p-6 border border-gray-200 rounded-lg shadow-sm">
-                  <h2 className="text-xl font-semibold mb-4">Your Services</h2>
-                  <ul className="space-y-2">
-                    {services.slice(0, 3).map((service) => (
-                      <li key={service.id} className="flex justify-between">
-                        <span className="text-sm">{service.title}</span>
-                        <span
-                          className={`text-xs px-2 py-1 rounded ${
-                            service.isActive
-                              ? "bg-green-100 text-green-800"
-                              : "bg-gray-100 text-gray-800"
-                          }`}
-                        >
-                          {service.isActive ? "Active" : "Inactive"}
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
-                  <button
-                    onClick={() => navigate("/ServicesManagement")}
-                    className="mt-4 w-full bg-gray-200 text-gray-800 py-2 rounded hover:bg-gray-300 transition text-sm"
-                  >
-                    Manage Services
-                  </button>
-                </div>
-              </div>
-
-              {/* Service Requests Section */}
-              <div id="requests-section">
-                <h2 className="text-2xl font-bold mb-4">Service Requests</h2>
-                {serviceRequests.length > 0 ? (
-                  <div className="space-y-4">
-                    {serviceRequests.map((request) => (
-                      <div
-                        key={request.id}
-                        className={`bg-white border rounded-lg p-5 ${
-                          request.status === "Accepted"
-                            ? "border-green-400"
-                            : request.status === "Declined"
-                            ? "border-red-400 opacity-70"
-                            : "border-gray-200"
-                        }`}
-                      >
-                        <div className="flex flex-wrap justify-between mb-4">
-                          <div>
-                            <h3 className="font-semibold text-lg">
-                              {request.serviceName}
-                            </h3>
-                            <p className="text-sm text-gray-600">
-                              From: {request.customerName}
-                            </p>
-                          </div>
-                          <div className="text-right">
-                            <p className="text-sm">
-                              Request Date:{" "}
-                              {new Date(
-                                request.requestDate
-                              ).toLocaleDateString()}
-                            </p>
-                            <p className="text-sm">
-                              Proposed:{" "}
-                              {new Date(
-                                request.proposedDate
-                              ).toLocaleDateString()}
-                            </p>
-                          </div>
-                        </div>
-
-                        <div className="mb-4">
-                          <p className="text-sm mb-2">
-                            <span className="font-semibold">Budget:</span>{" "}
-                            {request.budget}
-                          </p>
-                          <p className="text-sm mb-2">
-                            <span className="font-semibold">Message:</span>
-                          </p>
-                          <p className="text-sm bg-gray-50 p-3 rounded">
-                            {request.message}
-                          </p>
-                        </div>
-
-                        <div className="flex justify-between items-center">
-                          <span
-                            className={`px-3 py-1 rounded-full text-xs font-semibold 
-                            ${
-                              request.status === "Accepted"
-                                ? "bg-green-100 text-green-800"
-                                : request.status === "Declined"
-                                ? "bg-red-100 text-red-800"
-                                : "bg-yellow-100 text-yellow-800"
-                            }`}
-                          >
-                            {request.status}
-                          </span>
-
-                          <div className="space-x-2">
-                            <button
-                              onClick={() =>
-                                handleViewServiceDetails(request.id)
-                              }
-                              className="bg-gray-200 text-gray-800 px-3 py-1 rounded text-sm hover:bg-gray-300 transition"
-                            >
-                              Details
-                            </button>
-
-                            {request.status === "Pending" && (
-                              <>
-                                <button
-                                  onClick={() =>
-                                    handleAcceptRequest(request.id)
-                                  }
-                                  className="bg-green-500 text-white px-3 py-1 rounded text-sm hover:bg-green-600 transition"
-                                >
-                                  Accept
-                                </button>
-                                <button
-                                  onClick={() =>
-                                    handleDeclineRequest(request.id)
-                                  }
-                                  className="bg-red-500 text-white px-3 py-1 rounded text-sm hover:bg-red-600 transition"
-                                >
-                                  Decline
-                                </button>
-                              </>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="bg-white border border-gray-200 rounded-lg p-8 text-center">
-                    <p className="text-gray-500 mb-4">
-                      You don't have any service requests yet.
-                    </p>
-                    <p className="text-sm text-gray-600">
-                      Make sure your services are active and up-to-date to
-                      attract customers.
-                    </p>
-                  </div>
-                )}
-              </div>
+          {/* Error Message */}
+          {error && (
+            <div className="mb-6 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
+              <span className="block sm:inline">{error}</span>
+              <button 
+                className="float-right font-bold"
+                onClick={() => setError(null)}
+              >
+                ×
+              </button>
             </div>
           )}
 
-          {/* Quick Tips Section - Common for both user types */}
-          <div className="mt-12">
-            <h2 className="text-2xl font-bold mb-6">Quick Tips</h2>
-            <div className="bg-gray-50 p-6 rounded-lg">
-              {userType === "artisan" ? (
-                <ul className="space-y-2">
-                  <li className="flex items-start">
-                    <span className="text-green-500 mr-2">✓</span>
-                    <span>
-                      Add a complete profile to attract more customers
-                    </span>
-                  </li>
-                  <li className="flex items-start">
-                    <span className="text-green-500 mr-2">✓</span>
-                    <span>Upload high-quality photos of your work</span>
-                  </li>
-                  <li className="flex items-start">
-                    <span className="text-green-500 mr-2">✓</span>
-                    <span>Respond promptly to booking inquiries</span>
-                  </li>
-                  <li className="flex items-start">
-                    <span className="text-green-500 mr-2">✓</span>
-                    <span>Ask satisfied customers to leave reviews</span>
-                  </li>
-                </ul>
-              ) : (
-                <ul className="space-y-2">
-                  <li className="flex items-start">
-                    <span className="text-green-500 mr-2">✓</span>
-                    <span>Check artisan reviews before booking</span>
-                  </li>
-                  <li className="flex items-start">
-                    <span className="text-green-500 mr-2">✓</span>
-                    <span>
-                      Message artisans with specific details about your needs
-                    </span>
-                  </li>
-                  <li className="flex items-start">
-                    <span className="text-green-500 mr-2">✓</span>
-                    <span>Save your favorite artisans for future projects</span>
-                  </li>
-                  <li className="flex items-start">
-                    <span className="text-green-500 mr-2">✓</span>
-                    <span>
-                      Leave honest feedback after your project is complete
-                    </span>
-                  </li>
-                </ul>
-              )}
-            </div>
+          {/* Welcome Section */}
+          <div className="mb-8">
+            <h1 className="text-3xl font-bold text-gray-800 mb-2">
+              Welcome back, {currentUser?.fullName || currentUser?.contactName || 'User'}!
+            </h1>
+            <p className="text-gray-600">
+              {userType === 'customer' 
+                ? 'Discover amazing artisan services and manage your bookings.'
+                : 'Manage your services, view requests, and track your business.'}
+            </p>
           </div>
+
+          {/* Customer Dashboard */}
+          {userType === 'customer' && (
+            <div className="space-y-8">
+              {/* Stats Cards */}
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-gray-600">Total Bookings</p>
+                      <p className="text-3xl font-bold text-gray-900">{bookingHistory.length}</p>
+                    </div>
+                    <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
+                      <span className="text-2xl">📅</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-gray-600">Active Bookings</p>
+                      <p className="text-3xl font-bold text-gray-900">
+                        {bookingHistory.filter(b => ['pending', 'confirmed', 'in_progress'].includes(b.status)).length}
+                      </p>
+                    </div>
+                    <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
+                      <span className="text-2xl">⚡</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-gray-600">Pending Requests</p>
+                      <p className="text-3xl font-bold text-gray-900">
+                        {serviceRequests.filter(r => ['pending', 'viewed', 'negotiating'].includes(r.status)).length}
+                      </p>
+                    </div>
+                    <div className="w-12 h-12 bg-yellow-100 rounded-lg flex items-center justify-center">
+                      <span className="text-2xl">💬</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-gray-600">Saved Artisans</p>
+                      <p className="text-3xl font-bold text-gray-900">{savedArtisans.length}</p>
+                    </div>
+                    <div className="w-12 h-12 bg-red-100 rounded-lg flex items-center justify-center">
+                      <span className="text-2xl">❤️</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Recent Bookings */}
+              <div className="bg-white rounded-xl shadow-sm border border-gray-200">
+                <div className="p-6 border-b border-gray-200">
+                  <div className="flex justify-between items-center">
+                    <h2 className="text-xl font-semibold text-gray-800">Recent Bookings</h2>
+                    <button 
+                      onClick={() => navigate("/bookings/my-bookings")}
+                      className="text-red-500 hover:text-red-600 font-medium"
+                    >
+                      View All →
+                    </button>
+                  </div>
+                </div>
+                
+                <div className="p-6">
+                  {bookingHistory.length > 0 ? (
+                    <div className="space-y-4">
+                      {bookingHistory.slice(0, 3).map((booking) => (
+                        <div key={booking._id} className="p-4 border border-gray-200 rounded-lg">
+                          <div className="flex justify-between items-start mb-3">
+                            <div>
+                              <h3 className="font-medium text-gray-800">{booking.title}</h3>
+                              <p className="text-sm text-gray-600">
+                                with {booking.artisan?.businessName || booking.artisan?.contactName}
+                              </p>
+                              <p className="text-xs text-gray-500">
+                                {formatDate(booking.scheduledDate?.startDate)}
+                              </p>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                              <span className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusBadgeColor(booking.status)}`}>
+                                {booking.status?.charAt(0).toUpperCase() + booking.status?.slice(1).replace('_', ' ')}
+                              </span>
+                              <span className="text-sm font-medium text-green-600">
+                                {formatPrice(booking.pricing?.agreedPrice)}
+                              </span>
+                            </div>
+                          </div>
+                          <div className="flex space-x-2">
+                            <button
+                              onClick={() => navigate(`/bookings/${booking._id}`)}
+                              className="text-xs bg-blue-100 text-blue-700 px-3 py-1 rounded hover:bg-blue-200 transition"
+                            >
+                              View Details
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-8">
+                      <div className="text-gray-400 text-6xl mb-4">📅</div>
+                      <h3 className="text-lg font-medium text-gray-800 mb-2">No bookings yet</h3>
+                      <p className="text-gray-600 mb-4">Start by exploring our amazing artisan services</p>
+                      <button 
+                        onClick={() => navigate('/services')}
+                        className="bg-red-500 text-white px-6 py-2 rounded-lg hover:bg-red-600 transition"
+                      >
+                        Browse Services
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Service Requests */}
+              <div className="bg-white rounded-xl shadow-sm border border-gray-200">
+                <div className="p-6 border-b border-gray-200">
+                  <div className="flex justify-between items-center">
+                    <h2 className="text-xl font-semibold text-gray-800">Your Service Requests</h2>
+                    <button 
+                      onClick={() => navigate("/services")}
+                      className="text-red-500 hover:text-red-600 font-medium"
+                    >
+                      Make New Request →
+                    </button>
+                  </div>
+                </div>
+                
+                <div className="p-6">
+                  {serviceRequests.length > 0 ? (
+                    <div className="space-y-4">
+                      {serviceRequests.slice(0, 3).map((request) => (
+                        <div key={request._id} className="p-4 border border-gray-200 rounded-lg">
+                          <div className="flex justify-between items-start mb-3">
+                            <div>
+                              <h3 className="font-medium text-gray-800">{request.title}</h3>
+                              <p className="text-sm text-gray-600">
+                                to {request.artisan?.businessName || request.artisan?.contactName}
+                              </p>
+                              <p className="text-xs text-gray-500">{formatDate(request.createdAt)}</p>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                              <span className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusBadgeColor(request.status)}`}>
+                                {request.status?.charAt(0).toUpperCase() + request.status?.slice(1)}
+                              </span>
+                              <span className="text-sm font-medium text-blue-600">
+                                {formatPrice(request.budget?.min)} - {formatPrice(request.budget?.max)}
+                              </span>
+                            </div>
+                          </div>
+                          <div className="flex space-x-2">
+                            <button
+                              onClick={() => navigate(`/service-requests/${request._id}`)}
+                              className="text-xs bg-blue-100 text-blue-700 px-3 py-1 rounded hover:bg-blue-200 transition"
+                            >
+                              View Request
+                            </button>
+                            {request.status === 'quoted' && (
+                              <button
+                                onClick={() => navigate(`/service-requests/${request._id}/accept`)}
+                                className="text-xs bg-green-100 text-green-700 px-3 py-1 rounded hover:bg-green-200 transition"
+                              >
+                                Review Quote
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-8">
+                      <div className="text-gray-400 text-6xl mb-4">💬</div>
+                      <h3 className="text-lg font-medium text-gray-800 mb-2">No service requests yet</h3>
+                      <p className="text-gray-600 mb-4">Request custom quotes from artisans for your specific needs</p>
+                      <button 
+                        onClick={() => navigate('/services')}
+                        className="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600 transition"
+                      >
+                        Request Custom Service
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Artisan Dashboard */}
+          {userType === 'artisan' && (
+            <div className="space-y-8">
+              {/* Stats Cards */}
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-gray-600">Active Services</p>
+                      <p className="text-3xl font-bold text-gray-900">
+                        {services.filter(s => s.isActive).length}
+                      </p>
+                    </div>
+                    <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
+                      <span className="text-2xl">🛠️</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-gray-600">Pending Requests</p>
+                      <p className="text-3xl font-bold text-gray-900">
+                        {serviceRequests.filter(r => ['pending', 'viewed'].includes(r.status)).length}
+                      </p>
+                    </div>
+                    <div className="w-12 h-12 bg-yellow-100 rounded-lg flex items-center justify-center">
+                      <span className="text-2xl">📨</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-gray-600">Active Bookings</p>
+                      <p className="text-3xl font-bold text-gray-900">
+                        {bookingHistory.filter(b => ['confirmed', 'in_progress'].includes(b.status)).length}
+                      </p>
+                    </div>
+                    <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
+                      <span className="text-2xl">📈</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-gray-600">Completion Rate</p>
+                      <p className="text-3xl font-bold text-gray-900">
+                        {dashboardStats.overview?.completionRate || '0'}%
+                      </p>
+                    </div>
+                    <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
+                      <span className="text-2xl">✅</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Quick Actions */}
+              <div className="bg-white rounded-xl shadow-sm border border-gray-200">
+                <div className="p-6 border-b border-gray-200">
+                  <h2 className="text-xl font-semibold text-gray-800">Quick Actions</h2>
+                </div>
+                
+                <div className="p-6">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <button
+                      onClick={() => navigate("/ServicesAdd")}
+                      className="p-4 border-2 border-dashed border-red-300 rounded-lg hover:border-red-500 hover:bg-red-50 transition text-center"
+                    >
+                      <div className="text-3xl mb-2">➕</div>
+                      <div className="font-medium text-gray-800">Add New Service</div>
+                      <div className="text-sm text-gray-600">Create a new service offering</div>
+                    </button>
+
+                    <button
+                      onClick={() => navigate("/ServicesManagement")}
+                      className="p-4 border-2 border-dashed border-blue-300 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition text-center"
+                    >
+                      <div className="text-3xl mb-2">⚙️</div>
+                      <div className="font-medium text-gray-800">Manage Services</div>
+                      <div className="text-sm text-gray-600">Edit and update your services</div>
+                    </button>
+
+                    <button
+                      onClick={() => navigate("/profile")}
+                      className="p-4 border-2 border-dashed border-green-300 rounded-lg hover:border-green-500 hover:bg-green-50 transition text-center"
+                    >
+                      <div className="text-3xl mb-2">👤</div>
+                      <div className="font-medium text-gray-800">Update Profile</div>
+                      <div className="text-sm text-gray-600">Enhance your business profile</div>
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Recent Service Requests */}
+              <div className="bg-white rounded-xl shadow-sm border border-gray-200">
+                <div className="p-6 border-b border-gray-200">
+                  <div className="flex justify-between items-center">
+                    <h2 className="text-xl font-semibold text-gray-800">Recent Service Requests</h2>
+                    <button 
+                      onClick={() => navigate("/service-requests/inbox")}
+                      className="text-red-500 hover:text-red-600 font-medium"
+                    >
+                      View All Requests →
+                    </button>
+                  </div>
+                </div>
+                
+                <div className="p-6">
+                  {serviceRequests.length > 0 ? (
+                    <div className="space-y-4">
+                      {serviceRequests.slice(0, 3).map((request) => (
+                        <div key={request._id} className="p-4 border border-gray-200 rounded-lg">
+                          <div className="flex justify-between items-start mb-3">
+                            <div>
+                              <h3 className="font-medium text-gray-800">{request.title}</h3>
+                              <p className="text-sm text-gray-600">
+                                from {request.customer?.fullName}
+                              </p>
+                              <p className="text-xs text-gray-500">{formatDate(request.createdAt)}</p>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                              <span className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusBadgeColor(request.status)}`}>
+                                {request.status?.charAt(0).toUpperCase() + request.status?.slice(1)}
+                              </span>
+                              <span className="text-sm font-medium text-green-600">
+                                {formatPrice(request.budget?.min)} - {formatPrice(request.budget?.max)}
+                              </span>
+                            </div>
+                          </div>
+                          <div className="flex space-x-2">
+                            <button
+                              onClick={() => navigate(`/service-requests/${request._id}`)}
+                              className="text-xs bg-blue-100 text-blue-700 px-3 py-1 rounded hover:bg-blue-200 transition"
+                            >
+                              View Request
+                            </button>
+                            {request.status === 'pending' && (
+                              <button
+                                onClick={() => navigate(`/service-requests/${request._id}/quote`)}
+                                className="text-xs bg-green-100 text-green-700 px-3 py-1 rounded hover:bg-green-200 transition"
+                              >
+                                Send Quote
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-8">
+                      <div className="text-gray-400 text-6xl mb-4">📨</div>
+                      <h3 className="text-lg font-medium text-gray-800 mb-2">No service requests yet</h3>
+                      <p className="text-gray-600 mb-4">When customers request quotes for your services, they'll appear here</p>
+                      <button 
+                        onClick={() => navigate('/ServicesAdd')}
+                        className="bg-red-500 text-white px-6 py-2 rounded-lg hover:bg-red-600 transition"
+                      >
+                        Add Your First Service
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Recent Bookings/Work */}
+              <div className="bg-white rounded-xl shadow-sm border border-gray-200">
+                <div className="p-6 border-b border-gray-200">
+                  <div className="flex justify-between items-center">
+                    <h2 className="text-xl font-semibold text-gray-800">Recent Work</h2>
+                    <button 
+                      onClick={() => navigate("/bookings/my-work")}
+                      className="text-red-500 hover:text-red-600 font-medium"
+                    >
+                      View All Work →
+                    </button>
+                  </div>
+                </div>
+                
+                <div className="p-6">
+                  {bookingHistory.length > 0 ? (
+                    <div className="space-y-4">
+                      {bookingHistory.slice(0, 3).map((booking) => (
+                        <div key={booking._id} className="p-4 border border-gray-200 rounded-lg">
+                          <div className="flex justify-between items-start mb-3">
+                            <div>
+                              <h3 className="font-medium text-gray-800">{booking.title}</h3>
+                              <p className="text-sm text-gray-600">
+                                for {booking.customer?.fullName}
+                              </p>
+                              <p className="text-xs text-gray-500">
+                                {formatDate(booking.scheduledDate?.startDate)}
+                              </p>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                              <span className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusBadgeColor(booking.status)}`}>
+                                {booking.status?.charAt(0).toUpperCase() + booking.status?.slice(1).replace('_', ' ')}
+                              </span>
+                              <span className="text-sm font-medium text-green-600">
+                                {formatPrice(booking.pricing?.agreedPrice)}
+                              </span>
+                            </div>
+                          </div>
+                          <div className="flex space-x-2">
+                            <button
+                              onClick={() => navigate(`/bookings/${booking._id}`)}
+                              className="text-xs bg-blue-100 text-blue-700 px-3 py-1 rounded hover:bg-blue-200 transition"
+                            >
+                              View Details
+                            </button>
+                            {booking.status === 'pending' && (
+                              <button
+                                onClick={() => navigate(`/bookings/${booking._id}/confirm`)}
+                                className="text-xs bg-green-100 text-green-700 px-3 py-1 rounded hover:bg-green-200 transition"
+                              >
+                                Confirm Booking
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-8">
+                      <div className="text-gray-400 text-6xl mb-4">💼</div>
+                      <h3 className="text-lg font-medium text-gray-800 mb-2">No bookings yet</h3>
+                      <p className="text-gray-600 mb-4">When customers book your services, they'll appear here</p>
+                      <button 
+                        onClick={() => navigate('/ServicesAdd')}
+                        className="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600 transition"
+                      >
+                        Create Your Services
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Featured Artisans (Customer Only) */}
+          {userType === 'customer' && featuredArtisans.length > 0 && (
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200">
+              <div className="p-6 border-b border-gray-200">
+                <div className="flex justify-between items-center">
+                  <h2 className="text-xl font-semibold text-gray-800">Featured Artisans</h2>
+                  <button 
+                    onClick={() => navigate("/services")}
+                    className="text-red-500 hover:text-red-600 font-medium"
+                  >
+                    View All →
+                  </button>
+                </div>
+              </div>
+              
+              <div className="p-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {featuredArtisans.slice(0, 6).map((artisan) => (
+                    <div key={artisan._id} className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition">
+                      <div className="flex items-center space-x-3 mb-3">
+                        <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
+                          {artisan.profileImage ? (
+                            <img 
+                              src={`http://localhost:5000${artisan.profileImage}`} 
+                              alt={artisan.businessName}
+                              className="w-12 h-12 rounded-full object-cover"
+                            />
+                          ) : (
+                            <span className="text-lg font-bold text-red-500">
+                              {(artisan.businessName || artisan.contactName || 'A').charAt(0)}
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex-1">
+                          <h3 className="font-medium text-gray-800">{artisan.businessName || artisan.contactName}</h3>
+                          <p className="text-sm text-gray-600">{artisan.location?.lga || 'Lagos'}</p>
+                        </div>
+                      </div>
+                      
+                      <div className="flex items-center justify-between text-sm">
+                        <div className="flex items-center">
+                          <span className="text-yellow-500">⭐</span>
+                          <span className="ml-1 font-medium">
+                            {artisan.analytics?.averageRating?.toFixed(1) || '5.0'}
+                          </span>
+                        </div>
+                        <button
+                          onClick={() => navigate(`/user/${artisan._id}`)}
+                          className="text-red-500 hover:text-red-600 font-medium"
+                        >
+                          View Profile →
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
         </div>
-      </div>
+      </main>
 
       {/* Footer */}
       <footer className="bg-black text-white py-8 mt-auto">
         <div className="container mx-auto px-4">
           <div className="text-center">
-            <p>
-              &copy; {new Date().getFullYear()} BizBridge. All rights reserved.
-            </p>
+            <p>&copy; {new Date().getFullYear()} BizBridge. All rights reserved.</p>
+            <div className="mt-2 flex flex-wrap justify-center">
+              <span onClick={() => navigate('/terms')} className="text-red-400 hover:text-red-500 mx-2 cursor-pointer">Terms of Service</span>
+              <span onClick={() => navigate('/privacy')} className="text-red-400 hover:text-red-500 mx-2 cursor-pointer">Privacy Policy</span>
+              <span onClick={() => navigate('/contact')} className="text-red-400 hover:text-red-500 mx-2 cursor-pointer">Contact Us</span>
+            </div>
           </div>
         </div>
       </footer>

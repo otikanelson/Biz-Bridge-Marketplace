@@ -1,4 +1,4 @@
-// backend/src/middleware/upload.js - FIXED VERSION
+// backend/src/middleware/upload.js - COMPLETE FIXED VERSION
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
@@ -69,9 +69,13 @@ const cacStorage = multer.diskStorage({
   }
 });
 
-// ✅ FILE FILTER - More comprehensive
+// ✅ IMAGE FILE FILTER
 const imageFilter = (req, file, cb) => {
-  console.log('🔍 Filtering file:', file.originalname, 'Type:', file.mimetype);
+  console.log('🔍 Filtering image file:', {
+    originalname: file.originalname,
+    mimetype: file.mimetype,
+    size: file.size
+  });
   
   // Allow common image formats
   const allowedTypes = [
@@ -83,8 +87,10 @@ const imageFilter = (req, file, cb) => {
   ];
   
   if (allowedTypes.includes(file.mimetype)) {
+    console.log('✅ File accepted:', file.originalname);
     cb(null, true);
   } else {
+    console.log('❌ File rejected:', file.originalname, 'Type:', file.mimetype);
     cb(new Error(`Invalid file type. Only ${allowedTypes.join(', ')} are allowed.`), false);
   }
 };
@@ -101,8 +107,10 @@ const documentFilter = (req, file, cb) => {
   ];
   
   if (allowedTypes.includes(file.mimetype)) {
+    console.log('✅ Document accepted:', file.originalname);
     cb(null, true);
   } else {
+    console.log('❌ Document rejected:', file.originalname, 'Type:', file.mimetype);
     cb(new Error(`Invalid document type. Only images and PDF files are allowed.`), false);
   }
 };
@@ -126,6 +134,7 @@ export const uploadServiceImages = multer({
   }
 });
 
+// ✅ CAC DOCUMENT UPLOAD CONFIGURATION (This was missing!)
 export const uploadCACDocument = multer({
   storage: cacStorage,
   fileFilter: documentFilter,
@@ -135,8 +144,71 @@ export const uploadCACDocument = multer({
   }
 });
 
-// ✅ ERROR HANDLING MIDDLEWARE
-export const handleUploadError = (err, req, res, next) => {
+// ✅ ENHANCED ERROR HANDLING MIDDLEWARE FOR SERVICE IMAGES
+export const handleUploadError = (req, res, next) => {
+  const upload = uploadServiceImages.array('images', 5);
+  
+  upload(req, res, (err) => {
+    console.log('📤 Upload middleware processing:', {
+      body: Object.keys(req.body),
+      files: req.files ? req.files.length : 0,
+      error: err ? err.message : 'none'
+    });
+    
+    if (err instanceof multer.MulterError) {
+      console.error('❌ Multer error:', err);
+      switch (err.code) {
+        case 'LIMIT_FILE_SIZE':
+          return res.status(400).json({
+            success: false,
+            message: 'File too large. Maximum size is 5MB for images.'
+          });
+        case 'LIMIT_FILE_COUNT':
+          return res.status(400).json({
+            success: false,
+            message: 'Too many files. Maximum is 5 images per service.'
+          });
+        case 'LIMIT_UNEXPECTED_FILE':
+          return res.status(400).json({
+            success: false,
+            message: 'Unexpected file field. Please check your form.'
+          });
+        default:
+          return res.status(400).json({
+            success: false,
+            message: `Upload error: ${err.message}`
+          });
+      }
+    }
+    
+    if (err && err.message.includes('Invalid file type')) {
+      console.error('❌ File type error:', err.message);
+      return res.status(400).json({
+        success: false,
+        message: err.message
+      });
+    }
+    
+    if (err) {
+      console.error('❌ General upload error:', err);
+      return res.status(400).json({
+        success: false,
+        message: `File upload error: ${err.message}`
+      });
+    }
+    
+    // Log successful uploads
+    if (req.files && req.files.length > 0) {
+      console.log(`✅ Uploaded ${req.files.length} files:`, 
+        req.files.map(f => f.filename).join(', '));
+    }
+    
+    next();
+  });
+};
+
+// ✅ GENERAL ERROR HANDLING MIDDLEWARE
+export const handleUploadErrorGeneral = (err, req, res, next) => {
   console.error('📤 Upload error:', err);
   
   if (err instanceof multer.MulterError) {
@@ -175,19 +247,21 @@ export const handleUploadError = (err, req, res, next) => {
   next(err);
 };
 
-// ✅ UTILITY FUNCTION - Convert file path to URL
+// ✅ UTILITY FUNCTION - Convert file path to URL (FIXED)
 export const getFileUrl = (filePath) => {
   if (!filePath) return null;
   
   // Convert Windows backslashes to forward slashes
   const normalizedPath = filePath.replace(/\\/g, '/');
   
-  // Remove the backend path part and keep only relative path from uploads
-  const relativePath = normalizedPath.includes('uploads/') 
-    ? normalizedPath.substring(normalizedPath.indexOf('uploads/'))
-    : normalizedPath;
+  // Extract just the relative path from uploads directory
+  if (normalizedPath.includes('uploads/')) {
+    const uploadsIndex = normalizedPath.indexOf('uploads/');
+    return '/' + normalizedPath.substring(uploadsIndex);
+  }
   
-  return `/${relativePath}`;
+  // If no uploads path found, assume it's already a relative path
+  return normalizedPath.startsWith('/') ? normalizedPath : '/' + normalizedPath;
 };
 
 // ✅ CLEANUP FUNCTION - Remove old files
