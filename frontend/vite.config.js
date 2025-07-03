@@ -7,7 +7,7 @@ export default defineConfig({
   root: './',  // Ensure this is correct
   outDir: "../dist",
   server: {
-    port: 5173,
+    port: 5174,
     open: true,
   },
   esbuild: {

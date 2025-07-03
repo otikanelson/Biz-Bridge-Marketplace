@@ -49,7 +49,7 @@ const Dashboard = () => {
     if (location.state?.message) {
       setSuccessMessage(location.state.message);
       // Clear the message after showing it
-      setTimeout(() => setSuccessMessage(''), 5000);
+      setTimeout(() => setSuccessMessage(''), 3000);
       // Clear the state to prevent showing again on refresh
       navigate(location.pathname, { replace: true });
     }
@@ -89,7 +89,7 @@ const Dashboard = () => {
       };
 
       // Load customer bookings
-      const bookingsResponse = await fetch('http://localhost:5000/api/bookings/my-bookings?limit=5', {
+      const bookingsResponse = await fetch('http://localhost:3000/api/bookings/my-bookings?limit=5', {
         headers
       });
       
@@ -99,13 +99,13 @@ const Dashboard = () => {
       }
 
       // Load customer service requests
-      const requestsResponse = await fetch('http://localhost:5000/api/service-requests/my-requests?limit=5', {
+      const requestsResponse = await fetch('http://localhost:3000/api/service-requests/my-requests?limit=5', {
         headers
       });
       
       if (requestsResponse.ok) {
         const requestsData = await requestsResponse.json();
-        setServiceRequests(requestsData.requests || []);
+        setServiceRequests(requestsData.serviceRequests || []);
       }
 
       // Load featured artisans for discovery
@@ -137,7 +137,7 @@ const Dashboard = () => {
       };
 
       // Load artisan's bookings (work)
-      const bookingsResponse = await fetch('http://localhost:5000/api/bookings/my-work?limit=5', {
+      const bookingsResponse = await fetch('http://localhost:3000/api/bookings/my-work?limit=5', {
         headers
       });
       
@@ -147,17 +147,17 @@ const Dashboard = () => {
       }
 
       // Load incoming service requests
-      const requestsResponse = await fetch('http://localhost:5000/api/service-requests/inbox?limit=5', {
+      const requestsResponse = await fetch('http://localhost:3000/api/service-requests/inbox?limit=5', {
         headers
       });
       
       if (requestsResponse.ok) {
         const requestsData = await requestsResponse.json();
-        setServiceRequests(requestsData.requests || []);
+        setServiceRequests(requestsData.serviceRequests || []);
       }
 
       // Load artisan's services
-      const servicesResponse = await fetch('http://localhost:5000/api/services/my-services', {
+      const servicesResponse = await fetch('http://localhost:3000/api/services/my-services', {
         headers
       });
       
@@ -167,7 +167,7 @@ const Dashboard = () => {
       }
 
       // Load booking analytics
-      const analyticsResponse = await fetch('http://localhost:5000/api/bookings/analytics', {
+      const analyticsResponse = await fetch('http://localhost:3000/api/bookings/analytics', {
         headers
       });
       
@@ -267,19 +267,7 @@ const Dashboard = () => {
     <div className="flex flex-col min-h-screen">
       {/* Header */}
       <header className="bg-black text-white sticky top-0 z-50">
-        {/* Top Bar */}
-        <div className="border-b border-gray-800 py-2">
-          <div className="container mx-auto px-4 flex justify-between items-center text-sm">
-            <div className="flex items-center space-x-4">
-              <span>📞 Customer Service: +234 800 123 4567</span>
-              <span>🚚 Free delivery on orders above ₦50,000</span>
-            </div>
-            <div className="flex items-center space-x-4">
-              <span>🌍 Lagos, Nigeria</span>
-              <span>💰 NGN</span>
-            </div>
-          </div>
-        </div>
+
 
         {/* Main Header */}
         <div className="py-4">
@@ -293,41 +281,50 @@ const Dashboard = () => {
 
               {/* Search Bar - Only for customers */}
               {userType === 'customer' && (
-                <div className="flex-1 max-w-4xl mx-8">
+              <div className="flex-1 max-w-3xl mx-8">
                   <div className="flex">
-                    <input
-                      type="text"
-                      placeholder="Search for services..."
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      onKeyPress={handleKeyPress}
-                      className="flex-1 px-4 py-2 text-black rounded-l-md focus:outline-none focus:ring-2 focus:ring-red-500"
-                    />
-                    <select
+                    {/* Category Selector */}
+                    <select 
                       value={selectedCategory}
                       onChange={(e) => setSelectedCategory(e.target.value)}
-                      className="px-3 py-2 text-black bg-gray-100 border-l focus:outline-none focus:ring-2 focus:ring-red-500"
+                      className="bg-gray-200 text-black px-3 py-2 rounded-l-md border-r border-gray-300 focus:outline-none text-sm min-w-[140px]"
                     >
                       <option value="">All Categories</option>
-                      {categories.map(category => (
+                      {categories.map((category) => (
                         <option key={category} value={category}>{category}</option>
                       ))}
                     </select>
-                    <select
+                    
+                    {/* Search Input */}
+                    <input
+                      type="text"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      onKeyPress={handleKeyPress}
+                      placeholder="Search for services, artisans, or crafts..."
+                      className="flex-1 px-4 py-2 text-black focus:outline-none text-sm"
+                    />
+                    
+                    {/* Location Selector */}
+                    <select 
                       value={selectedLocation}
                       onChange={(e) => setSelectedLocation(e.target.value)}
-                      className="px-3 py-2 text-black bg-gray-100 border-l focus:outline-none focus:ring-2 focus:ring-red-500"
+                      className="bg-gray-200 text-black px-3 py-2 border-l border-gray-300 focus:outline-none text-sm min-w-[120px]"
                     >
-                      <option value="">All Locations</option>
-                      {locations.map(location => (
+                      <option value="">All LGAs</option>
+                      {locations.map((location) => (
                         <option key={location} value={location}>{location}</option>
                       ))}
                     </select>
-                    <button
+                    
+                    {/* Search Button */}
+                    <button 
                       onClick={handleSearch}
-                      className="bg-red-500 text-white px-6 py-2 rounded-r-md hover:bg-red-600 transition"
+                      className="bg-red-500 hover:bg-red-600 px-4 py-2 rounded-r-md transition"
                     >
-                      🔍
+                      <svg className="w-5 h-5 text-black" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                      </svg>
                     </button>
                   </div>
                 </div>
@@ -530,7 +527,7 @@ const Dashboard = () => {
                   <div className="flex justify-between items-center">
                     <h2 className="text-xl font-semibold text-gray-800">Your Service Requests</h2>
                     <button 
-                      onClick={() => navigate("/services")}
+                      onClick={() => navigate("/customer-requests/history")}
                       className="text-red-500 hover:text-red-600 font-medium"
                     >
                       Make New Request →
@@ -597,251 +594,431 @@ const Dashboard = () => {
             </div>
           )}
 
-          {/* Artisan Dashboard */}
-          {userType === 'artisan' && (
-            <div className="space-y-8">
-              {/* Stats Cards */}
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-medium text-gray-600">Active Services</p>
-                      <p className="text-3xl font-bold text-gray-900">
-                        {services.filter(s => s.isActive).length}
-                      </p>
-                    </div>
-                    <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-                      <span className="text-2xl">🛠️</span>
+{/* Artisan Dashboard */}
+{userType === 'artisan' && (
+  <div className="space-y-8">
+    {/* Stats Cards */}
+    <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+      <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm font-medium text-gray-600">Active Services</p>
+            <p className="text-3xl font-bold text-gray-900">
+              {services.filter(s => s.isActive).length}
+            </p>
+          </div>
+          <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
+            <span className="text-2xl">🛠️</span>
+          </div>
+        </div>
+      </div>
+
+      <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm font-medium text-gray-600">Pending Requests</p>
+            <p className="text-3xl font-bold text-gray-900">
+              {serviceRequests.filter(r => r.status === 'pending').length}
+            </p>
+          </div>
+          <div className="w-12 h-12 bg-yellow-100 rounded-lg flex items-center justify-center">
+            <span className="text-2xl">📬</span>
+          </div>
+        </div>
+      </div>
+
+      <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm font-medium text-gray-600">Active Work</p>
+            <p className="text-3xl font-bold text-gray-900">
+              {bookingHistory.filter(b => ['confirmed', 'in_progress'].includes(b.status)).length}
+            </p>
+          </div>
+          <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
+            <span className="text-2xl">🔨</span>
+          </div>
+        </div>
+      </div>
+
+      <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm font-medium text-gray-600">Completed Jobs</p>
+            <p className="text-3xl font-bold text-gray-900">
+              {bookingHistory.filter(b => b.status === 'completed').length}
+            </p>
+          </div>
+          <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
+            <span className="text-2xl">✅</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    {/* Your Services Section */}
+    <div className="bg-white rounded-xl shadow-sm border border-gray-200">
+      <div className="p-6 border-b border-gray-200">
+        <div className="flex justify-between items-center">
+          <h2 className="text-xl font-semibold text-gray-800">Your Services</h2>
+          <div className="flex gap-3">
+            <button 
+              onClick={() => navigate('/ServicesManagement')}
+              className="text-red-500 hover:text-red-600 font-medium text-sm"
+            >
+              Manage All →
+            </button>
+            <button 
+              onClick={() => navigate('/ServicesAdd')}
+              className="bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600 transition text-sm"
+            >
+              + Add Service
+            </button>
+          </div>
+        </div>
+      </div>
+      
+      <div className="p-6">
+        {services.length > 0 ? (
+          <div>
+            {/* Services Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
+              {services.slice(0, 6).map((service) => (
+                <div key={service._id} className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition">
+                  {/* Service Image */}
+                <div className="w-full h-32 bg-gray-100 rounded-lg mb-3 overflow-hidden">
+                  {service.images && service.images.length > 0 ? (
+                    <img 
+                      src={(() => {
+                        const imagePath = service.images[0];
+                        // Handle different image path formats
+                        if (imagePath.startsWith('http')) {
+                          return imagePath;
+                        } else if (imagePath.startsWith('/uploads')) {
+                          return `http://localhost:3000${imagePath}`;
+                        } else if (imagePath.startsWith('uploads/')) {
+                          return `http://localhost:3000/${imagePath}`;
+                        } else {
+                          return `http://localhost:3000/uploads/${imagePath}`;
+                        }
+                      })()} 
+                      alt={service.title}
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        // Fallback when image fails to load
+                        e.target.style.display = 'none';
+                        e.target.nextSibling.style.display = 'flex';
+                      }}
+                    />
+                  ) : null}
+                  
+                  {/* Fallback placeholder - always present but hidden when image loads */}
+                  <div 
+                    className="w-full h-full flex items-center justify-center text-gray-400 bg-gray-100"
+                    style={{ display: (service.images && service.images.length > 0) ? 'none' : 'flex' }}
+                  >
+                    <div className="text-center">
+                      <svg className="w-8 h-8 mx-auto mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                      </svg>
+                      <span className="text-xs">{service.category || 'Service'}</span>
                     </div>
                   </div>
                 </div>
-
-                <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-medium text-gray-600">Pending Requests</p>
-                      <p className="text-3xl font-bold text-gray-900">
-                        {serviceRequests.filter(r => ['pending', 'viewed'].includes(r.status)).length}
-                      </p>
+                  {/* Service Info */}
+                  <div className="mb-3">
+                    <div className="flex justify-between items-start mb-2">
+                      <h3 className="font-medium text-gray-900 text-sm line-clamp-2">
+                        {service.title}
+                      </h3>
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                        service.isActive 
+                          ? 'bg-green-100 text-green-800' 
+                          : 'bg-gray-100 text-gray-800'
+                      }`}>
+                        {service.isActive ? 'Active' : 'Inactive'}
+                      </span>
                     </div>
-                    <div className="w-12 h-12 bg-yellow-100 rounded-lg flex items-center justify-center">
-                      <span className="text-2xl">📨</span>
+                    
+                    <p className="text-xs text-gray-600 mb-2">
+                      {service.category} • {service.location?.lga || 'Lagos'}
+                    </p>
+                    
+                    {/* Pricing Display */}
+                    <div className="mb-2">
+                      {service.pricing?.type === 'fixed' && service.pricing?.basePrice && (
+                        <p className="text-sm font-medium text-green-600">
+                          ₦{service.pricing.basePrice.toLocaleString()}
+                        </p>
+                      )}
+                      {service.pricing?.type === 'negotiate' && (
+                        <p className="text-sm font-medium text-blue-600">
+                          Price Negotiable
+                        </p>
+                      )}
+                      {service.pricing?.type === 'categorized' && (
+                        <p className="text-sm font-medium text-purple-600">
+                          Category-Based Pricing
+                        </p>
+                      )}
+                      {(!service.pricing || !service.pricing.type) && service.displayPrice && (
+                        <p className="text-sm font-medium text-green-600">
+                          {service.displayPrice}
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Service Stats */}
+                    <div className="flex justify-between text-xs text-gray-500">
+                      <span>{service.requestCount || 0} requests</span>
+                      <span>{service.viewCount || 0} views</span>
                     </div>
                   </div>
-                </div>
 
-                <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-medium text-gray-600">Active Bookings</p>
-                      <p className="text-3xl font-bold text-gray-900">
-                        {bookingHistory.filter(b => ['confirmed', 'in_progress'].includes(b.status)).length}
-                      </p>
-                    </div>
-                    <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
-                      <span className="text-2xl">📈</span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-medium text-gray-600">Completion Rate</p>
-                      <p className="text-3xl font-bold text-gray-900">
-                        {dashboardStats.overview?.completionRate || '0'}%
-                      </p>
-                    </div>
-                    <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
-                      <span className="text-2xl">✅</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Quick Actions */}
-              <div className="bg-white rounded-xl shadow-sm border border-gray-200">
-                <div className="p-6 border-b border-gray-200">
-                  <h2 className="text-xl font-semibold text-gray-800">Quick Actions</h2>
-                </div>
-                
-                <div className="p-6">
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {/* Action Buttons */}
+                  <div className="flex gap-2">
                     <button
-                      onClick={() => navigate("/ServicesAdd")}
-                      className="p-4 border-2 border-dashed border-red-300 rounded-lg hover:border-red-500 hover:bg-red-50 transition text-center"
+                      onClick={() => navigate(`/services/${service._id}`)}
+                      className="flex-1 text-xs bg-gray-100 text-gray-700 px-3 py-2 rounded hover:bg-gray-200 transition"
                     >
-                      <div className="text-3xl mb-2">➕</div>
-                      <div className="font-medium text-gray-800">Add New Service</div>
-                      <div className="text-sm text-gray-600">Create a new service offering</div>
+                      View
                     </button>
-
                     <button
-                      onClick={() => navigate("/ServicesManagement")}
-                      className="p-4 border-2 border-dashed border-blue-300 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition text-center"
+                      onClick={() => navigate(`/services/${service._id}/edit`)}
+                      className="flex-1 text-xs bg-blue-100 text-blue-700 px-3 py-2 rounded hover:bg-blue-200 transition"
                     >
-                      <div className="text-3xl mb-2">⚙️</div>
-                      <div className="font-medium text-gray-800">Manage Services</div>
-                      <div className="text-sm text-gray-600">Edit and update your services</div>
-                    </button>
-
-                    <button
-                      onClick={() => navigate("/profile")}
-                      className="p-4 border-2 border-dashed border-green-300 rounded-lg hover:border-green-500 hover:bg-green-50 transition text-center"
-                    >
-                      <div className="text-3xl mb-2">👤</div>
-                      <div className="font-medium text-gray-800">Update Profile</div>
-                      <div className="text-sm text-gray-600">Enhance your business profile</div>
+                      Edit
                     </button>
                   </div>
                 </div>
-              </div>
+              ))}
+            </div>
 
-              {/* Recent Service Requests */}
-              <div className="bg-white rounded-xl shadow-sm border border-gray-200">
-                <div className="p-6 border-b border-gray-200">
-                  <div className="flex justify-between items-center">
-                    <h2 className="text-xl font-semibold text-gray-800">Recent Service Requests</h2>
-                    <button 
-                      onClick={() => navigate("/service-requests/inbox")}
-                      className="text-red-500 hover:text-red-600 font-medium"
-                    >
-                      View All Requests →
-                    </button>
-                  </div>
+            {/* Service Analytics Summary */}
+            <div className="bg-gray-50 rounded-lg p-4">
+              <h3 className="font-medium text-gray-900 mb-3">Service Performance Overview</h3>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="text-center">
+                  <p className="text-2xl font-bold text-blue-600">
+                    {services.reduce((sum, s) => sum + (s.viewCount || 0), 0)}
+                  </p>
+                  <p className="text-sm text-gray-600">Total Views</p>
                 </div>
-                
-                <div className="p-6">
-                  {serviceRequests.length > 0 ? (
-                    <div className="space-y-4">
-                      {serviceRequests.slice(0, 3).map((request) => (
-                        <div key={request._id} className="p-4 border border-gray-200 rounded-lg">
-                          <div className="flex justify-between items-start mb-3">
-                            <div>
-                              <h3 className="font-medium text-gray-800">{request.title}</h3>
-                              <p className="text-sm text-gray-600">
-                                from {request.customer?.fullName}
-                              </p>
-                              <p className="text-xs text-gray-500">{formatDate(request.createdAt)}</p>
-                            </div>
-                            <div className="flex items-center space-x-2">
-                              <span className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusBadgeColor(request.status)}`}>
-                                {request.status?.charAt(0).toUpperCase() + request.status?.slice(1)}
-                              </span>
-                              <span className="text-sm font-medium text-green-600">
-                                {formatPrice(request.budget?.min)} - {formatPrice(request.budget?.max)}
-                              </span>
-                            </div>
-                          </div>
-                          <div className="flex space-x-2">
-                            <button
-                              onClick={() => navigate(`/service-requests/${request._id}`)}
-                              className="text-xs bg-blue-100 text-blue-700 px-3 py-1 rounded hover:bg-blue-200 transition"
-                            >
-                              View Request
-                            </button>
-                            {request.status === 'pending' && (
-                              <button
-                                onClick={() => navigate(`/service-requests/${request._id}/quote`)}
-                                className="text-xs bg-green-100 text-green-700 px-3 py-1 rounded hover:bg-green-200 transition"
-                              >
-                                Send Quote
-                              </button>
-                            )}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="text-center py-8">
-                      <div className="text-gray-400 text-6xl mb-4">📨</div>
-                      <h3 className="text-lg font-medium text-gray-800 mb-2">No service requests yet</h3>
-                      <p className="text-gray-600 mb-4">When customers request quotes for your services, they'll appear here</p>
-                      <button 
-                        onClick={() => navigate('/ServicesAdd')}
-                        className="bg-red-500 text-white px-6 py-2 rounded-lg hover:bg-red-600 transition"
-                      >
-                        Add Your First Service
-                      </button>
-                    </div>
-                  )}
+                <div className="text-center">
+                  <p className="text-2xl font-bold text-green-600">
+                    {services.reduce((sum, s) => sum + (s.requestCount || 0), 0)}
+                  </p>
+                  <p className="text-sm text-gray-600">Total Requests</p>
                 </div>
-              </div>
-
-              {/* Recent Bookings/Work */}
-              <div className="bg-white rounded-xl shadow-sm border border-gray-200">
-                <div className="p-6 border-b border-gray-200">
-                  <div className="flex justify-between items-center">
-                    <h2 className="text-xl font-semibold text-gray-800">Recent Work</h2>
-                    <button 
-                      onClick={() => navigate("/bookings/my-work")}
-                      className="text-red-500 hover:text-red-600 font-medium"
-                    >
-                      View All Work →
-                    </button>
-                  </div>
+                <div className="text-center">
+                  <p className="text-2xl font-bold text-purple-600">
+                    {(services.reduce((sum, s) => sum + (s.rating || 0), 0) / services.length || 0).toFixed(1)}
+                  </p>
+                  <p className="text-sm text-gray-600">Avg Rating</p>
                 </div>
-                
-                <div className="p-6">
-                  {bookingHistory.length > 0 ? (
-                    <div className="space-y-4">
-                      {bookingHistory.slice(0, 3).map((booking) => (
-                        <div key={booking._id} className="p-4 border border-gray-200 rounded-lg">
-                          <div className="flex justify-between items-start mb-3">
-                            <div>
-                              <h3 className="font-medium text-gray-800">{booking.title}</h3>
-                              <p className="text-sm text-gray-600">
-                                for {booking.customer?.fullName}
-                              </p>
-                              <p className="text-xs text-gray-500">
-                                {formatDate(booking.scheduledDate?.startDate)}
-                              </p>
-                            </div>
-                            <div className="flex items-center space-x-2">
-                              <span className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusBadgeColor(booking.status)}`}>
-                                {booking.status?.charAt(0).toUpperCase() + booking.status?.slice(1).replace('_', ' ')}
-                              </span>
-                              <span className="text-sm font-medium text-green-600">
-                                {formatPrice(booking.pricing?.agreedPrice)}
-                              </span>
-                            </div>
-                          </div>
-                          <div className="flex space-x-2">
-                            <button
-                              onClick={() => navigate(`/bookings/${booking._id}`)}
-                              className="text-xs bg-blue-100 text-blue-700 px-3 py-1 rounded hover:bg-blue-200 transition"
-                            >
-                              View Details
-                            </button>
-                            {booking.status === 'pending' && (
-                              <button
-                                onClick={() => navigate(`/bookings/${booking._id}/confirm`)}
-                                className="text-xs bg-green-100 text-green-700 px-3 py-1 rounded hover:bg-green-200 transition"
-                              >
-                                Confirm Booking
-                              </button>
-                            )}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="text-center py-8">
-                      <div className="text-gray-400 text-6xl mb-4">💼</div>
-                      <h3 className="text-lg font-medium text-gray-800 mb-2">No bookings yet</h3>
-                      <p className="text-gray-600 mb-4">When customers book your services, they'll appear here</p>
-                      <button 
-                        onClick={() => navigate('/ServicesAdd')}
-                        className="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600 transition"
-                      >
-                        Create Your Services
-                      </button>
-                    </div>
-                  )}
+                <div className="text-center">
+                  <p className="text-2xl font-bold text-orange-600">
+                    {services.filter(s => s.isActive).length}/{services.length}
+                  </p>
+                  <p className="text-sm text-gray-600">Active Services</p>
                 </div>
               </div>
             </div>
-          )}
+
+            {services.length > 6 && (
+              <div className="text-center mt-4">
+                <button 
+                  onClick={() => navigate('/ServicesManagement')}
+                  className="text-red-500 hover:text-red-600 font-medium"
+                >
+                  View All {services.length} Services →
+                </button>
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="text-center py-12">
+            <div className="w-20 h-20 mx-auto mb-4 bg-gray-100 rounded-full flex items-center justify-center">
+              <svg className="w-10 h-10 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+              </svg>
+            </div>
+            <h3 className="text-lg font-medium text-gray-800 mb-2">No services yet</h3>
+            <p className="text-gray-600 mb-6">Start showcasing your skills by creating your first service listing</p>
+            <button 
+              onClick={() => navigate('/ServicesAdd')}
+              className="bg-red-500 text-white px-6 py-3 rounded-lg hover:bg-red-600 transition"
+            >
+              Create Your First Service
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+
+    {/* Recent Service Requests */}
+    <div className="bg-white rounded-xl shadow-sm border border-gray-200">
+      <div className="p-6 border-b border-gray-200">
+        <div className="flex justify-between items-center">
+          <h2 className="text-xl font-semibold text-gray-800">Recent Service Requests</h2>
+          <button 
+            onClick={() => navigate("/service-requests/inbox")}
+            className="text-red-500 hover:text-red-600 font-medium"
+          >
+            View All →
+          </button>
+        </div>
+      </div>
+      
+      <div className="p-6">
+        {serviceRequests.length > 0 ? (
+          <div className="space-y-4">
+            {serviceRequests.slice(0, 4).map((request) => (
+              <div key={request._id} className="p-4 border border-gray-200 rounded-lg hover:shadow-sm transition">
+                <div className="flex justify-between items-start mb-3">
+                  <div className="flex-1">
+                    <h3 className="font-medium text-gray-800 mb-1">
+                      {request.title || request.service?.title}
+                    </h3>
+                    <p className="text-sm text-gray-600 mb-2">
+                      from {request.customer?.fullName}
+                    </p>
+                    <p className="text-sm text-gray-500 line-clamp-2">
+                      {request.description}
+                    </p>
+                  </div>
+                  <div className="ml-4 text-right">
+                    <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                      request.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                      request.status === 'quoted' ? 'bg-blue-100 text-blue-800' :
+                      request.status === 'accepted' ? 'bg-green-100 text-green-800' :
+                      'bg-gray-100 text-gray-800'
+                    }`}>
+                      {request.status?.charAt(0).toUpperCase() + request.status?.slice(1)}
+                    </span>
+                    {request.budget && (
+                      <p className="text-sm font-medium text-green-600 mt-1">
+                        {request.budget.min && request.budget.max 
+                          ? `₦${request.budget.min.toLocaleString()} - ₦${request.budget.max.toLocaleString()}`
+                          : request.budget.min 
+                          ? `From ₦${request.budget.min.toLocaleString()}`
+                          : request.budget.max 
+                          ? `Up to ₦${request.budget.max.toLocaleString()}`
+                          : 'Budget TBD'
+                        }
+                      </p>
+                    )}
+                  </div>
+                </div>
+                <div className="flex justify-between items-center">
+                  <p className="text-xs text-gray-500">
+                    {formatDate(request.createdAt)}
+                  </p>
+                  <div className="flex gap-2">
+                    {request.status === 'pending' && (
+                      <button
+                        onClick={() => navigate(`/service-requests/inbox`)}
+                        className="text-xs bg-blue-100 text-blue-700 px-3 py-1 rounded hover:bg-blue-200 transition"
+                      >
+                        Respond
+                      </button>
+                    )}
+                    <button
+                      onClick={() => navigate(`/service-requests/${request._id}`)}
+                      className="text-xs bg-gray-100 text-gray-700 px-3 py-1 rounded hover:bg-gray-200 transition"
+                    >
+                      View Details
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="text-center py-8">
+            <div className="text-gray-400 text-6xl mb-4">📬</div>
+            <h3 className="text-lg font-medium text-gray-800 mb-2">No service requests yet</h3>
+            <p className="text-gray-600 mb-4">When customers request quotes for your services, they'll appear here</p>
+            <button 
+              onClick={() => navigate('/ServicesAdd')}
+              className="bg-red-500 text-white px-6 py-2 rounded-lg hover:bg-red-600 transition"
+            >
+              Add Your First Service
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+
+    {/* Recent Work/Bookings */}
+    <div className="bg-white rounded-xl shadow-sm border border-gray-200">
+      <div className="p-6 border-b border-gray-200">
+        <div className="flex justify-between items-center">
+          <h2 className="text-xl font-semibold text-gray-800">Recent Work</h2>
+          <button 
+            onClick={() => navigate("/bookings/my-work")}
+            className="text-red-500 hover:text-red-600 font-medium"
+          >
+            View All Work →
+          </button>
+        </div>
+      </div>
+      
+      <div className="p-6">
+        {bookingHistory.length > 0 ? (
+          <div className="space-y-4">
+            {bookingHistory.slice(0, 3).map((booking) => (
+              <div key={booking._id} className="p-4 border border-gray-200 rounded-lg">
+                <div className="flex justify-between items-start mb-3">
+                  <div>
+                    <h3 className="font-medium text-gray-800">{booking.title}</h3>
+                    <p className="text-sm text-gray-600">
+                      for {booking.customer?.fullName}
+                    </p>
+                    <p className="text-xs text-gray-500">
+                      {formatDate(booking.scheduledDate?.startDate)}
+                    </p>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <span className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusBadgeColor(booking.status)}`}>
+                      {booking.status?.charAt(0).toUpperCase() + booking.status?.slice(1).replace('_', ' ')}
+                    </span>
+                  </div>
+                </div>
+                <div className="flex space-x-2">
+                  <button
+                    onClick={() => navigate(`/bookings/${booking._id}`)}
+                    className="text-xs bg-blue-100 text-blue-700 px-3 py-1 rounded hover:bg-blue-200 transition"
+                  >
+                    View Details
+                  </button>
+                  <button
+                    onClick={() => navigate(`/messages/${booking._id}`)}
+                    className="text-xs bg-gray-100 text-gray-700 px-3 py-1 rounded hover:bg-gray-200 transition"
+                  >
+                    Message Customer
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="text-center py-8">
+            <div className="text-gray-400 text-6xl mb-4">🔨</div>
+            <h3 className="text-lg font-medium text-gray-800 mb-2">No bookings yet</h3>
+            <p className="text-gray-600 mb-4">Confirmed bookings and active work will appear here</p>
+            <button 
+              onClick={() => navigate('/ServicesAdd')}
+              className="bg-red-500 text-white px-6 py-2 rounded-lg hover:bg-red-600 transition"
+            >
+              Create Services to Get Started
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  </div>
+)}
 
           {/* Featured Artisans (Customer Only) */}
           {userType === 'customer' && featuredArtisans.length > 0 && (
@@ -866,7 +1043,7 @@ const Dashboard = () => {
                         <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
                           {artisan.profileImage ? (
                             <img 
-                              src={`http://localhost:5000${artisan.profileImage}`} 
+                              src={`http://localhost:3000${artisan.profileImage}`} 
                               alt={artisan.businessName}
                               className="w-12 h-12 rounded-full object-cover"
                             />

@@ -1,4 +1,4 @@
-// src/api/ServiceRequests.js - Updated for New Pricing System (Correct File Location)
+// frontend/src/services/ServiceRequests.js - Frontend API calls for Service Requests
 import axios from 'axios';
 
 const API_URL = process.env.NODE_ENV === 'production' 

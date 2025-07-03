@@ -1,4 +1,4 @@
-// backend/src/models/serviceRequest.js
+// backend/src/models/serviceRequest.js - Simplified Structure
 import mongoose from 'mongoose';
 
 const ServiceRequestSchema = new mongoose.Schema({
@@ -18,7 +18,7 @@ const ServiceRequestSchema = new mongoose.Schema({
   service: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "Service",
-    required: false, // Can be null for custom requests not tied to specific service
+    required: [true, "Service is required"],
     index: true
   },
 
@@ -35,105 +35,39 @@ const ServiceRequestSchema = new mongoose.Schema({
     trim: true,
     maxlength: [1000, "Description cannot exceed 1000 characters"]
   },
-  category: {
+  
+  // For categorized services - which category was selected
+  selectedCategory: {
     type: String,
-    required: [true, "Category is required"],
-    enum: [
-      'Woodworking', 'Pottery & Ceramics', 'Leathercraft', 'Textile Art',
-      'Jewelry Making', 'Metalwork', 'Glass Art', 'Traditional Clothing',
-      'Painting & Drawing', 'Sculpture', 'Basket Weaving', 'Beadwork',
-      'Paper Crafts', 'Soap & Candle Making', 'Calabash Carving',
-      'Musical Instruments', 'Hair Braiding & Styling', 'Furniture Restoration',
-      'Shoemaking', 'Sign Writing', 'Tie & Dye', 'Adire Textile',
-      'Food Preservation', 'Batik', 'Embroidery', 'Photography', 'Other'
-    ],
-    index: true
+    trim: true,
+    default: null
+  },
+  
+  specialRequirements: {
+    type: String,
+    trim: true,
+    maxlength: [500, "Special requirements cannot exceed 500 characters"]
   },
 
-  // ========== BUDGET & TIMELINE ==========
-  budget: {
-    min: {
-      type: Number,
-      required: [true, "Minimum budget is required"],
-      min: [0, "Budget cannot be negative"]
-    },
-    max: {
-      type: Number,
-      required: false,
-      min: [0, "Budget cannot be negative"],
-      validate: {
-        validator: function(value) {
-          return !value || value >= this.budget.min;
-        },
-        message: "Maximum budget must be greater than minimum budget"
-      }
-    },
-    currency: {
-      type: String,
-      default: "NGN",
-      enum: ["NGN", "USD"]
-    }
-  },
-  timeline: {
-    preferredStartDate: {
+  // ========== PREFERRED TIMELINE ==========
+  preferredSchedule: {
+    startDate: {
       type: Date,
-      required: [true, "Preferred start date is required"],
-      validate: {
-        validator: function(value) {
-          return value >= new Date();
-        },
-        message: "Start date cannot be in the past"
-      }
+      required: false
     },
-    preferredEndDate: {
+    endDate: {
       type: Date,
-      required: false,
-      validate: {
-        validator: function(value) {
-          return !value || value >= this.timeline.preferredStartDate;
-        },
-        message: "End date must be after start date"
-      }
+      required: false
     },
     flexibility: {
       type: String,
-      enum: ["rigid", "somewhat_flexible", "very_flexible"],
-      default: "somewhat_flexible"
-    }
-  },
-
-  // ========== LOCATION & LOGISTICS ==========
-  location: {
-    type: {
-      type: String,
-      enum: ["customer_location", "artisan_workshop", "neutral_location", "pickup_delivery"],
-      required: [true, "Location type is required"]
+      enum: ['flexible', 'somewhat_flexible', 'fixed'],
+      default: 'flexible'
     },
-    address: {
+    notes: {
       type: String,
-      required: function() { 
-        return this.location.type === "customer_location" || this.location.type === "neutral_location"; 
-      },
-      trim: true
-    },
-    city: {
-      type: String,
-      default: "Lagos",
-      required: true
-    },
-    state: {
-      type: String,
-      default: "Lagos",
-      required: true
-    },
-    lga: {
-      type: String,
-      required: true,
-      trim: true
-    },
-    coordinates: {
-      latitude: Number,
-      longitude: Number
+      trim: true,
+      maxlength: [200, "Schedule notes cannot exceed 200 characters"]
     }
   },
 
@@ -141,56 +75,17 @@ const ServiceRequestSchema = new mongoose.Schema({
   status: {
     type: String,
     enum: [
-      "pending",        // Just submitted, waiting for artisan response
-      "viewed",         // Artisan has seen the request
-      "negotiating",    // Back-and-forth discussion happening
-      "quoted",         // Artisan has provided a quote
-      "accepted",       // Customer accepted artisan's proposal
-      "declined",       // Either party declined
-      "expired",        // Request expired without response
-      "converted"       // Successfully converted to booking
+      'pending',     // Just sent by customer
+      'viewed',      // Artisan has seen it
+      'accepted',    // Artisan accepted (ready to convert to booking)
+      'declined',    // Artisan declined
+      'retracted',   // Customer retracted before artisan response
+      'converted',   // Converted to booking
+      'expired'      // Expired due to time limit
     ],
-    default: "pending",
+    default: 'pending',
     index: true
   },
-  expiresAt: {
-    type: Date,
-    default: function() {
-      return new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days from now
-    },
-    index: true
-  },
-
-  // ========== COMMUNICATION SYSTEM ==========
-  messages: [{
-    sender: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
-      required: true
-    },
-    message: {
-      type: String,
-      required: [true, "Message content is required"],
-      trim: true,
-      maxlength: [500, "Message cannot exceed 500 characters"]
-    },
-    attachments: [{
-      url: String,
-      filename: String,
-      type: {
-        type: String,
-        enum: ["image", "document", "video"]
-      }
-    }],
-    timestamp: {
-      type: Date,
-      default: Date.now
-    },
-    isRead: {
-      type: Boolean,
-      default: false
-    }
-  }],
 
   // ========== ARTISAN RESPONSE ==========
   artisanResponse: {
@@ -201,125 +96,96 @@ const ServiceRequestSchema = new mongoose.Schema({
     respondedAt: {
       type: Date
     },
-    proposedPrice: {
-      amount: {
-        type: Number,
-        min: [0, "Price cannot be negative"]
-      },
-      currency: {
-        type: String,
-        default: "NGN",
-        enum: ["NGN", "USD"]
-      },
-      breakdown: [{
-        item: String,
-        cost: Number,
-        description: String
-      }]
+    responseType: {
+      type: String,
+      enum: ['accepted', 'declined', 'counter_offer'],
+      default: null
     },
-    estimatedDuration: {
-      value: Number,
-      unit: {
+    message: {
+      type: String,
+      trim: true,
+      maxlength: [500, "Response message cannot exceed 500 characters"]
+    },
+    // For negotiable services - artisan's proposed terms
+    proposedTerms: {
+      priceRange: {
         type: String,
-        enum: ["hours", "days", "weeks", "months"]
+        trim: true
+      },
+      duration: {
+        type: String,
+        trim: true
+      },
+      conditions: {
+        type: String,
+        trim: true,
+        maxlength: [300, "Conditions cannot exceed 300 characters"]
       }
     },
-    proposedStartDate: {
-      type: Date
-    },
-    proposedEndDate: {
-      type: Date
-    },
-    counterOffer: {
+    declineReason: {
       type: String,
       trim: true,
-      maxlength: [500, "Counter offer cannot exceed 500 characters"]
-    },
-    termsAndConditions: {
-      type: String,
-      trim: true,
-      maxlength: [1000, "Terms cannot exceed 1000 characters"]
+      maxlength: [300, "Decline reason cannot exceed 300 characters"]
     }
   },
 
-  // ========== REQUIREMENTS & SPECIFICATIONS ==========
-  requirements: {
-    materials: [{
-      name: String,
-      specifications: String,
-      customerProvided: {
-        type: Boolean,
-        default: false
-      }
-    }],
-    dimensions: {
-      length: Number,
-      width: Number,
-      height: Number,
-      unit: {
-        type: String,
-        enum: ["cm", "m", "inch", "ft"],
-        default: "cm"
-      }
+  // ========== COMMUNICATION ==========
+  messages: [{
+    sender: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      required: true
     },
-    colors: [String],
-    specialInstructions: {
+    message: {
       type: String,
-      maxlength: [500, "Special instructions cannot exceed 500 characters"]
+      required: true,
+      trim: true,
+      maxlength: [500, "Message cannot exceed 500 characters"]
     },
-    referenceImages: [String], // URLs to reference images
-    inspiration: {
-      type: String,
-      maxlength: [300, "Inspiration description cannot exceed 300 characters"]
+    timestamp: {
+      type: Date,
+      default: Date.now
+    },
+    isRead: {
+      type: Boolean,
+      default: false
     }
-  },
+  }],
 
-  // ========== CONVERSION TRACKING ==========
+  // ========== CONVERSION TO BOOKING ==========
   booking: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "Booking",
     default: null
   },
   conversionDate: {
-    type: Date
+    type: Date,
+    default: null
   },
 
-  // ========== METADATA ==========
-  priority: {
-    type: String,
-    enum: ["low", "medium", "high", "urgent"],
-    default: "medium"
-  },
-  tags: [{
-    type: String,
-    trim: true
-  }],
-  source: {
-    type: String,
-    enum: ["direct_service", "custom_request", "referral", "search"],
-    default: "direct_service"
+  // ========== AUTO-EXPIRY ==========
+  expiresAt: {
+    type: Date,
+    default: function() {
+      return new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days from creation
+    },
+    index: { expireAfterSeconds: 0 }
   }
 }, { 
-  timestamps: true
+  timestamps: true 
 });
 
-// ========== INDEXES FOR PERFORMANCE ==========
+// Add indexes for faster querying
 ServiceRequestSchema.index({ customer: 1, status: 1 });
 ServiceRequestSchema.index({ artisan: 1, status: 1 });
-ServiceRequestSchema.index({ status: 1, expiresAt: 1 });
-ServiceRequestSchema.index({ category: 1, "location.lga": 1 });
 ServiceRequestSchema.index({ createdAt: -1 });
-ServiceRequestSchema.index({ "artisanResponse.respondedAt": -1 });
+ServiceRequestSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
 
-// ========== VIRTUAL FIELDS ==========
-ServiceRequestSchema.virtual('isExpired').get(function() {
-  return this.expiresAt < new Date();
-});
-
-ServiceRequestSchema.virtual('timeRemaining').get(function() {
-  const now = new Date();
-  const remaining = this.expiresAt - now;
-  return Math.max(0, remaining);
+// ========== VIRTUALS ==========
+ServiceRequestSchema.virtual('daysRemaining').get(function() {
+  if (!this.expiresAt) return null;
+  const remaining = this.expiresAt.getTime() - Date.now();
+  return Math.max(0, Math.ceil(remaining / (1000 * 60 * 60 * 24)));
 });
 
 ServiceRequestSchema.virtual('responseTime').get(function() {
@@ -336,45 +202,79 @@ ServiceRequestSchema.methods.markAsViewed = function() {
   return this;
 };
 
-ServiceRequestSchema.methods.addMessage = function(senderId, message, attachments = []) {
+ServiceRequestSchema.methods.acceptRequest = function(artisanId, message = '', proposedTerms = {}) {
+  if (this.artisan.toString() !== artisanId.toString()) {
+    throw new Error('Only the target artisan can accept this request');
+  }
+  
+  if (this.status !== 'pending' && this.status !== 'viewed') {
+    throw new Error('Can only accept pending or viewed requests');
+  }
+  
+  this.status = 'accepted';
+  this.artisanResponse = {
+    hasResponded: true,
+    respondedAt: new Date(),
+    responseType: 'accepted',
+    message,
+    proposedTerms
+  };
+  
+  return this.save();
+};
+
+ServiceRequestSchema.methods.declineRequest = function(artisanId, reason) {
+  if (this.artisan.toString() !== artisanId.toString()) {
+    throw new Error('Only the target artisan can decline this request');
+  }
+  
+  if (this.status !== 'pending' && this.status !== 'viewed') {
+    throw new Error('Can only decline pending or viewed requests');
+  }
+  
+  this.status = 'declined';
+  this.artisanResponse = {
+    hasResponded: true,
+    respondedAt: new Date(),
+    responseType: 'declined',
+    declineReason: reason
+  };
+  
+  return this.save();
+};
+
+ServiceRequestSchema.methods.retractRequest = function(customerId) {
+  if (this.customer.toString() !== customerId.toString()) {
+    throw new Error('Only the customer can retract their own request');
+  }
+  
+  if (this.status !== 'pending') {
+    throw new Error('Can only retract pending requests');
+  }
+  
+  this.status = 'retracted';
+  return this.save();
+};
+
+ServiceRequestSchema.methods.addMessage = function(senderId, message) {
+  if (this.customer.toString() !== senderId.toString() && 
+      this.artisan.toString() !== senderId.toString()) {
+    throw new Error('Only request participants can send messages');
+  }
+  
   this.messages.push({
     sender: senderId,
-    message: message,
-    attachments: attachments
+    message: message
   });
   
-  // Update status to negotiating if not already
-  if (this.status === 'pending' || this.status === 'viewed') {
-    this.status = 'negotiating';
-  }
-  
-  return this.save();
-};
-
-ServiceRequestSchema.methods.submitQuote = function(responseData) {
-  this.artisanResponse = {
-    ...responseData,
-    hasResponded: true,
-    respondedAt: new Date()
-  };
-  this.status = 'quoted';
-  return this.save();
-};
-
-ServiceRequestSchema.methods.acceptQuote = function() {
-  this.status = 'accepted';
-  return this.save();
-};
-
-ServiceRequestSchema.methods.decline = function(reason) {
-  this.status = 'declined';
-  if (reason) {
-    this.addMessage(this.artisan, `Request declined: ${reason}`);
-  }
   return this.save();
 };
 
 ServiceRequestSchema.methods.convertToBooking = function(bookingId) {
+  if (this.status !== 'accepted') {
+    throw new Error('Can only convert accepted requests to bookings');
+  }
+  
   this.status = 'converted';
   this.booking = bookingId;
   this.conversionDate = new Date();
@@ -384,7 +284,7 @@ ServiceRequestSchema.methods.convertToBooking = function(bookingId) {
 // ========== STATIC METHODS ==========
 ServiceRequestSchema.statics.getExpiredRequests = function() {
   return this.find({
-    status: { $in: ['pending', 'viewed', 'negotiating'] },
+    status: { $in: ['pending', 'viewed'] },
     expiresAt: { $lt: new Date() }
   });
 };
@@ -392,11 +292,37 @@ ServiceRequestSchema.statics.getExpiredRequests = function() {
 ServiceRequestSchema.statics.markExpiredRequests = function() {
   return this.updateMany(
     {
-      status: { $in: ['pending', 'viewed', 'negotiating'] },
+      status: { $in: ['pending', 'viewed'] },
       expiresAt: { $lt: new Date() }
     },
     { $set: { status: 'expired' } }
   );
+};
+
+// Get customer's sent requests
+ServiceRequestSchema.statics.getCustomerRequests = function(customerId, status = null) {
+  const query = { customer: customerId };
+  if (status && status !== 'all') {
+    query.status = status;
+  }
+  
+  return this.find(query)
+    .populate('artisan', 'businessName contactName profileImage')
+    .populate('service', 'title category images')
+    .sort({ createdAt: -1 });
+};
+
+// Get artisan's received requests
+ServiceRequestSchema.statics.getArtisanRequests = function(artisanId, status = null) {
+  const query = { artisan: artisanId };
+  if (status && status !== 'all') {
+    query.status = status;
+  }
+  
+  return this.find(query)
+    .populate('customer', 'fullName profileImage')
+    .populate('service', 'title category images')
+    .sort({ createdAt: -1 });
 };
 
 export default mongoose.model("ServiceRequest", ServiceRequestSchema);

@@ -1,4 +1,4 @@
-const API_URL = "http://localhost:5000/api/bookings";
+const API_URL = "http://localhost:3000/api/bookings";
 
 // Book a service
 export const bookService = async (serviceId, token) => {

@@ -11,16 +11,17 @@ import ServiceView from './components/pages/ServiceView';
 import ServiceSearch from './components/pages/ServiceSearch';
 import ServicesAdd from './components/pages/ServicesAdd';
 import ServicesManagement from './components/pages/ServicesManagement';
-import Bookings from './components/pages/MyBookings';
 import ContactUs from './components/pages/ContactUs';
 import PrivacyPolicy from './components/pages/PrivacyPolicy';
+import FAQ from './components/pages/FAQ';
 import TermsOfService from './components/pages/TermsOfService';
 import Unauthorized from './components/pages/Unauthorized';
 import ServiceRequestInbox from './components/pages/ServiceRequestInbox';
-import ServiceRequestDetails from './components/pages/ServiceRequestDetail';
+import CustomerRequestHistory from './components/pages/CustomerRequestHistory';
 import MyBookings from './components/pages/MyBookings';
 import MyWork from './components/pages/MyWork';
 import ProtectedRoute from './components/ProtectedRoute';
+// ... other imports and components
 
 function App() {
   return (
@@ -28,6 +29,7 @@ function App() {
       <Router>
         <div className="App">
           <Routes>
+            {/* Public Routes */}
             {/* Public Routes */}
             <Route path="/" element={<HomePage />} />
             <Route path="/login" element={<Login />} />
@@ -39,6 +41,7 @@ function App() {
             <Route path="/contact" element={<ContactUs />} />
             <Route path="/privacy" element={<PrivacyPolicy />} />
             <Route path="/terms" element={<TermsOfService />} />
+            <Route path="/faq" element={<FAQ />} />
             <Route path="/unauthorized" element={<Unauthorized />} />
             
             {/* Service Request Pages */}
@@ -47,9 +50,9 @@ function App() {
                 <ServiceRequestInbox />
               </ProtectedRoute>
             } />
-            <Route path="/service-requests/:requestId" element={
-              <ProtectedRoute>
-                <ServiceRequestDetails />
+            <Route path="/customer-requests/history" element={
+                <ProtectedRoute allowedUserTypes={['customer']}>
+                <CustomerRequestHistory />
               </ProtectedRoute>
             } />
             
@@ -64,26 +67,33 @@ function App() {
                 <MyWork />
               </ProtectedRoute>
             } />
+
+            {/* DYNAMIC PROFILE ROUTES - This is the key fix */}
             
-            {/* Profile Routes - Dynamic */}
+            {/* Own Profile Route - /profile (no userId) */}
             <Route path="/profile" element={
               <ProtectedRoute>
                 <Profile />
               </ProtectedRoute>
             } />
-            <Route path="/user/:userId" element={<Profile />} /> {/* Public profile view */}
+            
+            {/* Profile Edit Route - for editing own profile
+            <Route path="/profile/edit" element={
+              <ProtectedRoute>
+                <ProfileEdit />
+              </ProtectedRoute>
+            } /> */}
+            
+            {/* Other User's Profile Route - /profile/:userId */}
+            <Route path="/profile/:userId" element={<Profile />} />
+            
+            {/* Alternative Public Profile Route - /user/:userId (legacy support) */}
+            <Route path="/user/:userId" element={<Profile />} />
             
             {/* Protected Routes - All Users */}
             <Route path="/dashboard" element={
               <ProtectedRoute allowedUserTypes={['customer', 'artisan']}>
                 <Dashboard />
-              </ProtectedRoute>
-            } />
-            
-            {/* Customer Only Routes */}
-            <Route path="/bookings" element={
-              <ProtectedRoute allowedUserTypes={['customer']}>
-                <Bookings />
               </ProtectedRoute>
             } />
             

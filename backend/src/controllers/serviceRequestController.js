@@ -1,4 +1,4 @@
-// backend/src/controllers/serviceRequestController.js
+// backend/src/controllers/serviceRequestController.js - Updated for No-Payment System
 import ServiceRequest from '../models/serviceRequest.js';
 import Service from '../models/service.js';
 import User from '../models/user.js';
@@ -32,7 +32,8 @@ export const createServiceRequest = async (req, res) => {
       location,
       requirements,
       priority,
-      source
+      source,
+      selectedCategory // NEW: For categorized services
     } = req.body;
 
     // Validate required fields
@@ -52,67 +53,120 @@ export const createServiceRequest = async (req, res) => {
       });
     }
 
-    // Validate service exists if provided
+    // Validate service exists if provided and get pricing info
+    let service = null;
     if (serviceId) {
-      const service = await Service.findById(serviceId);
+      service = await Service.findById(serviceId);
       if (!service || !service.isActive || service.artisan.toString() !== artisanId) {
         return res.status(404).json({
           success: false,
-          message: 'Service not found or does not belong to the specified artisan'
+          message: 'Service not found, inactive, or does not belong to specified artisan'
+        });
+      }
+
+      // NEW: Validate selectedCategory for categorized services
+      if (service.pricing.type === 'categorized') {
+        if (!selectedCategory) {
+          return res.status(400).json({
+            success: false,
+            message: 'Selected category is required for categorized pricing services'
+          });
+        }
+
+        // Validate the selected category exists in the service
+        const categoryExists = service.pricing.categories.some(cat => cat.name === selectedCategory);
+        if (!categoryExists) {
+          return res.status(400).json({
+            success: false,
+            message: `Selected category "${selectedCategory}" is not available for this service`
+          });
+        }
+      } else if (selectedCategory) {
+        return res.status(400).json({
+          success: false,
+          message: 'Selected category can only be provided for categorized pricing services'
         });
       }
     }
 
-    // Check for duplicate active requests
-    const existingRequest = await ServiceRequest.findOne({
-      customer: customerId,
-      artisan: artisanId,
-      status: { $in: ['pending', 'viewed', 'negotiating', 'quoted', 'accepted'] },
-      ...(serviceId && { service: serviceId })
-    });
-
-    if (existingRequest) {
-      return res.status(409).json({
-        success: false,
-        message: 'You already have an active request with this artisan for this service'
-      });
-    }
-
-    // Create service request
+    // Create service request with enhanced pricing validation
     const serviceRequest = new ServiceRequest({
       customer: customerId,
       artisan: artisanId,
-      service: serviceId || null,
+      service: serviceId,
       title,
       description,
       category,
-      budget,
-      timeline,
+      budget: {
+        min: budget.min,
+        max: budget.max || null,
+        currency: budget.currency || 'NGN',
+        isFlexible: budget.isFlexible !== false
+      },
+      timeline: {
+        preferredStartDate: new Date(timeline.preferredStartDate),
+        isFlexible: timeline.isFlexible !== false,
+        urgency: timeline.urgency || 'medium'
+      },
       location: {
-        ...location,
-        city: 'Lagos',
-        state: 'Lagos'
+        address: location.address,
+        lga: location.lga,
+        state: location.state || 'Lagos',
+        coordinates: location.coordinates
       },
       requirements: requirements || {},
       priority: priority || 'medium',
-      source: source || 'direct_service'
+      source: source || 'direct_service',
+      selectedCategory: selectedCategory || null // NEW: Store selected category
     });
 
     await serviceRequest.save();
 
-    // Populate the response
+    // Populate and return
     await serviceRequest.populate([
-      { path: 'customer', select: 'fullName email profileImage' },
-      { path: 'artisan', select: 'contactName businessName profileImage' },
-      { path: 'service', select: 'title category price' }
+      { path: 'customer', select: 'fullName email profileImage customerLocation' },
+      { path: 'artisan', select: 'contactName businessName profileImage phoneNumber location' },
+      { path: 'service', select: 'title category pricing images description' }
     ]);
 
-    console.log(`✅ Service request created: ${serviceRequest._id} from ${req.user.fullName} to ${artisan.contactName}`);
+    console.log(`✅ Service request created: ${serviceRequest._id} by ${req.user.fullName || req.user.contactName}`);
+
+    // NEW: Add pricing context for response
+    let pricingContext = null;
+    if (service) {
+      switch (service.pricing.type) {
+        case 'fixed':
+          pricingContext = {
+            type: 'fixed',
+            price: service.pricing.basePrice,
+            duration: service.pricing.baseDuration,
+            currency: service.pricing.currency
+          };
+          break;
+        case 'negotiate':
+          pricingContext = {
+            type: 'negotiate',
+            message: 'Price will be determined through negotiation'
+          };
+          break;
+        case 'categorized':
+          const selectedCat = service.pricing.categories.find(cat => cat.name === selectedCategory);
+          pricingContext = {
+            type: 'categorized',
+            selectedCategory: selectedCategory,
+            price: selectedCat?.price,
+            duration: selectedCat?.duration,
+            currency: service.pricing.currency
+          };
+          break;
+      }
+    }
 
     res.status(201).json({
       success: true,
       message: 'Service request created successfully',
-      serviceRequest
+      serviceRequest,
+      pricingContext
     });
 
   } catch (error) {
@@ -131,51 +185,75 @@ export const createServiceRequest = async (req, res) => {
 export const getMyRequests = async (req, res) => {
   try {
     const customerId = req.user._id;
-    const { status, page = 1, limit = 10 } = req.query;
-
-    // Validate customer role
-    if (req.user.role !== 'customer') {
-      return res.status(403).json({
-        success: false,
-        message: 'Only customers can access this endpoint'
-      });
-    }
+    const { status, limit = 20, page = 1 } = req.query;
 
     // Build query
     const query = { customer: customerId };
-    if (status && status !== 'all') {
+    if (status) {
       query.status = status;
     }
 
     // Calculate pagination
-    const pageNum = Math.max(1, parseInt(page));
-    const limitNum = Math.min(50, Math.max(1, parseInt(limit)));
-    const skip = (pageNum - 1) * limitNum;
+    const skip = (page - 1) * limit;
 
-    // Get requests with pagination
-    const [requests, total] = await Promise.all([
-      ServiceRequest.find(query)
-        .populate([
-          { path: 'artisan', select: 'contactName businessName profileImage location.lga' },
-          { path: 'service', select: 'title category price images' },
-          { path: 'booking', select: 'status scheduledDate pricing' }
-        ])
-        .sort({ createdAt: -1 })
-        .skip(skip)
-        .limit(limitNum),
-      ServiceRequest.countDocuments(query)
-    ]);
+    const serviceRequests = await ServiceRequest.find(query)
+      .populate([
+        { path: 'artisan', select: 'contactName businessName profileImage phoneNumber location ratings' },
+        { path: 'service', select: 'title category pricing images' },
+        { path: 'booking', select: 'status scheduledDate' }
+      ])
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(parseInt(limit));
+
+    const total = await ServiceRequest.countDocuments(query);
+
+    // NEW: Add pricing context to each request
+    const requestsWithPricing = serviceRequests.map(request => {
+      const requestObj = request.toObject();
+      
+      // Add pricing information if service exists
+      if (request.service && request.service.pricing) {
+        switch (request.service.pricing.type) {
+          case 'fixed':
+            requestObj.pricingContext = {
+              type: 'fixed',
+              price: request.service.pricing.basePrice,
+              duration: request.service.pricing.baseDuration,
+              displayPrice: `₦${request.service.pricing.basePrice.toLocaleString()}`
+            };
+            break;
+          case 'negotiate':
+            requestObj.pricingContext = {
+              type: 'negotiate',
+              displayPrice: 'Price on consultation'
+            };
+            break;
+          case 'categorized':
+            if (request.selectedCategory) {
+              const selectedCat = request.service.pricing.categories.find(cat => cat.name === request.selectedCategory);
+              requestObj.pricingContext = {
+                type: 'categorized',
+                selectedCategory: request.selectedCategory,
+                price: selectedCat?.price,
+                duration: selectedCat?.duration,
+                displayPrice: selectedCat ? `₦${selectedCat.price.toLocaleString()}` : 'Category not found'
+              };
+            }
+            break;
+        }
+      }
+      
+      return requestObj;
+    });
 
     res.json({
       success: true,
-      requests,
-      pagination: {
-        current: pageNum,
-        pages: Math.ceil(total / limitNum),
-        total,
-        hasNext: pageNum < Math.ceil(total / limitNum),
-        hasPrev: pageNum > 1
-      }
+      count: serviceRequests.length,
+      total,
+      page: parseInt(page),
+      pages: Math.ceil(total / limit),
+      serviceRequests: requestsWithPricing
     });
 
   } catch (error) {
@@ -188,7 +266,7 @@ export const getMyRequests = async (req, res) => {
   }
 };
 
-// @desc    Accept artisan's quote and convert to booking
+// @desc    Accept artisan's quote
 // @route   POST /api/service-requests/:requestId/accept
 // @access  Private (Customer only)
 export const acceptQuote = async (req, res) => {
@@ -196,10 +274,7 @@ export const acceptQuote = async (req, res) => {
     const { requestId } = req.params;
     const customerId = req.user._id;
 
-    // Find the service request
-    const serviceRequest = await ServiceRequest.findById(requestId)
-      .populate('artisan')
-      .populate('service');
+    const serviceRequest = await ServiceRequest.findById(requestId);
 
     if (!serviceRequest) {
       return res.status(404).json({
@@ -212,7 +287,7 @@ export const acceptQuote = async (req, res) => {
     if (serviceRequest.customer.toString() !== customerId.toString()) {
       return res.status(403).json({
         success: false,
-        message: 'You can only accept your own service requests'
+        message: 'You can only accept quotes for your own requests'
       });
     }
 
@@ -220,20 +295,14 @@ export const acceptQuote = async (req, res) => {
     if (serviceRequest.status !== 'quoted') {
       return res.status(400).json({
         success: false,
-        message: 'Can only accept quoted requests'
-      });
-    }
-
-    // Validate artisan response exists
-    if (!serviceRequest.artisanResponse.hasResponded || !serviceRequest.artisanResponse.proposedPrice?.amount) {
-      return res.status(400).json({
-        success: false,
-        message: 'Artisan has not provided a valid quote'
+        message: 'Can only accept requests that have been quoted'
       });
     }
 
     // Accept the quote
     await serviceRequest.acceptQuote();
+
+    console.log(`✅ Quote accepted: ${requestId} by ${req.user.fullName}`);
 
     res.json({
       success: true,
@@ -251,14 +320,18 @@ export const acceptQuote = async (req, res) => {
   }
 };
 
-// @desc    Convert accepted request to booking
+// @desc    Convert accepted request to booking (NO PAYMENT VERSION)
 // @route   POST /api/service-requests/:requestId/convert-to-booking
 // @access  Private (Customer only)
 export const convertToBooking = async (req, res) => {
   try {
     const { requestId } = req.params;
     const customerId = req.user._id;
-    const { scheduledDate, paymentTerms, depositAmount } = req.body;
+    const { 
+      scheduledDate, 
+      meetingLocation,
+      specialTerms
+    } = req.body; // REMOVED: paymentTerms, depositAmount
 
     // Find the service request
     const serviceRequest = await ServiceRequest.findById(requestId)
@@ -296,7 +369,33 @@ export const convertToBooking = async (req, res) => {
       });
     }
 
-    // Create the booking
+    // NEW: Determine agreed pricing based on service type and selected category
+    let agreedPricing = 'To be determined';
+    if (serviceRequest.service && serviceRequest.artisanResponse?.hasResponded) {
+      // Use artisan's response if available
+      agreedPricing = `₦${serviceRequest.artisanResponse.quotedPrice.toLocaleString()}`;
+    } else if (serviceRequest.service) {
+      // Use service pricing information
+      const service = serviceRequest.service;
+      switch (service.pricing.type) {
+        case 'fixed':
+          agreedPricing = `₦${service.pricing.basePrice.toLocaleString()}`;
+          break;
+        case 'categorized':
+          if (serviceRequest.selectedCategory) {
+            const selectedCat = service.pricing.categories.find(cat => cat.name === serviceRequest.selectedCategory);
+            if (selectedCat) {
+              agreedPricing = `₦${selectedCat.price.toLocaleString()} for ${selectedCat.name}`;
+            }
+          }
+          break;
+        case 'negotiate':
+          agreedPricing = 'To be negotiated';
+          break;
+      }
+    }
+
+    // Create the booking with NO PAYMENT FIELDS
     const booking = new Booking({
       customer: customerId,
       artisan: serviceRequest.artisan._id,
@@ -308,18 +407,27 @@ export const convertToBooking = async (req, res) => {
         startDate: new Date(scheduledDate.startDate),
         endDate: scheduledDate.endDate ? new Date(scheduledDate.endDate) : null,
         startTime: scheduledDate.startTime || null,
-        endTime: scheduledDate.endTime || null,
-        duration: serviceRequest.artisanResponse.estimatedDuration || null
+        endTime: scheduledDate.endTime || null
       },
-      pricing: {
-        agreedPrice: serviceRequest.artisanResponse.proposedPrice.amount,
-        currency: serviceRequest.artisanResponse.proposedPrice.currency || 'NGN',
-        breakdown: serviceRequest.artisanResponse.proposedPrice.breakdown || [],
-        paymentTerms: paymentTerms || 'deposit_balance',
-        depositAmount: depositAmount || 0
+      // NEW: Agreement structure instead of payment
+      agreement: {
+        agreedTerms: {
+          pricing: agreedPricing,
+          duration: serviceRequest.artisanResponse?.estimatedDuration || serviceRequest.service?.pricing?.baseDuration || 'To be determined',
+          meetingLocation: meetingLocation || serviceRequest.location?.address || 'To be determined',
+          specialTerms: specialTerms || '',
+          selectedCategory: serviceRequest.selectedCategory || null
+        },
+        contractAccepted: {
+          customer: false,
+          artisan: false,
+          timestamps: {}
+        },
+        bothPartiesAccepted: false
       },
       location: serviceRequest.location,
-      source: 'service_request'
+      source: 'service_request',
+      status: 'in_progress' // Start directly in progress
     });
 
     await booking.save();
@@ -331,15 +439,22 @@ export const convertToBooking = async (req, res) => {
     await booking.populate([
       { path: 'customer', select: 'fullName email profileImage' },
       { path: 'artisan', select: 'contactName businessName profileImage phoneNumber' },
-      { path: 'service', select: 'title category images' }
+      { path: 'service', select: 'title category pricing images' }
     ]);
 
-    console.log(`✅ Service request converted to booking: ${requestId} → ${booking._id}`);
+    console.log(`✅ Service request converted to booking (no-payment): ${requestId} → ${booking._id}`);
 
     res.status(201).json({
       success: true,
-      message: 'Service request successfully converted to booking',
-      booking
+      message: 'Service request successfully converted to booking. Contract acceptance is required from both parties.',
+      booking: {
+        ...booking.toObject(),
+        nextSteps: [
+          'Both parties need to review and accept the contract terms',
+          'Meet at the agreed location to begin the service',
+          'Customer can mark the booking as complete when satisfied'
+        ]
+      }
     });
 
   } catch (error) {
@@ -354,71 +469,82 @@ export const convertToBooking = async (req, res) => {
 
 // ========== ARTISAN ENDPOINTS ==========
 
-// @desc    Get artisan's incoming service requests
+// @desc    Get artisan's incoming service requests  
 // @route   GET /api/service-requests/inbox
 // @access  Private (Artisan only)
 export const getInbox = async (req, res) => {
   try {
     const artisanId = req.user._id;
-    const { status, page = 1, limit = 10 } = req.query;
-
-    // Validate artisan role
-    if (req.user.role !== 'artisan') {
-      return res.status(403).json({
-        success: false,
-        message: 'Only artisans can access this endpoint'
-      });
-    }
+    const { status, limit = 20, page = 1 } = req.query;
 
     // Build query
     const query = { artisan: artisanId };
-    if (status && status !== 'all') {
+    if (status) {
       query.status = status;
     }
 
     // Calculate pagination
-    const pageNum = Math.max(1, parseInt(page));
-    const limitNum = Math.min(50, Math.max(1, parseInt(limit)));
-    const skip = (pageNum - 1) * limitNum;
+    const skip = (page - 1) * limit;
 
-    // Get requests with pagination
-    const [requests, total] = await Promise.all([
-      ServiceRequest.find(query)
-        .populate([
-          { path: 'customer', select: 'fullName email profileImage customerLocation' },
-          { path: 'service', select: 'title category price images' }
-        ])
-        .sort({ createdAt: -1 })
-        .skip(skip)
-        .limit(limitNum),
-      ServiceRequest.countDocuments(query)
-    ]);
+    const serviceRequests = await ServiceRequest.find(query)
+      .populate([
+        { path: 'customer', select: 'fullName email profileImage customerLocation' },
+        { path: 'service', select: 'title category pricing images description' },
+        { path: 'booking', select: 'status scheduledDate' }
+      ])
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(parseInt(limit));
 
-    // Mark unread requests as viewed
-    const unviewedRequests = requests.filter(req => req.status === 'pending');
-    if (unviewedRequests.length > 0) {
-      await ServiceRequest.updateMany(
-        {
-          _id: { $in: unviewedRequests.map(req => req._id) },
-          status: 'pending'
-        },
-        { $set: { status: 'viewed' } }
-      );
+    const total = await ServiceRequest.countDocuments(query);
+
+    // NEW: Add pricing context for artisan view
+    const requestsWithPricing = serviceRequests.map(request => {
+      const requestObj = request.toObject();
       
-      // Update the requests in our response
-      unviewedRequests.forEach(req => req.status = 'viewed');
-    }
+      // Add relevant pricing information for artisan
+      if (request.service && request.service.pricing) {
+        switch (request.service.pricing.type) {
+          case 'fixed':
+            requestObj.serviceInfo = {
+              pricingType: 'fixed',
+              price: request.service.pricing.basePrice,
+              duration: request.service.pricing.baseDuration
+            };
+            break;
+          case 'negotiate':
+            requestObj.serviceInfo = {
+              pricingType: 'negotiate',
+              message: 'Quote required'
+            };
+            break;
+          case 'categorized':
+            requestObj.serviceInfo = {
+              pricingType: 'categorized',
+              selectedCategory: request.selectedCategory,
+              availableCategories: request.service.pricing.categories
+            };
+            if (request.selectedCategory) {
+              const selectedCat = request.service.pricing.categories.find(cat => cat.name === request.selectedCategory);
+              if (selectedCat) {
+                requestObj.serviceInfo.categoryPrice = selectedCat.price;
+                requestObj.serviceInfo.categoryDuration = selectedCat.duration;
+              }
+            }
+            break;
+        }
+      }
+      
+      return requestObj;
+    });
 
     res.json({
       success: true,
-      requests,
-      pagination: {
-        current: pageNum,
-        pages: Math.ceil(total / limitNum),
-        total,
-        hasNext: pageNum < Math.ceil(total / limitNum),
-        hasPrev: pageNum > 1
-      }
+      count: serviceRequests.length,
+      total,
+      page: parseInt(page),
+      pages: Math.ceil(total / limit),
+      serviceRequests: requestsWithPricing
     });
 
   } catch (error) {
@@ -431,7 +557,7 @@ export const getInbox = async (req, res) => {
   }
 };
 
-// @desc    Submit quote for service request
+// @desc    Submit quote for service request (UPDATED FOR NO-PAYMENT)
 // @route   POST /api/service-requests/:requestId/quote
 // @access  Private (Artisan only)
 export const submitQuote = async (req, res) => {
@@ -439,24 +565,16 @@ export const submitQuote = async (req, res) => {
     const { requestId } = req.params;
     const artisanId = req.user._id;
     const {
-      proposedPrice,
+      quotedPrice,
       estimatedDuration,
-      proposedStartDate,
-      proposedEndDate,
-      counterOffer,
-      termsAndConditions
+      message,
+      proposedTimeline,
+      workLocation,
+      materials,
+      terms
     } = req.body;
 
-    // Validate artisan role
-    if (req.user.role !== 'artisan') {
-      return res.status(403).json({
-        success: false,
-        message: 'Only artisans can submit quotes'
-      });
-    }
-
-    // Find the service request
-    const serviceRequest = await ServiceRequest.findById(requestId);
+    const serviceRequest = await ServiceRequest.findById(requestId).populate('service');
 
     if (!serviceRequest) {
       return res.status(404).json({
@@ -481,43 +599,79 @@ export const submitQuote = async (req, res) => {
       });
     }
 
-    // Validate required quote data
-    if (!proposedPrice?.amount || proposedPrice.amount <= 0) {
+    // NEW: Validate quote against service pricing type
+    if (serviceRequest.service) {
+      const service = serviceRequest.service;
+      
+      switch (service.pricing.type) {
+        case 'fixed':
+          // For fixed pricing, artisan can quote the same or different price
+          if (!quotedPrice || quotedPrice <= 0) {
+            return res.status(400).json({
+              success: false,
+              message: 'Quoted price is required for fixed pricing services'
+            });
+          }
+          break;
+          
+        case 'categorized':
+          // For categorized pricing, validate against selected category
+          if (serviceRequest.selectedCategory) {
+            const selectedCat = service.pricing.categories.find(cat => cat.name === serviceRequest.selectedCategory);
+            if (selectedCat) {
+              // Artisan can quote the category price or provide custom quote
+              if (!quotedPrice || quotedPrice <= 0) {
+                return res.status(400).json({
+                  success: false,
+                  message: `Quoted price is required. Suggested price for ${selectedCat.name}: ₦${selectedCat.price.toLocaleString()}`
+                });
+              }
+            }
+          }
+          break;
+          
+        case 'negotiate':
+          // For negotiate pricing, quote is mandatory
+          if (!quotedPrice || quotedPrice <= 0) {
+            return res.status(400).json({
+              success: false,
+              message: 'Quoted price is required for negotiated pricing services'
+            });
+          }
+          break;
+      }
+    }
+
+    // Validate required fields
+    if (!quotedPrice || !estimatedDuration || !message) {
       return res.status(400).json({
         success: false,
-        message: 'Valid proposed price is required'
+        message: 'Missing required fields: quotedPrice, estimatedDuration, message'
       });
     }
 
-    // Prepare quote data
-    const quoteData = {
-      proposedPrice: {
-        amount: proposedPrice.amount,
-        currency: proposedPrice.currency || 'NGN',
-        breakdown: proposedPrice.breakdown || []
-      },
-      estimatedDuration,
-      proposedStartDate: proposedStartDate ? new Date(proposedStartDate) : null,
-      proposedEndDate: proposedEndDate ? new Date(proposedEndDate) : null,
-      counterOffer,
-      termsAndConditions
-    };
-
     // Submit the quote
-    await serviceRequest.submitQuote(quoteData);
+    await serviceRequest.submitQuote({
+      quotedPrice: parseFloat(quotedPrice),
+      estimatedDuration,
+      message: message.trim(),
+      proposedTimeline: proposedTimeline ? new Date(proposedTimeline) : null,
+      workLocation: workLocation || 'To be discussed',
+      materials: materials || 'Standard materials included',
+      terms: terms || 'Standard terms apply'
+    });
 
-    // Populate and return updated request
-    await serviceRequest.populate([
-      { path: 'customer', select: 'fullName email profileImage' },
-      { path: 'service', select: 'title category price' }
-    ]);
-
-    console.log(`✅ Quote submitted for request: ${requestId} by ${req.user.contactName}`);
+    console.log(`✅ Quote submitted: ${requestId} by ${req.user.contactName} - ₦${quotedPrice}`);
 
     res.json({
       success: true,
       message: 'Quote submitted successfully',
-      serviceRequest
+      quote: {
+        quotedPrice: parseFloat(quotedPrice),
+        estimatedDuration,
+        message,
+        submittedAt: new Date()
+      }
     });
 
   } catch (error) {
@@ -531,7 +685,7 @@ export const submitQuote = async (req, res) => {
 };
 
 // @desc    Decline service request
-// @route   POST /api/service-requests/:requestId/decline
+// @route   POST /api/service-requests/:requestId/decline  
 // @access  Private (Artisan only)
 export const declineRequest = async (req, res) => {
   try {
@@ -539,7 +693,6 @@ export const declineRequest = async (req, res) => {
     const artisanId = req.user._id;
     const { reason } = req.body;
 
-    // Find the service request
     const serviceRequest = await ServiceRequest.findById(requestId);
 
     if (!serviceRequest) {
@@ -599,8 +752,8 @@ export const getRequestById = async (req, res) => {
       .populate([
         { path: 'customer', select: 'fullName email profileImage customerLocation' },
         { path: 'artisan', select: 'contactName businessName profileImage phoneNumber location' },
-        { path: 'service', select: 'title category price images description' },
-        { path: 'booking', select: 'status scheduledDate pricing' },
+        { path: 'service', select: 'title category pricing images description' },
+        { path: 'booking', select: 'status scheduledDate agreement' },
         { path: 'messages.sender', select: 'fullName contactName profileImage role' }
       ]);
 
@@ -622,28 +775,65 @@ export const getRequestById = async (req, res) => {
       });
     }
 
-    // Mark messages as read for the current user
-    let hasUnreadMessages = false;
-    serviceRequest.messages.forEach(message => {
-      if (message.sender._id.toString() !== userId.toString() && !message.isRead) {
-        message.isRead = true;
-        hasUnreadMessages = true;
+    // NEW: Add comprehensive pricing context
+    let pricingContext = null;
+    if (serviceRequest.service && serviceRequest.service.pricing) {
+      const service = serviceRequest.service;
+      
+      switch (service.pricing.type) {
+        case 'fixed':
+          pricingContext = {
+            type: 'fixed',
+            servicePrice: service.pricing.basePrice,
+            serviceDuration: service.pricing.baseDuration,
+            quotedPrice: serviceRequest.artisanResponse?.quotedPrice,
+            finalPrice: serviceRequest.artisanResponse?.quotedPrice || service.pricing.basePrice,
+            displayPrice: `₦${(serviceRequest.artisanResponse?.quotedPrice || service.pricing.basePrice).toLocaleString()}`
+          };
+          break;
+        case 'negotiate':
+          pricingContext = {
+            type: 'negotiate',
+            quotedPrice: serviceRequest.artisanResponse?.quotedPrice,
+            finalPrice: serviceRequest.artisanResponse?.quotedPrice,
+            displayPrice: serviceRequest.artisanResponse?.quotedPrice ? 
+              `₦${serviceRequest.artisanResponse.quotedPrice.toLocaleString()}` : 'Awaiting quote'
+          };
+          break;
+        case 'categorized':
+          const selectedCat = service.pricing.categories.find(cat => cat.name === serviceRequest.selectedCategory);
+          pricingContext = {
+            type: 'categorized',
+            selectedCategory: serviceRequest.selectedCategory,
+            categoryPrice: selectedCat?.price,
+            categoryDuration: selectedCat?.duration,
+            quotedPrice: serviceRequest.artisanResponse?.quotedPrice,
+            finalPrice: serviceRequest.artisanResponse?.quotedPrice || selectedCat?.price,
+            displayPrice: serviceRequest.artisanResponse?.quotedPrice ? 
+              `₦${serviceRequest.artisanResponse.quotedPrice.toLocaleString()}` :
+              (selectedCat ? `₦${selectedCat.price.toLocaleString()}` : 'Price not determined')
+          };
+          break;
       }
-    });
+    }
 
-    if (hasUnreadMessages) {
-      await serviceRequest.save();
+    // Mark as viewed if artisan is viewing for first time
+    if (isArtisan && serviceRequest.status === 'pending') {
+      await serviceRequest.markAsViewed();
     }
 
     res.json({
       success: true,
       serviceRequest,
+      pricingContext,
       context: {
         isCustomer,
         isArtisan,
-        canRespond: isArtisan && ['pending', 'viewed', 'negotiating'].includes(serviceRequest.status),
+        canQuote: isArtisan && ['pending', 'viewed', 'negotiating'].includes(serviceRequest.status),
         canAccept: isCustomer && serviceRequest.status === 'quoted',
-        canConvert: isCustomer && serviceRequest.status === 'accepted'
+        canDecline: isArtisan && ['pending', 'viewed', 'negotiating', 'quoted'].includes(serviceRequest.status),
+        canConvert: isCustomer && serviceRequest.status === 'accepted',
+        canMessage: true
       }
     });
 
@@ -664,9 +854,9 @@ export const addMessage = async (req, res) => {
   try {
     const { requestId } = req.params;
     const senderId = req.user._id;
-    const { message, attachments = [] } = req.body;
+    const { message, attachments } = req.body;
 
-    if (!message || message.trim() === '') {
+    if (!message || message.trim().length === 0) {
       return res.status(400).json({
         success: false,
         message: 'Message content is required'

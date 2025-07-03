@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 
-const ServiceRequestInbox = () => {
+const CustomerRequestHistory = () => {
   const navigate = useNavigate();
   const { userType, logout } = useAuth();
   const [requests, setRequests] = useState([]);
@@ -13,9 +13,9 @@ const ServiceRequestInbox = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  // Ensure only artisans can access
+  // Ensure only customers can access
   useEffect(() => {
-    if (userType !== 'artisan') {
+    if (userType !== 'customer') {
       navigate('/dashboard');
       return;
     }
@@ -33,7 +33,7 @@ const ServiceRequestInbox = () => {
         ? 'https://api.yourdomain.com/api' 
         : 'http://localhost:3000/api';
       
-      const response = await fetch(`${baseURL}/service-requests/inbox`, {
+      const response = await fetch(`${baseURL}/service-requests/my-requests`, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`,
           'Content-Type': 'application/json'
@@ -69,7 +69,8 @@ const ServiceRequestInbox = () => {
       filtered = filtered.filter(request =>
         request.title?.toLowerCase().includes(query) ||
         request.description?.toLowerCase().includes(query) ||
-        request.customer?.fullName?.toLowerCase().includes(query)
+        request.service?.title?.toLowerCase().includes(query) ||
+        request.artisan?.businessName?.toLowerCase().includes(query)
       );
     }
 
@@ -118,27 +119,16 @@ const ServiceRequestInbox = () => {
     switch (status) {
       case 'pending':
         return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+      case 'quoted':
+        return 'bg-blue-100 text-blue-800 border-blue-200';
       case 'accepted':
         return 'bg-green-100 text-green-800 border-green-200';
-      case 'rejected':
+      case 'declined':
         return 'bg-red-100 text-red-800 border-red-200';
       case 'expired':
         return 'bg-gray-100 text-gray-800 border-gray-200';
       default:
-        return 'bg-blue-100 text-blue-800 border-blue-200';
-    }
-  };
-
-  const getPriorityColor = (priority) => {
-    switch (priority?.toLowerCase()) {
-      case 'high':
-        return 'text-red-600';
-      case 'medium':
-        return 'text-yellow-600';
-      case 'low':
-        return 'text-green-600';
-      default:
-        return 'text-gray-600';
+        return 'bg-gray-100 text-gray-800 border-gray-200';
     }
   };
 
@@ -158,14 +148,14 @@ const ServiceRequestInbox = () => {
     return `${hours}h remaining`;
   };
 
-  const handleAcceptRequest = async (requestId) => {
+  const handleAcceptQuote = async (requestId) => {
     try {
       const baseURL = process.env.NODE_ENV === 'production' 
         ? 'https://api.yourdomain.com/api' 
         : 'http://localhost:3000/api';
         
       const response = await fetch(`${baseURL}/service-requests/${requestId}/accept`, {
-        method: 'PATCH',
+        method: 'POST',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`,
           'Content-Type': 'application/json'
@@ -174,46 +164,21 @@ const ServiceRequestInbox = () => {
 
       if (response.ok) {
         await fetchRequests();
-        alert('Request accepted successfully!');
+        alert('Quote accepted! You can now convert this to a booking.');
       } else {
         const errorData = await response.json().catch(() => ({}));
-        alert(errorData.message || 'Failed to accept request');
+        alert(errorData.message || 'Failed to accept quote');
       }
     } catch (err) {
-      alert('Error accepting request');
-      console.error('Error accepting request:', err);
+      alert('Error accepting quote');
+      console.error('Error accepting quote:', err);
     }
   };
 
-  const handleRejectRequest = async (requestId) => {
-    const reason = prompt('Please provide a reason for rejection:');
-    if (!reason) return;
-
-    try {
-      const baseURL = process.env.NODE_ENV === 'production' 
-        ? 'https://api.yourdomain.com/api' 
-        : 'http://localhost:3000/api';
-        
-      const response = await fetch(`${baseURL}/service-requests/${requestId}/reject`, {
-        method: 'PATCH',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ reason })
-      });
-
-      if (response.ok) {
-        await fetchRequests();
-        alert('Request rejected');
-      } else {
-        const errorData = await response.json().catch(() => ({}));
-        alert(errorData.message || 'Failed to reject request');
-      }
-    } catch (err) {
-      alert('Error rejecting request');
-      console.error('Error rejecting request:', err);
-    }
+  const handleConvertToBooking = async (requestId) => {
+    // This would typically open a modal or navigate to a booking creation page
+    // For now, we'll show an alert
+    alert('This will open the booking creation form. Feature coming soon!');
   };
 
   const handleLogout = () => {
@@ -225,16 +190,18 @@ const ServiceRequestInbox = () => {
   const filterCounts = {
     all: requests.length,
     pending: requests.filter(r => r.status === 'pending').length,
+    quoted: requests.filter(r => r.status === 'quoted').length,
     accepted: requests.filter(r => r.status === 'accepted').length,
-    rejected: requests.filter(r => r.status === 'rejected').length,
+    declined: requests.filter(r => r.status === 'declined').length,
     expired: requests.filter(r => r.status === 'expired').length
   };
 
   const filters = [
     { key: 'all', label: 'All Requests', count: filterCounts.all },
     { key: 'pending', label: 'Pending', count: filterCounts.pending },
+    { key: 'quoted', label: 'Quoted', count: filterCounts.quoted },
     { key: 'accepted', label: 'Accepted', count: filterCounts.accepted },
-    { key: 'rejected', label: 'Rejected', count: filterCounts.rejected },
+    { key: 'declined', label: 'Declined', count: filterCounts.declined },
     { key: 'expired', label: 'Expired', count: filterCounts.expired }
   ];
 
@@ -259,7 +226,7 @@ const ServiceRequestInbox = () => {
             <svg className="animate-spin w-8 h-8 text-red-500 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
             </svg>
-            <p className="text-gray-600">Loading requests...</p>
+            <p className="text-gray-600">Loading your requests...</p>
           </div>
         </div>
       </div>
@@ -285,11 +252,7 @@ const ServiceRequestInbox = () => {
                 <div>Your</div>
                 <div className="font-bold">Dashboard</div>
               </div>
-              <div className="text-xs cursor-pointer hover:text-red-400" onClick={() => navigate('/ServicesManagement')}>
-                <div>Your</div>
-                <div className="font-bold">Services</div>
-              </div>
-              <div className="text-xs cursor-pointer hover:text-red-400" onClick={() => navigate('/bookings/my-work')}>
+              <div className="text-xs cursor-pointer hover:text-red-400" onClick={() => navigate('/my-bookings')}>
                 <div>Your</div>
                 <div className="font-bold">Bookings</div>
               </div>
@@ -307,14 +270,14 @@ const ServiceRequestInbox = () => {
       </header>
 
       {/* Main Content */}
-      <main className="flex-1 bg-gray-50 pt-20 py-8 mt-8">
+      <main className="flex-1 bg-gray-50 pt-20 py-8 mt-5">
         <div className="container mx-auto px-4">
           {/* Page Header */}
           <div className="mb-8">
             <div className="flex items-center justify-between">
               <div>
-                <h1 className="text-3xl font-bold text-gray-800 mb-2">Service Request Inbox</h1>
-                <p className="text-gray-600">Manage incoming service requests from customers</p>
+                <h1 className="text-3xl font-bold text-gray-800 mb-2">My Service Requests</h1>
+                <p className="text-gray-600">Track your service requests and their status updates</p>
               </div>
               <button
                 onClick={() => navigate('/dashboard')}
@@ -383,15 +346,12 @@ const ServiceRequestInbox = () => {
                   <div className="flex items-start justify-between mb-4">
                     <div className="flex-1">
                       <div className="flex items-center gap-3 mb-2">
-                        <h3 className="text-lg font-semibold text-gray-800">{request.title || request.service?.title}</h3>
+                        <h3 className="text-lg font-semibold text-gray-800">
+                          {request.title || request.service?.title || 'Service Request'}
+                        </h3>
                         <span className={`px-3 py-1 rounded-full text-xs font-medium border ${getStatusBadgeColor(request.status)}`}>
                           {request.status?.charAt(0).toUpperCase() + request.status?.slice(1)}
                         </span>
-                        {request.priority && (
-                          <span className={`text-xs font-medium ${getPriorityColor(request.priority)}`}>
-                            {request.priority?.toUpperCase()} PRIORITY
-                          </span>
-                        )}
                       </div>
                       
                       <p className="text-gray-600 mb-3 line-clamp-2">{request.description}</p>
@@ -401,7 +361,7 @@ const ServiceRequestInbox = () => {
                           <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
                             <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
                           </svg>
-                          {request.customer?.fullName}
+                          {request.artisan?.businessName || request.artisan?.contactName || 'Artisan'}
                         </span>
                         <span className="flex items-center">
                           <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
@@ -422,17 +382,22 @@ const ServiceRequestInbox = () => {
                       <div className="text-lg font-bold text-green-600 mb-1">
                         {formatBudget(request.budget)}
                       </div>
-                      <div className="text-sm text-gray-500">Budget Range</div>
+                      <div className="text-sm text-gray-500">Your Budget</div>
                     </div>
                   </div>
 
-                  {/* Quick Info */}
+                  {/* Request Details */}
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4 bg-gray-50 p-4 rounded-lg">
                     <div>
-                      <span className="text-xs font-medium text-gray-500 uppercase tracking-wider">Timeline</span>
+                      <span className="text-xs font-medium text-gray-500 uppercase tracking-wider">Service</span>
                       <p className="text-sm text-gray-800">
-                        {request.timeline?.preferredStartDate && new Date(request.timeline.preferredStartDate).toLocaleDateString()} 
-                        {request.timeline?.preferredEndDate && ` - ${new Date(request.timeline.preferredEndDate).toLocaleDateString()}`}
+                        {request.service?.title || 'N/A'}
+                      </p>
+                    </div>
+                    <div>
+                      <span className="text-xs font-medium text-gray-500 uppercase tracking-wider">Category</span>
+                      <p className="text-sm text-gray-800">
+                        {request.selectedCategory || request.service?.category || 'General'}
                       </p>
                     </div>
                     <div>
@@ -442,57 +407,51 @@ const ServiceRequestInbox = () => {
                         {request.location?.state && `, ${request.location.state}`}
                       </p>
                     </div>
-                    <div>
-                      <span className="text-xs font-medium text-gray-500 uppercase tracking-wider">Category</span>
-                      <p className="text-sm text-gray-800">
-                        {request.selectedCategory || request.service?.category || 'General'}
-                      </p>
-                    </div>
                   </div>
 
-                  {/* Service Pricing Information */}
-                  {request.service?.pricing && (
+                  {/* Quote Information */}
+                  {request.status === 'quoted' && request.quote && (
                     <div className="mb-4 p-3 bg-blue-50 rounded-lg">
                       <p className="text-sm text-blue-700">
-                        <strong>Service Pricing Type:</strong> 
-                        {request.service.pricing.type === 'fixed' && ' Fixed Price'}
-                        {request.service.pricing.type === 'negotiate' && ' Price Negotiable'}
-                        {request.service.pricing.type === 'categorized' && ' Category-Based Pricing'}
+                        <strong>Quote Received:</strong> ₦{request.quote.amount?.toLocaleString()} 
+                        {request.quote.estimatedDuration && ` - Duration: ${request.quote.estimatedDuration}`}
                       </p>
-                      {request.service.pricing.type === 'fixed' && request.service.pricing.basePrice && (
+                      {request.quote.notes && (
                         <p className="text-sm text-blue-600 mt-1">
-                          Base Price: ₦{request.service.pricing.basePrice.toLocaleString()}
-                        </p>
-                      )}
-                      {request.service.pricing.type === 'categorized' && request.selectedCategory && (
-                        <p className="text-sm text-blue-600 mt-1">
-                          Selected Category: {request.selectedCategory}
+                          <strong>Notes:</strong> {request.quote.notes}
                         </p>
                       )}
                     </div>
                   )}
 
-                  {/* Request Status Information */}
+                  {/* Status-specific Messages */}
                   {request.status === 'accepted' && (
                     <div className="mb-4 p-3 bg-green-50 rounded-lg">
                       <p className="text-sm text-green-700">
-                        <strong>Request Accepted!</strong> A booking has been created for this request. 
-                        The customer will receive the booking details and service agreement.
+                        <strong>Quote Accepted!</strong> You can now convert this to a booking to proceed with the service.
                       </p>
                     </div>
                   )}
 
-                  {request.status === 'rejected' && request.rejectionReason && (
+                  {request.status === 'declined' && request.declineReason && (
                     <div className="mb-4 p-3 bg-red-50 rounded-lg">
                       <p className="text-sm text-red-700">
-                        <strong>Request Rejected:</strong> {request.rejectionReason}
+                        <strong>Request Declined:</strong> {request.declineReason}
+                      </p>
+                    </div>
+                  )}
+
+                  {request.status === 'expired' && (
+                    <div className="mb-4 p-3 bg-gray-50 rounded-lg">
+                      <p className="text-sm text-gray-700">
+                        <strong>Request Expired:</strong> This request has expired. You can create a new request for this service.
                       </p>
                     </div>
                   )}
 
                   {/* Action Buttons */}
                   <div className="flex flex-wrap gap-3">
-                    {/* Message Customer */}
+                    {/* Message Artisan */}
                     <button
                       onClick={() => navigate(`/messages/${request._id}`)}
                       className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 transition"
@@ -500,56 +459,59 @@ const ServiceRequestInbox = () => {
                       <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
                       </svg>
-                      Message Customer
+                      Message Artisan
                     </button>
 
-                    {/* View Customer Profile */}
-                    <button
-                      onClick={() => navigate(`/profile/${request.customer?._id}`)}
-                      className="inline-flex items-center px-3 py-2 border border-blue-300 shadow-sm text-sm font-medium rounded-md text-blue-700 bg-blue-50 hover:bg-blue-100 transition"
-                    >
-                      <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                      </svg>
-                      View Customer
-                    </button>
-
-                    {/* Accept Request */}
-                    {request.status === 'pending' && (
+                    {/* View Artisan Profile */}
+                    {request.artisan && (
                       <button
-                        onClick={() => handleAcceptRequest(request._id)}
+                        onClick={() => navigate(`/profile/${request.artisan._id}`)}
+                        className="inline-flex items-center px-3 py-2 border border-blue-300 shadow-sm text-sm font-medium rounded-md text-blue-700 bg-blue-50 hover:bg-blue-100 transition"
+                      >
+                        <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                        </svg>
+                        View Artisan
+                      </button>
+                    )}
+
+                    {/* View Service */}
+                    {request.service && (
+                      <button
+                        onClick={() => navigate(`/services/${request.service._id}`)}
+                        className="inline-flex items-center px-3 py-2 border border-purple-300 shadow-sm text-sm font-medium rounded-md text-purple-700 bg-purple-50 hover:bg-purple-100 transition"
+                      >
+                        <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                        </svg>
+                        View Service
+                      </button>
+                    )}
+
+                    {/* Accept Quote */}
+                    {request.status === 'quoted' && (
+                      <button
+                        onClick={() => handleAcceptQuote(request._id)}
                         className="inline-flex items-center px-3 py-2 border border-green-300 shadow-sm text-sm font-medium rounded-md text-green-700 bg-green-50 hover:bg-green-100 transition"
                       >
                         <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                         </svg>
-                        Accept Request
+                        Accept Quote
                       </button>
                     )}
 
-                    {/* Reject Request */}
-                    {request.status === 'pending' && (
+                    {/* Convert to Booking */}
+                    {request.status === 'accepted' && (
                       <button
-                        onClick={() => handleRejectRequest(request._id)}
-                        className="inline-flex items-center px-3 py-2 border border-red-300 shadow-sm text-sm font-medium rounded-md text-red-700 bg-red-50 hover:bg-red-100 transition"
-                      >
-                        <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                        </svg>
-                        Reject Request
-                      </button>
-                    )}
-
-                    {/* View Booking (if accepted) */}
-                    {request.status === 'accepted' && request.booking && (
-                      <button
-                        onClick={() => navigate('/bookings/my-work')}
-                        className="inline-flex items-center px-3 py-2 border border-purple-300 shadow-sm text-sm font-medium rounded-md text-purple-700 bg-purple-50 hover:bg-purple-100 transition"
+                        onClick={() => handleConvertToBooking(request._id)}
+                        className="inline-flex items-center px-3 py-2 border border-orange-300 shadow-sm text-sm font-medium rounded-md text-orange-700 bg-orange-50 hover:bg-orange-100 transition"
                       >
                         <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
                         </svg>
-                        View Booking
+                        Create Booking
                       </button>
                     )}
                   </div>
@@ -565,13 +527,19 @@ const ServiceRequestInbox = () => {
                 <h3 className="text-lg font-medium text-gray-900 mb-2">
                   No {activeFilter !== 'all' ? activeFilter : ''} requests
                 </h3>
-                <p className="text-gray-600">
+                <p className="text-gray-600 mb-4">
                   {activeFilter === 'pending'
-                    ? 'No pending requests at the moment. Check back later!'
-                    : activeFilter === 'accepted'
-                    ? 'No accepted requests yet. Once you accept requests, they\'ll appear here.'
-                    : 'Service requests from customers will appear here when they request your services.'}
+                    ? 'No pending requests. Your active requests will appear here.'
+                    : activeFilter === 'quoted'
+                    ? 'No quoted requests yet. When artisans respond with quotes, they\'ll appear here.'
+                    : 'You haven\'t made any service requests yet. Start browsing services to make your first request!'}
                 </p>
+                <button
+                  onClick={() => navigate('/services')}
+                  className="bg-red-500 text-white px-6 py-2 rounded-lg hover:bg-red-600 transition"
+                >
+                  Browse Services
+                </button>
               </div>
             )}
           </div>
@@ -581,4 +549,4 @@ const ServiceRequestInbox = () => {
   );
 };
 
-export default ServiceRequestInbox;
+export default CustomerRequestHistory;

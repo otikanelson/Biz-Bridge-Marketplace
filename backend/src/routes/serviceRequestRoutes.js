@@ -1,10 +1,10 @@
-// backend/src/routes/serviceRequestRoutes.js
+// backend/src/routes/serviceRequestRoutes.js - CORRECTED IMPORTS
 import express from 'express';
 import { protect, authorize } from '../middleware/authMiddleware.js';
 import {
   createServiceRequest,
   getMyRequests,
-  acceptQuote,
+  acceptQuote,               // ✅ CORRECT: was acceptServiceRequest
   convertToBooking,
   getInbox,
   submitQuote,

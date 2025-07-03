@@ -1,4 +1,4 @@
-const API_URL = "http://localhost:5000/api/favourites";
+const API_URL = "http://localhost:3000/api/favourites";
 
 // Add to favourites
 export const saveToFavourites = async (artisanId, token) => {

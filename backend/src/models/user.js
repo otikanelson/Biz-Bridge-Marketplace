@@ -1,4 +1,4 @@
-// backend/src/models/user.js - FIXED VERSION (No Duplicate Indexes)
+// backend/src/models/user.js - FIXED VERSION
 import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';
 

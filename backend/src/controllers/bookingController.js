@@ -1,117 +1,13 @@
-// backend/src/controllers/bookingController.js - Enhanced version
+// backend/src/controllers/bookingController.js - Complete No-Payment System
 import Booking from '../models/booking.js';
 import Service from '../models/service.js';
 import User from '../models/user.js';
 import ServiceRequest from '../models/serviceRequest.js';
+import { generateEnhancedContract, validateContractAcceptance } from '../utils/contractGenerator.js';
+import fs from 'fs';
+import path from 'path';
 
 // ========== CUSTOMER ENDPOINTS ==========
-
-// @desc    Create direct booking (without service request)
-// @route   POST /api/bookings
-// @access  Private (Customer only)
-export const createDirectBooking = async (req, res) => {
-  try {
-    const customerId = req.user._id;
-    
-    // Validate customer role
-    if (req.user.role !== 'customer') {
-      return res.status(403).json({
-        success: false,
-        message: 'Only customers can create bookings'
-      });
-    }
-
-    const {
-      serviceId,
-      artisanId,
-      title,
-      description,
-      scheduledDate,
-      pricing,
-      location
-    } = req.body;
-
-    // Validate required fields
-    if (!serviceId || !artisanId || !title || !scheduledDate?.startDate || !pricing?.agreedPrice || !location?.lga) {
-      return res.status(400).json({
-        success: false,
-        message: 'Missing required fields: serviceId, artisanId, title, scheduledDate.startDate, pricing.agreedPrice, location.lga'
-      });
-    }
-
-    // Validate service exists and belongs to artisan
-    const service = await Service.findById(serviceId);
-    if (!service || !service.isActive || service.artisan.toString() !== artisanId) {
-      return res.status(404).json({
-        success: false,
-        message: 'Service not found or inactive'
-      });
-    }
-
-    // Validate artisan exists and is active
-    const artisan = await User.findById(artisanId);
-    if (!artisan || artisan.role !== 'artisan' || !artisan.isActive) {
-      return res.status(404).json({
-        success: false,
-        message: 'Artisan not found or inactive'
-      });
-    }
-
-    // Create booking
-    const booking = new Booking({
-      customer: customerId,
-      artisan: artisanId,
-      service: serviceId,
-      title,
-      description: description || '',
-      scheduledDate: {
-        startDate: new Date(scheduledDate.startDate),
-        endDate: scheduledDate.endDate ? new Date(scheduledDate.endDate) : null,
-        startTime: scheduledDate.startTime || null,
-        endTime: scheduledDate.endTime || null,
-        duration: scheduledDate.duration || null
-      },
-      pricing: {
-        agreedPrice: pricing.agreedPrice,
-        currency: pricing.currency || 'NGN',
-        breakdown: pricing.breakdown || [],
-        paymentTerms: pricing.paymentTerms || 'deposit_balance',
-        depositAmount: pricing.depositAmount || 0
-      },
-      location: {
-        ...location,
-        city: 'Lagos',
-        state: 'Lagos'
-      },
-      source: 'direct_booking'
-    });
-
-    await booking.save();
-
-    // Populate response
-    await booking.populate([
-      { path: 'customer', select: 'fullName email profileImage' },
-      { path: 'artisan', select: 'contactName businessName profileImage phoneNumber' },
-      { path: 'service', select: 'title category images price' }
-    ]);
-
-    console.log(`✅ Direct booking created: ${booking._id} by ${req.user.fullName}`);
-
-    res.status(201).json({
-      success: true,
-      message: 'Booking created successfully',
-      booking
-    });
-
-  } catch (error) {
-    console.error('❌ Create direct booking error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to create booking',
-      error: error.message
-    });
-  }
-};
 
 // @desc    Get customer's bookings
 // @route   GET /api/bookings/my-bookings
@@ -119,51 +15,33 @@ export const createDirectBooking = async (req, res) => {
 export const getMyBookings = async (req, res) => {
   try {
     const customerId = req.user._id;
-    const { status, page = 1, limit = 10 } = req.query;
+    const { status, limit = 20, page = 1 } = req.query;
 
-    // Validate customer role
-    if (req.user.role !== 'customer') {
-      return res.status(403).json({
-        success: false,
-        message: 'Only customers can access this endpoint'
-      });
-    }
+    const bookings = await Booking.getBookingHistory(customerId, 'customer', limit);
 
-    // Build query
-    const query = { customer: customerId };
-    if (status && status !== 'all') {
-      query.status = status;
-    }
+    // Filter by status if provided
+    const filteredBookings = status ? 
+      bookings.filter(booking => booking.status === status) : 
+      bookings;
 
-    // Calculate pagination
-    const pageNum = Math.max(1, parseInt(page));
-    const limitNum = Math.min(50, Math.max(1, parseInt(limit)));
-    const skip = (pageNum - 1) * limitNum;
-
-    // Get bookings with pagination
-    const [bookings, total] = await Promise.all([
-      Booking.find(query)
-        .populate([
-          { path: 'artisan', select: 'contactName businessName profileImage phoneNumber location.lga' },
-          { path: 'service', select: 'title category price images' },
-          { path: 'serviceRequest', select: 'title status' }
-        ])
-        .sort({ createdAt: -1 })
-        .skip(skip)
-        .limit(limitNum),
-      Booking.countDocuments(query)
-    ]);
+    // Add contract status to each booking
+    const bookingsWithContext = filteredBookings.map(booking => ({
+      ...booking.toObject(),
+      contractStatus: {
+        customerAccepted: booking.agreement.contractAccepted.customer,
+        artisanAccepted: booking.agreement.contractAccepted.artisan,
+        bothAccepted: booking.agreement.bothPartiesAccepted,
+        pendingContractAcceptance: !booking.agreement.bothPartiesAccepted
+      },
+      canComplete: booking.status === 'in_progress',
+      canCancel: ['in_progress'].includes(booking.status),
+      hasDispute: booking.dispute.isDisputed
+    }));
 
     res.json({
       success: true,
-      bookings,
-      pagination: {
-        current: pageNum,
-        pages: Math.ceil(total / limitNum),
-        total,
-        hasNext: pageNum < Math.ceil(total / limitNum),
-        hasPrev: pageNum > 1
-      }
+      count: filteredBookings.length,
+      bookings: bookingsWithContext
     });
 
   } catch (error) {
@@ -178,11 +56,11 @@ export const getMyBookings = async (req, res) => {
 
 // @desc    Cancel booking
 // @route   POST /api/bookings/:bookingId/cancel
-// @access  Private (Customer only - their own bookings)
+// @access  Private (Customer/Artisan)
 export const cancelBooking = async (req, res) => {
   try {
     const { bookingId } = req.params;
-    const customerId = req.user._id;
+    const userId = req.user._id;
     const { reason, description } = req.body;
 
     const booking = await Booking.findById(bookingId);
@@ -194,30 +72,42 @@ export const cancelBooking = async (req, res) => {
       });
     }
 
-    // Validate ownership
-    if (booking.customer.toString() !== customerId.toString()) {
+    // Validate access
+    const isCustomer = booking.customer.toString() === userId.toString();
+    const isArtisan = booking.artisan.toString() === userId.toString();
+
+    if (!isCustomer && !isArtisan) {
       return res.status(403).json({
         success: false,
         message: 'You can only cancel your own bookings'
       });
     }
 
-    // Validate status
-    if (!['pending', 'confirmed'].includes(booking.status)) {
+    // Check if booking can be cancelled
+    if (!['in_progress'].includes(booking.status)) {
       return res.status(400).json({
         success: false,
-        message: 'Cannot cancel booking in current status'
+        message: 'Booking cannot be cancelled in its current status'
+      });
+    }
+
+    // Validate required fields
+    if (!reason) {
+      return res.status(400).json({
+        success: false,
+        message: 'Cancellation reason is required'
       });
     }
 
     // Cancel the booking
-    await booking.cancel(customerId, reason || 'customer_request', description);
+    await booking.cancel(userId, reason, description);
 
-    console.log(`✅ Booking cancelled: ${bookingId} by customer`);
+    console.log(`✅ Booking cancelled: ${bookingId} by ${req.user.fullName || req.user.contactName}`);
 
     res.json({
       success: true,
-      message: 'Booking cancelled successfully'
+      message: 'Booking cancelled successfully',
+      booking
     });
 
   } catch (error) {
@@ -230,24 +120,17 @@ export const cancelBooking = async (req, res) => {
   }
 };
 
-// @desc    Add review for completed booking
-// @route   POST /api/bookings/:bookingId/review
+// @desc    Mark booking as completed (CUSTOMER ONLY)
+// @route   POST /api/bookings/:bookingId/complete
 // @access  Private (Customer only)
-export const addCustomerReview = async (req, res) => {
+export const markBookingComplete = async (req, res) => {
   try {
     const { bookingId } = req.params;
     const customerId = req.user._id;
-    const { rating, comment, images = [] } = req.body;
+    const { rating, review } = req.body;
 
-    // Validate rating
-    if (!rating || rating < 1 || rating > 5) {
-      return res.status(400).json({
-        success: false,
-        message: 'Valid rating (1-5) is required'
-      });
-    }
-
-    const booking = await Booking.findById(bookingId);
+    const booking = await Booking.findById(bookingId)
+      .populate('artisan', 'contactName businessName');
 
     if (!booking) {
       return res.status(404).json({
@@ -256,45 +139,43 @@ export const addCustomerReview = async (req, res) => {
       });
     }
 
-    // Validate ownership
+    // Validate customer ownership
     if (booking.customer.toString() !== customerId.toString()) {
       return res.status(403).json({
         success: false,
-        message: 'You can only review your own bookings'
+        message: 'Only the customer can mark a booking as complete'
       });
     }
 
-    // Validate status
-    if (!['pending_review', 'completed'].includes(booking.status)) {
+    // Check if booking can be completed
+    if (booking.status !== 'in_progress') {
       return res.status(400).json({
         success: false,
-        message: 'Can only review completed bookings'
+        message: 'Booking must be in progress to be marked as complete'
       });
     }
 
-    // Check if already reviewed
-    if (booking.review.customerReview) {
-      return res.status(400).json({
-        success: false,
-        message: 'You have already reviewed this booking'
-      });
+    // Mark as completed
+    await booking.markAsCompleted(customerId);
+
+    // Add review if provided
+    if (rating && review) {
+      await booking.addReview('customer', rating, review);
     }
 
-    // Add review
-    await booking.addReview('customer', rating, comment, images);
-
-    console.log(`✅ Customer review added for booking: ${bookingId}`);
+    console.log(`✅ Booking completed: ${bookingId} by customer`);
 
     res.json({
       success: true,
-      message: 'Review added successfully'
+      message: 'Booking marked as completed successfully',
+      booking
     });
 
   } catch (error) {
-    console.error('❌ Add customer review error:', error);
+    console.error('❌ Mark booking complete error:', error);
     res.status(500).json({
       success: false,
-      message: 'Failed to add review',
+      message: 'Failed to mark booking as complete',
       error: error.message
     });
   }
@@ -302,76 +183,285 @@ export const addCustomerReview = async (req, res) => {
 
 // ========== ARTISAN ENDPOINTS ==========
 
-// @desc    Get artisan's bookings
+// @desc    Get artisan's bookings/work
 // @route   GET /api/bookings/my-work
 // @access  Private (Artisan only)
 export const getMyWork = async (req, res) => {
   try {
     const artisanId = req.user._id;
-    const { status, page = 1, limit = 10 } = req.query;
+    const { status, limit = 20 } = req.query;
 
-    // Validate artisan role
-    if (req.user.role !== 'artisan') {
-      return res.status(403).json({
-        success: false,
-        message: 'Only artisans can access this endpoint'
-      });
-    }
+    const bookings = await Booking.getBookingHistory(artisanId, 'artisan', limit);
 
-    // Build query
-    const query = { artisan: artisanId };
-    if (status && status !== 'all') {
-      query.status = status;
-    }
+    // Filter by status if provided
+    const filteredBookings = status ? 
+      bookings.filter(booking => booking.status === status) : 
+      bookings;
 
-    // Calculate pagination
-    const pageNum = Math.max(1, parseInt(page));
-    const limitNum = Math.min(50, Math.max(1, parseInt(limit)));
-    const skip = (pageNum - 1) * limitNum;
-
-    // Get bookings with pagination
-    const [bookings, total] = await Promise.all([
-      Booking.find(query)
-        .populate([
-          { path: 'customer', select: 'fullName email profileImage customerLocation' },
-          { path: 'service', select: 'title category price images' },
-          { path: 'serviceRequest', select: 'title status' }
-        ])
-        .sort({ createdAt: -1 })
-        .skip(skip)
-        .limit(limitNum),
-      Booking.countDocuments(query)
-    ]);
+    // Add context for artisan view
+    const bookingsWithContext = filteredBookings.map(booking => ({
+      ...booking.toObject(),
+      contractStatus: {
+        customerAccepted: booking.agreement.contractAccepted.customer,
+        artisanAccepted: booking.agreement.contractAccepted.artisan,
+        bothAccepted: booking.agreement.bothPartiesAccepted,
+        pendingContractAcceptance: !booking.agreement.bothPartiesAccepted
+      },
+      canAcceptContract: !booking.agreement.contractAccepted.artisan,
+      canCancel: ['in_progress'].includes(booking.status),
+      hasDispute: booking.dispute.isDisputed,
+      awaitingCustomerCompletion: booking.status === 'in_progress' && booking.agreement.bothPartiesAccepted
+    }));
 
     res.json({
       success: true,
-      bookings,
-      pagination: {
-        current: pageNum,
-        pages: Math.ceil(total / limitNum),
-        total,
-        hasNext: pageNum < Math.ceil(total / limitNum),
-        hasPrev: pageNum > 1
-      }
+      count: filteredBookings.length,
+      bookings: bookingsWithContext
     });
 
   } catch (error) {
     console.error('❌ Get my work error:', error);
     res.status(500).json({
       success: false,
-      message: 'Failed to retrieve bookings',
+      message: 'Failed to retrieve work bookings',
       error: error.message
     });
   }
 };
 
-// @desc    Confirm booking
-// @route   POST /api/bookings/:bookingId/confirm
-// @access  Private (Artisan only)
-export const confirmBooking = async (req, res) => {
+// ========== CONTRACT MANAGEMENT ENDPOINTS ==========
+
+// @desc    Get booking contract
+// @route   GET /api/bookings/:bookingId/contract
+// @access  Private (Customer/Artisan - involved parties only)
+export const getBookingContract = async (req, res) => {
   try {
     const { bookingId } = req.params;
-    const artisanId = req.user._id;
+    const userId = req.user._id;
+
+    const booking = await Booking.findById(bookingId)
+      .populate('customer', 'fullName email phone')
+      .populate('artisan', 'contactName businessName email phoneNumber location')
+      .populate('service', 'title category pricing');
+
+    if (!booking) {
+      return res.status(404).json({
+        success: false,
+        message: 'Booking not found'
+      });
+    }
+
+    // Validate access
+    const isCustomer = booking.customer._id.toString() === userId.toString();
+    const isArtisan = booking.artisan._id.toString() === userId.toString();
+
+    if (!isCustomer && !isArtisan) {
+      return res.status(403).json({
+        success: false,
+        message: 'You can only view contracts for your own bookings'
+      });
+    }
+
+    // Generate enhanced contract if not already generated
+    let contractData;
+    if (!booking.agreement.contractText || !booking.agreement.contractVersion) {
+      console.log('Generating enhanced contract...');
+      contractData = await generateEnhancedContract(booking, booking.service);
+    } else {
+      contractData = {
+        text: booking.agreement.contractText,
+        version: booking.agreement.contractVersion,
+        pdfUrl: booking.agreement.contractPDF?.url || null
+      };
+    }
+
+    // Validate contract acceptance status
+    const contractStatus = validateContractAcceptance(booking);
+
+    res.json({
+      success: true,
+      contract: {
+        text: contractData.text,
+        version: contractData.version,
+        pdfUrl: contractData.pdfUrl,
+        generatedAt: booking.agreement.generatedAt,
+        ...contractStatus,
+        canAccept: isCustomer ? !contractStatus.customerAccepted : !contractStatus.artisanAccepted,
+        userType: isCustomer ? 'customer' : 'artisan'
+      }
+    });
+
+  } catch (error) {
+    console.error('❌ Get booking contract error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to retrieve contract',
+      error: error.message
+    });
+  }
+};
+
+// @desc    Download booking contract as file
+// @route   GET /api/bookings/:bookingId/contract/download
+// @access  Private (Customer/Artisan - involved parties only)
+export const downloadContractPDF = async (req, res) => {
+  try {
+    const { bookingId } = req.params;
+    const userId = req.user._id;
+
+    const booking = await Booking.findById(bookingId)
+      .populate('customer', 'fullName email')
+      .populate('artisan', 'contactName businessName')
+      .populate('service', 'title category pricing');
+
+    if (!booking) {
+      return res.status(404).json({
+        success: false,
+        message: 'Booking not found'
+      });
+    }
+
+    // Validate access
+    const isCustomer = booking.customer._id.toString() === userId.toString();
+    const isArtisan = booking.artisan._id.toString() === userId.toString();
+
+    if (!isCustomer && !isArtisan) {
+      return res.status(403).json({
+        success: false,
+        message: 'You can only download contracts for your own bookings'
+      });
+    }
+
+    // Check if both parties have accepted the contract
+    if (!booking.agreement.bothPartiesAccepted) {
+      return res.status(400).json({
+        success: false,
+        message: 'Contract must be accepted by both parties before downloading'
+      });
+    }
+
+    // Generate contract file if not exists
+    if (!booking.agreement.contractPDF) {
+      const contractData = await generateEnhancedContract(booking, booking.service);
+      if (!contractData.pdfUrl) {
+        return res.status(500).json({
+          success: false,
+          message: 'Failed to generate contract file'
+        });
+      }
+    }
+
+    const contractPath = path.join(process.cwd(), 'uploads', 'contracts', booking.agreement.contractPDF.filename);
+    
+    if (!fs.existsSync(contractPath)) {
+      return res.status(404).json({
+        success: false,
+        message: 'Contract file not found'
+      });
+    }
+
+    // Determine file type and set appropriate headers
+    const isTextFile = booking.agreement.contractPDF.filename.endsWith('.txt');
+    const contentType = isTextFile ? 'text/plain' : 'application/pdf';
+    const fileExtension = isTextFile ? 'txt' : 'pdf';
+
+    // Set response headers for download
+    res.setHeader('Content-Type', contentType);
+    res.setHeader('Content-Disposition', `attachment; filename="contract_${booking._id}.${fileExtension}"`);
+    
+    // Stream the file
+    const fileStream = fs.createReadStream(contractPath);
+    fileStream.pipe(res);
+
+  } catch (error) {
+    console.error('❌ Download contract file error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to download contract file',
+      error: error.message
+    });
+  }
+};
+
+// @desc    Accept booking contract
+// @route   POST /api/bookings/:bookingId/accept-contract
+// @access  Private (Customer/Artisan - involved parties only)
+export const acceptContract = async (req, res) => {
+  try {
+    const { bookingId } = req.params;
+    const userId = req.user._id;
+
+    const booking = await Booking.findById(bookingId)
+      .populate('customer', 'fullName')
+      .populate('artisan', 'contactName');
+
+    if (!booking) {
+      return res.status(404).json({
+        success: false,
+        message: 'Booking not found'
+      });
+    }
+
+    // Validate access and determine user type
+    const isCustomer = booking.customer._id.toString() === userId.toString();
+    const isArtisan = booking.artisan._id.toString() === userId.toString();
+
+    if (!isCustomer && !isArtisan) {
+      return res.status(403).json({
+        success: false,
+        message: 'You can only accept contracts for your own bookings'
+      });
+    }
+
+    const userType = isCustomer ? 'customer' : 'artisan';
+
+    // Check if user has already accepted
+    if (booking.agreement.contractAccepted[userType]) {
+      return res.status(400).json({
+        success: false,
+        message: 'You have already accepted this contract'
+      });
+    }
+
+    // Accept the contract
+    await booking.acceptContract(userId, userType);
+
+    const message = booking.agreement.bothPartiesAccepted ? 
+      'Contract accepted! Both parties have now accepted the contract terms.' :
+      'Contract accepted! Waiting for the other party to accept.';
+
+    console.log(`✅ Contract accepted: ${bookingId} by ${userType}`);
+
+    res.json({
+      success: true,
+      message,
+      contractStatus: {
+        customerAccepted: booking.agreement.contractAccepted.customer,
+        artisanAccepted: booking.agreement.contractAccepted.artisan,
+        bothAccepted: booking.agreement.bothPartiesAccepted
+      }
+    });
+
+  } catch (error) {
+    console.error('❌ Accept contract error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to accept contract',
+      error: error.message
+    });
+  }
+};
+
+// ========== DISPUTE MANAGEMENT ENDPOINTS ==========
+
+// @desc    File a dispute
+// @route   POST /api/bookings/:bookingId/dispute
+// @access  Private (Customer/Artisan - involved parties only)
+export const fileDispute = async (req, res) => {
+  try {
+    const { bookingId } = req.params;
+    const userId = req.user._id;
+    const { reason, description } = req.body;
 
     const booking = await Booking.findById(bookingId);
 
@@ -382,213 +472,54 @@ export const confirmBooking = async (req, res) => {
       });
     }
 
-    // Validate ownership
-    if (booking.artisan.toString() !== artisanId.toString()) {
+    // Validate access
+    const isCustomer = booking.customer.toString() === userId.toString();
+    const isArtisan = booking.artisan.toString() === userId.toString();
+
+    if (!isCustomer && !isArtisan) {
       return res.status(403).json({
         success: false,
-        message: 'You can only confirm your own bookings'
+        message: 'You can only file disputes for your own bookings'
       });
     }
 
-    // Validate status
-    if (booking.status !== 'pending') {
+    // Check if dispute already exists
+    if (booking.dispute.isDisputed) {
       return res.status(400).json({
         success: false,
-        message: 'Can only confirm pending bookings'
+        message: 'A dispute has already been filed for this booking'
       });
     }
 
-    // Confirm the booking
-    await booking.confirm();
+    // Validate required fields
+    if (!reason || !description) {
+      return res.status(400).json({
+        success: false,
+        message: 'Dispute reason and description are required'
+      });
+    }
 
-    console.log(`✅ Booking confirmed: ${bookingId} by artisan`);
+    // File the dispute
+    await booking.fileDispute(userId, reason, description);
+
+    console.log(`✅ Dispute filed: ${bookingId} by ${isCustomer ? 'customer' : 'artisan'}`);
 
     res.json({
       success: true,
-      message: 'Booking confirmed successfully'
+      message: 'Dispute filed successfully. BizBridge team will review and contact you soon.',
+      dispute: {
+        reason,
+        description,
+        filedAt: booking.dispute.filedAt,
+        status: booking.dispute.status
+      }
     });
 
   } catch (error) {
-    console.error('❌ Confirm booking error:', error);
+    console.error('❌ File dispute error:', error);
     res.status(500).json({
       success: false,
-      message: 'Failed to confirm booking',
-      error: error.message
-    });
-  }
-};
-
-// @desc    Start work on booking
-// @route   POST /api/bookings/:bookingId/start
-// @access  Private (Artisan only)
-export const startWork = async (req, res) => {
-  try {
-    const { bookingId } = req.params;
-    const artisanId = req.user._id;
-
-    const booking = await Booking.findById(bookingId);
-
-    if (!booking) {
-      return res.status(404).json({
-        success: false,
-        message: 'Booking not found'
-      });
-    }
-
-    // Validate ownership
-    if (booking.artisan.toString() !== artisanId.toString()) {
-      return res.status(403).json({
-        success: false,
-        message: 'You can only start work on your own bookings'
-      });
-    }
-
-    // Validate status
-    if (booking.status !== 'confirmed') {
-      return res.status(400).json({
-        success: false,
-        message: 'Can only start work on confirmed bookings'
-      });
-    }
-
-    // Start work
-    await booking.startWork();
-
-    console.log(`✅ Work started on booking: ${bookingId}`);
-
-    res.json({
-      success: true,
-      message: 'Work started successfully'
-    });
-
-  } catch (error) {
-    console.error('❌ Start work error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to start work',
-      error: error.message
-    });
-  }
-};
-
-// @desc    Complete work on booking
-// @route   POST /api/bookings/:bookingId/complete
-// @access  Private (Artisan only)
-export const completeWork = async (req, res) => {
-  try {
-    const { bookingId } = req.params;
-    const artisanId = req.user._id;
-
-    const booking = await Booking.findById(bookingId);
-
-    if (!booking) {
-      return res.status(404).json({
-        success: false,
-        message: 'Booking not found'
-      });
-    }
-
-    // Validate ownership
-    if (booking.artisan.toString() !== artisanId.toString()) {
-      return res.status(403).json({
-        success: false,
-        message: 'You can only complete your own bookings'
-      });
-    }
-
-    // Validate status
-    if (booking.status !== 'in_progress') {
-      return res.status(400).json({
-        success: false,
-        message: 'Can only complete bookings that are in progress'
-      });
-    }
-
-    // Complete work
-    await booking.complete();
-
-    console.log(`✅ Work completed on booking: ${bookingId}`);
-
-    res.json({
-      success: true,
-      message: 'Work completed successfully. Waiting for customer review.'
-    });
-
-  } catch (error) {
-    console.error('❌ Complete work error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to complete work',
-      error: error.message
-    });
-  }
-};
-
-// @desc    Add artisan review for customer
-// @route   POST /api/bookings/:bookingId/artisan-review
-// @access  Private (Artisan only)
-export const addArtisanReview = async (req, res) => {
-  try {
-    const { bookingId } = req.params;
-    const artisanId = req.user._id;
-    const { rating, comment } = req.body;
-
-    // Validate rating
-    if (!rating || rating < 1 || rating > 5) {
-      return res.status(400).json({
-        success: false,
-        message: 'Valid rating (1-5) is required'
-      });
-    }
-
-    const booking = await Booking.findById(bookingId);
-
-    if (!booking) {
-      return res.status(404).json({
-        success: false,
-        message: 'Booking not found'
-      });
-    }
-
-    // Validate ownership
-    if (booking.artisan.toString() !== artisanId.toString()) {
-      return res.status(403).json({
-        success: false,
-        message: 'You can only review your own bookings'
-      });
-    }
-
-    // Validate status
-    if (!['pending_review', 'completed'].includes(booking.status)) {
-      return res.status(400).json({
-        success: false,
-        message: 'Can only review completed bookings'
-      });
-    }
-
-    // Check if already reviewed
-    if (booking.review.artisanReview) {
-      return res.status(400).json({
-        success: false,
-        message: 'You have already reviewed this customer'
-      });
-    }
-
-    // Add review
-    await booking.addReview('artisan', rating, comment);
-
-    console.log(`✅ Artisan review added for booking: ${bookingId}`);
-
-    res.json({
-      success: true,
-      message: 'Review added successfully'
-    });
-
-  } catch (error) {
-    console.error('❌ Add artisan review error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to add review',
+      message: 'Failed to file dispute',
       error: error.message
     });
   }
@@ -598,7 +529,7 @@ export const addArtisanReview = async (req, res) => {
 
 // @desc    Get single booking details
 // @route   GET /api/bookings/:bookingId
-// @access  Private (Customer/Artisan - only involved parties)
+// @access  Private (Customer/Artisan - involved parties only)
 export const getBookingById = async (req, res) => {
   try {
     const { bookingId } = req.params;
@@ -606,12 +537,11 @@ export const getBookingById = async (req, res) => {
 
     const booking = await Booking.findById(bookingId)
       .populate([
-        { path: 'customer', select: 'fullName email profileImage customerLocation' },
-        { path: 'artisan', select: 'contactName businessName profileImage phoneNumber location' },
-        { path: 'service', select: 'title category price images description' },
-        { path: 'serviceRequest', select: 'title status' },
-        { path: 'messages.sender', select: 'fullName contactName profileImage role' },
-        { path: 'statusHistory.changedBy', select: 'fullName contactName role' }
+        { path: 'customer', select: 'fullName email profileImage' },
+        { path: 'artisan', select: 'contactName businessName profileImage phoneNumber' },
+        { path: 'service', select: 'title category pricing images description' },
+        { path: 'serviceRequest', select: 'title status selectedCategory' },
+        { path: 'messages.sender', select: 'fullName contactName profileImage role' }
       ]);
 
     if (!booking) {
@@ -632,7 +562,7 @@ export const getBookingById = async (req, res) => {
       });
     }
 
-    // Mark messages as read for current user
+    // Mark messages as read
     let hasUnreadMessages = false;
     booking.messages.forEach(message => {
       if (message.sender._id.toString() !== userId.toString() && !message.isRead) {
@@ -645,19 +575,25 @@ export const getBookingById = async (req, res) => {
       await booking.save();
     }
 
+    // Add context for user actions
+    const context = {
+      isCustomer,
+      isArtisan,
+      canComplete: isCustomer && booking.status === 'in_progress',
+      canCancel: ['in_progress'].includes(booking.status),
+      canAcceptContract: isCustomer ? !booking.agreement.contractAccepted.customer : !booking.agreement.contractAccepted.artisan,
+      canFileDispute: !booking.dispute.isDisputed,
+      contractStatus: {
+        customerAccepted: booking.agreement.contractAccepted.customer,
+        artisanAccepted: booking.agreement.contractAccepted.artisan,
+        bothAccepted: booking.agreement.bothPartiesAccepted
+      }
+    };
+
     res.json({
       success: true,
       booking,
-      context: {
-        isCustomer,
-        isArtisan,
-        canConfirm: isArtisan && booking.status === 'pending',
-        canStart: isArtisan && booking.status === 'confirmed',
-        canComplete: isArtisan && booking.status === 'in_progress',
-        canCancel: (isCustomer || isArtisan) && ['pending', 'confirmed'].includes(booking.status),
-        canReviewCustomer: isCustomer && ['pending_review', 'completed'].includes(booking.status) && !booking.review.customerReview,
-        canReviewArtisan: isArtisan && ['pending_review', 'completed'].includes(booking.status) && !booking.review.artisanReview
-      }
+      context
     });
 
   } catch (error) {
@@ -672,14 +608,14 @@ export const getBookingById = async (req, res) => {
 
 // @desc    Add message to booking
 // @route   POST /api/bookings/:bookingId/messages
-// @access  Private (Customer/Artisan - only involved parties)
+// @access  Private (Customer/Artisan - involved parties only)
 export const addMessage = async (req, res) => {
   try {
     const { bookingId } = req.params;
     const senderId = req.user._id;
-    const { message, attachments = [] } = req.body;
+    const { message, attachments } = req.body;
 
-    if (!message || message.trim() === '') {
+    if (!message || message.trim().length === 0) {
       return res.status(400).json({
         success: false,
         message: 'Message content is required'
@@ -709,7 +645,7 @@ export const addMessage = async (req, res) => {
     // Add the message
     await booking.addMessage(senderId, message.trim(), attachments);
 
-    // Populate and return updated booking
+    // Populate sender info for response
     await booking.populate('messages.sender', 'fullName contactName profileImage role');
 
     res.json({
@@ -728,21 +664,114 @@ export const addMessage = async (req, res) => {
   }
 };
 
-// @desc    Add milestone to booking
-// @route   POST /api/bookings/:bookingId/milestones
-// @access  Private (Artisan only)
-export const addMilestone = async (req, res) => {
+// @desc    Add review to booking
+// @route   POST /api/bookings/:bookingId/review
+// @access  Private (Customer/Artisan - involved parties only)
+export const addReview = async (req, res) => {
   try {
     const { bookingId } = req.params;
-    const artisanId = req.user._id;
-    const { title, description, dueDate } = req.body;
+    const userId = req.user._id;
+    const { rating, comment } = req.body;
 
-    if (!title) {
+    const booking = await Booking.findById(bookingId);
+
+    if (!booking) {
+      return res.status(404).json({
+        success: false,
+        message: 'Booking not found'
+      });
+    }
+
+    // Validate access
+    const isCustomer = booking.customer.toString() === userId.toString();
+    const isArtisan = booking.artisan.toString() === userId.toString();
+
+    if (!isCustomer && !isArtisan) {
+      return res.status(403).json({
+        success: false,
+        message: 'You can only review your own bookings'
+      });
+    }
+
+    // Check if booking is completed
+    if (booking.status !== 'completed') {
       return res.status(400).json({
         success: false,
-        message: 'Milestone title is required'
+        message: 'You can only review completed bookings'
       });
     }
+
+    // Validate rating
+    if (!rating || rating < 1 || rating > 5) {
+      return res.status(400).json({
+        success: false,
+        message: 'Rating must be between 1 and 5'
+      });
+    }
+
+    const reviewerType = isCustomer ? 'customer' : 'artisan';
+    
+    // Check if user has already reviewed
+    if (booking.review[`${reviewerType}Review`]?.rating) {
+      return res.status(400).json({
+        success: false,
+        message: 'You have already reviewed this booking'
+      });
+    }
+
+    // Add the review
+    await booking.addReview(reviewerType, rating, comment);
+
+    console.log(`✅ Review added: ${bookingId} by ${reviewerType} - ${rating} stars`);
+
+    res.json({
+      success: true,
+      message: 'Review added successfully',
+      review: booking.review[`${reviewerType}Review`]
+    });
+
+  } catch (error) {
+    console.error('❌ Add review error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to add review',
+      error: error.message
+    });
+  }
+};
+
+// ========== ADMIN ENDPOINTS ==========
+
+// @desc    Get all disputed bookings
+// @route   GET /api/bookings/admin/disputes
+// @access  Private (Admin only)
+export const getDisputedBookings = async (req, res) => {
+  try {
+    const disputedBookings = await Booking.getDisputedBookings();
+
+    res.json({
+      success: true,
+      count: disputedBookings.length,
+      bookings: disputedBookings
+    });
+
+  } catch (error) {
+    console.error('❌ Get disputed bookings error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to retrieve disputed bookings',
+      error: error.message
+    });
+  }
+};
+
+// @desc    Resolve dispute
+// @route   POST /api/bookings/:bookingId/resolve-dispute
+// @access  Private (Admin only)
+export const resolveDispute = async (req, res) => {
+  try {
+    const { bookingId } = req.params;
+    const { resolutionNotes } = req.body;
 
     const booking = await Booking.findById(bookingId);
 
@@ -753,155 +782,29 @@ export const addMilestone = async (req, res) => {
       });
     }
 
-    // Validate ownership
-    if (booking.artisan.toString() !== artisanId.toString()) {
-      return res.status(403).json({
+    if (!booking.dispute.isDisputed) {
+      return res.status(400).json({
         success: false,
-        message: 'You can only add milestones to your own bookings'
+        message: 'No dispute found for this booking'
       });
     }
 
-    // Add milestone
-    const milestoneData = {
-      title,
-      description,
-      dueDate: dueDate ? new Date(dueDate) : null
-    };
+    // Resolve the dispute
+    await booking.resolveDispute('admin', resolutionNotes);
 
-    await booking.addMilestone(milestoneData);
+    console.log(`✅ Dispute resolved: ${bookingId} by admin`);
 
     res.json({
       success: true,
-      message: 'Milestone added successfully',
-      milestone: booking.milestones[booking.milestones.length - 1]
+      message: 'Dispute resolved successfully',
+      resolution: booking.dispute.resolution
     });
 
   } catch (error) {
-    console.error('❌ Add milestone error:', error);
+    console.error('❌ Resolve dispute error:', error);
     res.status(500).json({
       success: false,
-      message: 'Failed to add milestone',
-      error: error.message
-    });
-  }
-};
-
-// @desc    Update milestone
-// @route   PUT /api/bookings/:bookingId/milestones/:milestoneId
-// @access  Private (Artisan only)
-export const updateMilestone = async (req, res) => {
-  try {
-    const { bookingId, milestoneId } = req.params;
-    const artisanId = req.user._id;
-    const updateData = req.body;
-
-    const booking = await Booking.findById(bookingId);
-
-    if (!booking) {
-      return res.status(404).json({
-        success: false,
-        message: 'Booking not found'
-      });
-    }
-
-    // Validate ownership
-    if (booking.artisan.toString() !== artisanId.toString()) {
-      return res.status(403).json({
-        success: false,
-        message: 'You can only update milestones in your own bookings'
-      });
-    }
-
-    // Update milestone
-    await booking.updateMilestone(milestoneId, updateData);
-
-    res.json({
-      success: true,
-      message: 'Milestone updated successfully'
-    });
-
-  } catch (error) {
-    console.error('❌ Update milestone error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to update milestone',
-      error: error.message
-    });
-  }
-};
-
-// ========== ANALYTICS ENDPOINTS ==========
-
-// @desc    Get booking analytics for artisan
-// @route   GET /api/bookings/analytics
-// @access  Private (Artisan only)
-export const getBookingAnalytics = async (req, res) => {
-  try {
-    const artisanId = req.user._id;
-
-    if (req.user.role !== 'artisan') {
-      return res.status(403).json({
-        success: false,
-        message: 'Only artisans can access booking analytics'
-      });
-    }
-
-    // Get various analytics
-    const [
-      totalBookings,
-      completedBookings,
-      cancelledBookings,
-      pendingBookings,
-      upcomingBookings,
-      overdueBookings,
-      averageRating,
-      totalRevenue
-    ] = await Promise.all([
-      Booking.countDocuments({ artisan: artisanId }),
-      Booking.countDocuments({ artisan: artisanId, status: 'completed' }),
-      Booking.countDocuments({ artisan: artisanId, status: 'cancelled' }),
-      Booking.countDocuments({ artisan: artisanId, status: { $in: ['pending', 'confirmed'] } }),
-      Booking.getUpcomingBookings(artisanId, 30),
-      Booking.getOverdueBookings(artisanId),
-      Booking.aggregate([
-        { $match: { artisan: artisanId, 'review.customerReview.rating': { $exists: true } } },
-        { $group: { _id: null, avgRating: { $avg: '$review.customerReview.rating' } } }
-      ]),
-      Booking.aggregate([
-        { $match: { artisan: artisanId, status: 'completed' } },
-        { $group: { _id: null, total: { $sum: '$pricing.agreedPrice' } } }
-      ])
-    ]);
-
-    const analytics = {
-      overview: {
-        totalBookings,
-        completedBookings,
-        cancelledBookings,
-        pendingBookings,
-        completionRate: totalBookings > 0 ? (completedBookings / totalBookings * 100).toFixed(1) : 0,
-        cancellationRate: totalBookings > 0 ? (cancelledBookings / totalBookings * 100).toFixed(1) : 0
-      },
-      performance: {
-        averageRating: averageRating[0]?.avgRating ? averageRating[0].avgRating.toFixed(1) : 0,
-        totalRevenue: totalRevenue[0]?.total || 0,
-        upcomingCount: upcomingBookings.length,
-        overdueCount: overdueBookings.length
-      },
-      upcoming: upcomingBookings.slice(0, 5), // Next 5 upcoming bookings
-      overdue: overdueBookings.slice(0, 5) // Top 5 overdue bookings
-    };
-
-    res.json({
-      success: true,
-      analytics
-    });
-
-  } catch (error) {
-    console.error('❌ Get booking analytics error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to retrieve booking analytics',
+      message: 'Failed to resolve dispute',
       error: error.message
     });
   }

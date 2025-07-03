@@ -1,43 +1,47 @@
-// src/components/pages/ServiceView.jsx - Updated with Service Request functionality
+// src/pages/ServiceView.jsx - Day 7: Updated for New Pricing System with No Payment Processing
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate, useLocation } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { getServiceById } from '../../../../backend/src/api/Services';
-import ServiceRequestForm from '../forms/ServiceRequestForm';
-import DirectBookingForm from '../forms/DirectBookingForm';
+import ServiceRequestForm from '../../components/forms/ServiceRequestForm';
 
-const ServiceView = () => {
+// API function to get service by ID
+const getServiceById = async (serviceId) => {
+  try {
+    const response = await fetch(`http://localhost:3000/api/services/${serviceId}`);
+    if (!response.ok) {
+      throw new Error('Service not found');
+    }
+    return await response.json();
+  } catch (error) {
+    console.error('❌ Error fetching service:', error);
+    throw error;
+  }
+};
+
+function ServiceView() {
   const { serviceId } = useParams();
   const navigate = useNavigate();
-  const location = useLocation();
   const { isAuthenticated, userType, logout } = useAuth();
   
-  // Service data state
   const [service, setService] = useState(null);
   const [artisan, setArtisan] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState(null);
-  
-  // UI state
-  const [selectedImageIndex, setSelectedImageIndex] = useState(0);
-  const [isSaved, setIsSaved] = useState(false);
+  const [error, setError] = useState('');
   const [showRequestForm, setShowRequestForm] = useState(false);
-  const [showBookingForm, setShowBookingForm] = useState(false);
+  const [isSaved, setIsSaved] = useState(false);
+  const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   
-  // Search state (for navbar)
+  // Navbar search state
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('');
   const [selectedLocation, setSelectedLocation] = useState('');
 
   // Categories and locations for search
   const categories = [
-    'Woodworking', 'Pottery & Ceramics', 'Leathercraft', 'Textile Art', 
-    'Jewelry Making', 'Metalwork', 'Glass Art', 'Traditional Clothing',
-    'Painting & Drawing', 'Sculpture', 'Basket Weaving', 'Beadwork',
-    'Paper Crafts', 'Soap & Candle Making', 'Calabash Carving',
-    'Musical Instruments', 'Hair Braiding & Styling', 'Furniture Restoration',
-    'Shoemaking', 'Sign Writing', 'Tie & Dye', 'Adire Textile',
-    'Food Preservation', 'Batik', 'Embroidery', 'Photography', 'Other'
+    'Woodworking', 'Pottery', 'Jewelry Making', 'Textile Art', 
+    'Leathercraft', 'Metalwork', 'Basket Weaving', 'Beadwork',
+    'Calabash Decoration', 'Glass Blowing', 'Leather Shoes', 'Embroidery',
+    'Soap Making', 'Candle Making', 'Hair Braiding & Styling'
   ];
 
   const locations = [
@@ -50,17 +54,20 @@ const ServiceView = () => {
   // Fetch service data
   useEffect(() => {
     const fetchServiceData = async () => {
-      setIsLoading(true);
-      setError(null);
-      
       try {
+        setIsLoading(true);
         console.log('🔍 ServiceView: Fetching service data for ID:', serviceId);
+        
         const response = await getServiceById(serviceId);
         
         if (response && response.success && response.service) {
           setService(response.service);
           setArtisan(response.service.artisan);
-          console.log('✅ ServiceView: Service loaded successfully:', response.service.title);
+          console.log('✅ ServiceView: Service loaded with pricing structure:', {
+            title: response.service.title,
+            pricingType: response.service.pricing?.type || 'legacy',
+            hasCategories: response.service.pricing?.categories?.length || 0
+          });
         } else {
           throw new Error('Service not found');
         }
@@ -95,36 +102,15 @@ const ServiceView = () => {
     navigate(queryString ? `/services?${queryString}` : '/services');
   };
 
-  const handleKeyPress = (e) => {
-    if (e.key === 'Enter') {
-      handleSearch();
-    }
-  };
-
-  // Handle direct booking
-  const handleBookNow = () => {
-    if (!isAuthenticated) {
-      navigate('/login', { state: { from: `/services/${serviceId}` } });
-      return;
-    }
-
-    if (userType !== 'customer') {
-      alert('Only customers can book services');
-      return;
-    }
-
-    setShowBookingForm(true);
-  };
-
   // Handle service request
   const handleRequestQuote = () => {
     if (!isAuthenticated) {
-      navigate('/login', { state: { from: `/services/${serviceId}` } });
+      navigate('/login', { state: { from: `/service/${serviceId}` } });
       return;
     }
 
     if (userType !== 'customer') {
-      alert('Only customers can request quotes');
+      alert('Only customers can request services');
       return;
     }
 
@@ -134,7 +120,7 @@ const ServiceView = () => {
   // Handle save service
   const handleSaveService = () => {
     if (!isAuthenticated) {
-      navigate('/login', { state: { from: `/services/${serviceId}` } });
+      navigate('/login', { state: { from: `/service/${serviceId}` } });
       return;
     }
     setIsSaved(!isSaved);
@@ -146,11 +132,158 @@ const ServiceView = () => {
     navigate('/');
   };
 
-  // Get service image URL
+    const handleKeyPress = (e) => {
+    if (e.key === 'Enter') {
+      handleSearch();
+    }
+  };
+
+  // Get service image URL with proper path construction
   const getServiceImageUrl = (imagePath) => {
     if (!imagePath) return '/api/placeholder/400/300';
     if (imagePath.startsWith('http')) return imagePath;
-    return `http://localhost:5000${imagePath}`;
+    return `http://localhost:3000${imagePath}`;
+  };
+
+  // Get artisan profile image URL
+  const getProfileImageUrl = (imagePath) => {
+    if (!imagePath) return '/api/placeholder/80/80';
+    if (imagePath.startsWith('http')) return imagePath;
+    return `http://localhost:3000${imagePath}`;
+  };
+
+  // Get all service images
+  const getServiceImages = () => {
+    if (!service) return ['/api/placeholder/400/300'];
+    
+    const images = service.images || [];
+    if (images.length === 0 && service.image) {
+      return [getServiceImageUrl(service.image)];
+    }
+    
+    return images.length > 0 
+      ? images.map(img => getServiceImageUrl(img))
+      : ['/api/placeholder/400/300'];
+  };
+
+  // Enhanced pricing display component
+  const PricingDisplay = () => {
+    if (!service?.pricing) {
+      return (
+        <div className="bg-gray-50 rounded-lg p-4">
+          <h3 className="text-lg font-medium text-gray-900 mb-2">Pricing</h3>
+          <div className="text-xl font-bold text-gray-900">Contact for Pricing</div>
+          <p className="text-sm text-gray-600">Custom quote required</p>
+        </div>
+      );
+    }
+
+    const { pricing } = service;
+
+    switch (pricing.type) {
+      case 'fixed':
+        return (
+          <div className="bg-green-50 rounded-lg p-4 border border-green-200">
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-lg font-medium text-gray-900">Fixed Pricing</h3>
+              <span className="px-2 py-1 bg-green-100 text-green-800 text-xs font-medium rounded-full">
+                Fixed Price
+              </span>
+            </div>
+            <div className="text-2xl font-bold text-gray-900 mb-1">
+              ₦{pricing.basePrice ? Number(pricing.basePrice).toLocaleString() : 'Contact for pricing'}
+            </div>
+            <p className="text-sm text-gray-600">
+              Duration: {pricing.baseDuration || 'To be discussed'}
+            </p>
+          </div>
+        );
+
+      case 'negotiate':
+        return (
+          <div className="bg-orange-50 rounded-lg p-4 border border-orange-200">
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-lg font-medium text-gray-900">Negotiable Pricing</h3>
+              <span className="px-2 py-1 bg-orange-100 text-orange-800 text-xs font-medium rounded-full">
+                Negotiable
+              </span>
+            </div>
+            <div className="text-xl font-bold text-gray-900 mb-1">Contact for Pricing</div>
+            <p className="text-sm text-gray-600">
+              Price will be negotiated based on your specific requirements
+            </p>
+          </div>
+        );
+
+      case 'categorized':
+        const categories = pricing.categories || [];
+        const prices = categories.map(cat => cat.price).filter(Boolean);
+        const minPrice = prices.length > 0 ? Math.min(...prices) : null;
+        const maxPrice = prices.length > 0 ? Math.max(...prices) : null;
+
+        return (
+          <div className="bg-purple-50 rounded-lg p-4 border border-purple-200">
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-lg font-medium text-gray-900">Category-Based Pricing</h3>
+              <div className="flex items-center space-x-2">
+                <span className="px-2 py-1 bg-purple-100 text-purple-800 text-xs font-medium rounded-full">
+                  Categories
+                </span>
+                <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs font-medium rounded-full">
+                  ⭐ Protected
+                </span>
+              </div>
+            </div>
+            
+            {minPrice && maxPrice ? (
+              <div className="text-2xl font-bold text-gray-900 mb-1">
+                {minPrice === maxPrice 
+                  ? `₦${minPrice.toLocaleString()}`
+                  : `₦${minPrice.toLocaleString()} - ₦${maxPrice.toLocaleString()}`
+                }
+              </div>
+            ) : (
+              <div className="text-xl font-bold text-gray-900 mb-1">Contact for Pricing</div>
+            )}
+            
+            <p className="text-sm text-gray-600 mb-3">
+              {categories.length} categories available with fixed pricing
+            </p>
+
+            {/* Category List */}
+            <div className="space-y-2">
+              <h4 className="text-sm font-medium text-gray-700">Available Categories:</h4>
+              {categories.slice(0, 3).map((category, index) => (
+                <div key={index} className="flex justify-between items-center text-sm">
+                  <span className="text-gray-700">{category.name}</span>
+                  <span className="font-medium text-gray-900">
+                    ₦{Number(category.price).toLocaleString()} - {category.duration}
+                  </span>
+                </div>
+              ))}
+              {categories.length > 3 && (
+                <p className="text-xs text-gray-500">+{categories.length - 3} more categories</p>
+              )}
+            </div>
+
+            {/* Enhanced Protection Notice */}
+            <div className="mt-3 p-2 bg-blue-50 border border-blue-200 rounded">
+              <p className="text-xs text-blue-800">
+                <strong>Enhanced Protection:</strong> Category prices are fixed and protected by BizBridge's dispute resolution system.
+              </p>
+            </div>
+          </div>
+        );
+
+      default:
+        return (
+          <div className="bg-gray-50 rounded-lg p-4">
+            <h3 className="text-lg font-medium text-gray-900 mb-2">Pricing</h3>
+            <div className="text-xl font-bold text-gray-900">Contact for Pricing</div>
+            <p className="text-sm text-gray-600">Custom quote required</p>
+          </div>
+        );
+    }
   };
 
   // Handle successful request creation
@@ -159,30 +292,17 @@ const ServiceView = () => {
     // Navigate to customer dashboard to see the request
     navigate('/dashboard', { 
       state: { 
-        message: 'Service request sent successfully! The artisan will respond soon.',
-        type: 'success'
-      }
-    });
-  };
-
-  // Handle successful booking creation
-  const handleBookingSuccess = () => {
-    setShowBookingForm(false);
-    // Navigate to bookings page to see the booking
-    navigate('/bookings', {
-      state: {
-        message: 'Booking created successfully! The artisan will confirm soon.',
-        type: 'success'
+        message: 'Service request sent successfully! The artisan will respond soon.'
       }
     });
   };
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-red-500 mx-auto"></div>
-          <p className="text-gray-600 mt-4">Loading service details...</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-red-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading service details...</p>
         </div>
       </div>
     );
@@ -190,423 +310,342 @@ const ServiceView = () => {
 
   if (error) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
-          <div className="text-red-500 text-6xl mb-4">⚠️</div>
-          <h2 className="text-2xl font-bold text-gray-800 mb-2">Service Not Found</h2>
-          <p className="text-gray-600 mb-6">{error}</p>
-          <button 
+          <div className="text-red-600 text-6xl mb-4">⚠️</div>
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">Service Not Found</h2>
+          <p className="text-gray-600 mb-4">{error}</p>
+          <button
             onClick={() => navigate('/services')}
-            className="bg-red-500 text-white px-6 py-3 rounded-lg hover:bg-red-600 transition"
+            className="bg-red-500 text-white px-6 py-2 rounded-lg hover:bg-red-600 transition"
           >
-            Browse All Services
+            Browse Services
           </button>
         </div>
       </div>
     );
   }
 
-  if (!service) return null;
+  const serviceImages = getServiceImages();
 
   return (
     <div className="flex flex-col min-h-screen">
-      {/* Header */}
-      <header className="bg-black text-white sticky top-0 z-50">
-        {/* Top Bar */}
-        <div className="border-b border-gray-800 py-2">
-          <div className="container mx-auto px-4 flex justify-between items-center text-sm">
-            <div className="flex items-center space-x-4">
-              <span>📞 Customer Service: +234 800 123 4567</span>
-              <span>🚚 Free delivery on orders above ₦50,000</span>
-            </div>
-            <div className="flex items-center space-x-4">
-              <span>🌍 Lagos, Nigeria</span>
-              <span>💰 NGN</span>
-            </div>
-          </div>
-        </div>
-
+      {/* ✅ AMAZON-STYLE HEADER WITH SEARCH BAR */}
+      <header className="bg-black text-white w-full top-0 z-10 fixed">
         {/* Main Header */}
-        <div className="py-4">
-          <div className="container mx-auto px-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center">
-                <span onClick={() => navigate('/')} className="text-red-500 text-5xl select-none font-bold cursor-pointer">𐐒</span>
-                <span onClick={() => navigate('/')} className="text-white text-4xl select-none font-bold cursor-pointer">B</span>
-                <span onClick={() => navigate('/')} className="text-red-500 text-2xl select-none cursor-pointer font-semibold ml-5">BizBridge</span>
-              </div>
+        <div className="py-2">
+          <div className="container mx-auto px-4 flex items-center justify-between">
+            {/* Logo */}
+            <div className="flex items-center cursor-pointer" onClick={() => navigate('/')}>
+              <span className="text-red-500 text-4xl select-none font-bold">𐐒</span>
+              <span className="text-white text-3xl select-none font-bold">B</span>
+              <span className="text-red-500 text-lg select-none font-semibold ml-3">BizBridge</span>
+            </div>
 
-              {/* Search Bar - Only for customers or unauthenticated users */}
-              {userType !== 'artisan' && (
-                <div className="flex-1 max-w-4xl mx-8">
-                  <div className="flex">
-                    <input
-                      type="text"
-                      placeholder="Search for services..."
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      onKeyPress={handleKeyPress}
-                      className="flex-1 px-4 py-2 text-black rounded-l-md focus:outline-none focus:ring-2 focus:ring-red-500"
-                    />
-                    <select
-                      value={selectedCategory}
-                      onChange={(e) => setSelectedCategory(e.target.value)}
-                      className="px-3 py-2 text-black bg-gray-100 border-l focus:outline-none focus:ring-2 focus:ring-red-500"
-                    >
-                      <option value="">All Categories</option>
-                      {categories.map(category => (
-                        <option key={category} value={category}>{category}</option>
-                      ))}
-                    </select>
-                    <select
-                      value={selectedLocation}
-                      onChange={(e) => setSelectedLocation(e.target.value)}
-                      className="px-3 py-2 text-black bg-gray-100 border-l focus:outline-none focus:ring-2 focus:ring-red-500"
-                    >
-                      <option value="">All Locations</option>
-                      {locations.map(location => (
-                        <option key={location} value={location}>{location}</option>
-                      ))}
-                    </select>
-                    <button
-                      onClick={handleSearch}
-                      className="bg-red-500 text-white px-6 py-2 rounded-r-md hover:bg-red-600 transition"
-                    >
-                      🔍
-                    </button>
+            {/* ✅ AMAZON-STYLE SEARCH BAR */}
+            <div className="flex-1 max-w-3xl mx-8">
+              <div className="flex">
+                {/* Category Selector */}
+                <select 
+                  value={selectedCategory}
+                  onChange={(e) => setSelectedCategory(e.target.value)}
+                  className="bg-gray-200 text-black px-3 py-2 rounded-l-md border-r border-gray-300 focus:outline-none text-sm min-w-[140px]"
+                >
+                  <option value="">All Categories</option>
+                  {categories.map((category) => (
+                    <option key={category} value={category}>{category}</option>
+                  ))}
+                </select>
+                
+                {/* Search Input */}
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onKeyPress={handleKeyPress}
+                  placeholder="Search for services, artisans, or crafts..."
+                  className="flex-1 px-4 py-2 text-black focus:outline-none text-sm"
+                />
+                
+                {/* Location Selector */}
+                <select 
+                  value={selectedLocation}
+                  onChange={(e) => setSelectedLocation(e.target.value)}
+                  className="bg-gray-200 text-black px-3 py-2 border-l border-gray-300 focus:outline-none text-sm min-w-[120px]"
+                >
+                  <option value="">All LGAs</option>
+                  {locations.map((location) => (
+                    <option key={location} value={location}>{location}</option>
+                  ))}
+                </select>
+                
+                {/* Search Button */}
+                <button 
+                  onClick={handleSearch}
+                  className="bg-red-500 hover:bg-red-600 px-4 py-2 rounded-r-md transition"
+                >
+                  <svg className="w-5 h-5 text-black" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+
+            {/* Account & Navigation */}
+            <div className="flex items-center space-x-6">
+              {!isAuthenticated ? (
+                <>
+                  <div className="text-center cursor-pointer hover:text-red-400" onClick={() => navigate('/login')}>
+                    <div className="text-xs">Hey, sign up/in</div>
+                    <div className="text-sm font-bold">to Book a service</div>
                   </div>
-                </div>
+                  <div className="text-center cursor-pointer hover:text-red-400" onClick={() => navigate('/signup?type=artisan')}>
+                    <div className="text-xs">Get your</div>
+                    <div className="text-sm font-bold">Professional service listed</div>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="text-center cursor-pointer" onClick={() => navigate('/dashboard')}>
+                    <div className="text-xs">Hello, {userType}</div>
+                    <div className="text-sm font-bold">Dashboard</div>
+                  </div>
+                  {userType === 'customer' && (
+                    <div className="text-center cursor-pointer" onClick={() => navigate('/bookings')}>
+                      <div className="text-xs">Your</div>
+                      <div className="text-sm font-bold">Bookings</div>
+                    </div>
+                  )}
+                  {userType === 'artisan' && (
+                    <div className="text-center cursor-pointer" onClick={() => navigate('/ServicesManagement')}>
+                      <div className="text-xs">Your</div>
+                      <div className="text-sm font-bold">Services</div>
+                    </div>
+                  )}
+                  <div className="text-center cursor-pointer" onClick={handleLogout}>
+                    <div className="text-xs">Sign</div>
+                    <div className="text-sm font-bold">Out</div>
+                  </div>
+                </>
               )}
-
-              {/* User Menu */}
-              <div className="flex items-center space-x-6">
-                {isAuthenticated ? (
-                  <>
-                    <div className="text-xs cursor-pointer hover:text-red-400" onClick={() => navigate('/dashboard')}>
-                      <div>Your</div>
-                      <div className="font-bold">Dashboard</div>
-                    </div>
-                    <div className="text-xs cursor-pointer hover:text-red-400" onClick={() => navigate(userType === 'customer' ? '/bookings' : '/ServicesManagement')}>
-                      <div>Your</div>
-                      <div className="font-bold">{userType === 'customer' ? 'Bookings' : 'Services'}</div>
-                    </div>
-                    <div className="text-xs cursor-pointer hover:text-red-400" onClick={() => navigate('/profile')}>
-                      <div>Your</div>
-                      <div className="font-bold">Profile</div>
-                    </div>
-                    <div className="text-xs cursor-pointer hover:text-red-400" onClick={handleLogout}>
-                      <div>Sign</div>
-                      <div className="font-bold">Out</div>
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    <div className="text-xs cursor-pointer hover:text-red-400" onClick={() => navigate('/login')}>
-                      <div>Hello,</div>
-                      <div className="font-bold">Sign In</div>
-                    </div>
-                    <div className="text-xs cursor-pointer hover:text-red-400" onClick={() => navigate('/signup')}>
-                      <div>New User?</div>
-                      <div className="font-bold">Sign Up</div>
-                    </div>
-                  </>
-                )}
-              </div>
             </div>
           </div>
         </div>
 
-        {/* Secondary Navigation */}
-        <div className="bg-black border-y-2 border-red-500 py-3">
-          <div className="container mx-auto px-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-8">
-                <span onClick={() => navigate('/services')} className="hover:text-red-400 cursor-pointer font-medium">All Services</span>
-                <span onClick={() => navigate('/services?category=Woodworking')} className="hover:text-red-400 cursor-pointer">Woodworking</span>
-                <span onClick={() => navigate('/services?category=Textile Art')} className="hover:text-red-400 cursor-pointer">Textile Art</span>
-                <span onClick={() => navigate('/services?category=Pottery & Ceramics')} className="hover:text-red-400 cursor-pointer">Pottery</span>
-                <span onClick={() => navigate('/services?category=Jewelry Making')} className="hover:text-red-400 cursor-pointer">Jewelry</span>
-              </div>
-              <div className="text-sm">
-                <span className="text-red-400">Free shipping</span> on orders over ₦50,000
-              </div>
-            </div>
-          </div>
-        </div>
       </header>
 
       {/* Main Content */}
-      <main className="flex-1 bg-gray-50 py-8">
-        <div className="container mx-auto px-4">
+      <div className="bg-gray-50 flex-grow pt-32">
+        <div className="container mx-auto px-4 py-8">
           {/* Breadcrumb */}
-          <nav className="text-sm text-gray-600 mb-6">
-            <span onClick={() => navigate('/')} className="hover:text-red-500 cursor-pointer">Home</span>
-            <span className="mx-2">›</span>
-            <span onClick={() => navigate('/services')} className="hover:text-red-500 cursor-pointer">Services</span>
-            <span className="mx-2">›</span>
-            <span onClick={() => navigate(`/services?category=${service.category}`)} className="hover:text-red-500 cursor-pointer">{service.category}</span>
-            <span className="mx-2">›</span>
-            <span className="text-gray-800 font-medium">{service.title}</span>
-          </nav>
+          <div className="mb-6">
+            <nav className="text-sm">
+              <span onClick={() => navigate('/services')} className="text-red-600 hover:text-red-800 cursor-pointer">
+                Services
+              </span>
+              <span className="mx-2 text-gray-400">/</span>
+              <span className="text-gray-600">{service?.category}</span>
+              <span className="mx-2 text-gray-400">/</span>
+              <span className="text-gray-900">{service?.title}</span>
+            </nav>
+          </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            {/* Images Section */}
-            <div className="lg:col-span-2">
-              <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-                {/* Main Image */}
+            {/* Left Column - Service Details */}
+            <div className="lg:col-span-2 space-y-6">
+              {/* Service Images */}
+              <div className="bg-white rounded-lg shadow-sm overflow-hidden">
                 <div className="relative">
                   <img
-                    src={getServiceImageUrl(service.images && service.images[selectedImageIndex] || service.images?.[0])}
-                    alt={service.title}
+                    src={serviceImages[selectedImageIndex]}
+                    alt={service?.title}
                     className="w-full h-96 object-cover"
+                    onError={(e) => {
+                      e.target.src = '/api/placeholder/800/400';
+                    }}
                   />
-                  {!service.isActive && (
-                    <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center">
-                      <span className="bg-red-500 text-white px-4 py-2 rounded-lg font-bold">
-                        Currently Unavailable
-                      </span>
-                    </div>
+                  
+                  {/* Image Navigation */}
+                  {serviceImages.length > 1 && (
+                    <>
+                      <button
+                        onClick={() => setSelectedImageIndex(selectedImageIndex > 0 ? selectedImageIndex - 1 : serviceImages.length - 1)}
+                        className="absolute left-4 top-1/2 transform -translate-y-1/2 bg-black bg-opacity-50 text-white p-2 rounded-full hover:bg-opacity-75"
+                      >
+                        ←
+                      </button>
+                      <button
+                        onClick={() => setSelectedImageIndex(selectedImageIndex < serviceImages.length - 1 ? selectedImageIndex + 1 : 0)}
+                        className="absolute right-4 top-1/2 transform -translate-y-1/2 bg-black bg-opacity-50 text-white p-2 rounded-full hover:bg-opacity-75"
+                      >
+                        →
+                      </button>
+                    </>
                   )}
                 </div>
 
-                {/* Thumbnail Images */}
-                {service.images && service.images.length > 1 && (
-                  <div className="p-4">
-                    <div className="flex space-x-2 overflow-x-auto">
-                      {service.images.map((image, index) => (
-                        <button
-                          key={index}
-                          onClick={() => setSelectedImageIndex(index)}
-                          className={`flex-shrink-0 w-20 h-20 rounded-lg overflow-hidden border-2 transition ${
-                            selectedImageIndex === index ? 'border-red-500' : 'border-gray-200 hover:border-gray-300'
-                          }`}
-                        >
-                          <img 
-                            src={getServiceImageUrl(image)} 
-                            alt={`${service.title} ${index + 1}`}
-                            className="w-full h-full object-cover"
-                          />
-                        </button>
-                      ))}
-                    </div>
+                {/* Image Thumbnails */}
+                {serviceImages.length > 1 && (
+                  <div className="p-4 flex space-x-2 overflow-x-auto">
+                    {serviceImages.map((image, index) => (
+                      <img
+                        key={index}
+                        src={image}
+                        alt={`${service?.title} ${index + 1}`}
+                        className={`w-16 h-16 object-cover rounded cursor-pointer ${
+                          index === selectedImageIndex ? 'ring-2 ring-red-500' : ''
+                        }`}
+                        onClick={() => setSelectedImageIndex(index)}
+                        onError={(e) => {
+                          e.target.src = '/api/placeholder/64/64';
+                        }}
+                      />
+                    ))}
                   </div>
                 )}
               </div>
 
               {/* Service Information */}
-              <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mt-6">
-                <div className="flex justify-between items-start mb-6">
-                  <div className="flex-1">
-                    <h1 className="text-3xl font-bold text-gray-800 mb-3">{service.title}</h1>
-                    <div className="flex flex-wrap items-center gap-3 mb-4">
-                      <span className="bg-red-100 text-red-800 px-3 py-1 rounded-full text-sm font-medium">
-                        {service.category}
-                      </span>
-                      <span className="text-gray-600 text-sm flex items-center">
-                        <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd" />
-                        </svg>
-                        {service.locations && service.locations.length > 0 
-                          ? service.locations[0].name 
-                          : service.location || 'Location TBD'}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="prose max-w-none">
-                  <h3 className="text-lg font-semibold text-gray-800 mb-3">Service Description</h3>
-                  <p className="text-gray-700 leading-relaxed mb-6">
-                    {service.description || 'No description available for this service.'}
-                  </p>
-                </div>
-
-                {/* Service Details Grid */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                  <div className="bg-gray-50 p-4 rounded-lg">
-                    <h4 className="font-medium text-gray-900 mb-2 flex items-center">
-                      <svg className="w-5 h-5 mr-2 text-green-500" fill="currentColor" viewBox="0 0 20 20">
-                        <path d="M8.433 7.418c.155-.103.346-.196.567-.267v1.698a2.305 2.305 0 01-.567-.267C8.07 8.34 8 8.114 8 8c0-.114.07-.34.433-.582zM11 12.849v-1.698c.22.071.412.164.567.267.364.243.433.468.433.582 0 .114-.07.34-.433.582a2.305 2.305 0 01-.567.267z" />
-                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-13a1 1 0 10-2 0v.092a4.535 4.535 0 00-1.676.662C6.602 6.234 6 7.009 6 8c0 .99.602 1.765 1.324 2.246.48.32 1.054.545 1.676.662v1.941c-.391-.127-.68-.317-.843-.504a1 1 0 10-1.51 1.31c.562.649 1.413 1.076 2.353 1.253V15a1 1 0 102 0v-.092a4.535 4.535 0 001.676-.662C13.398 13.766 14 12.991 14 12c0-.99-.602-1.765-1.324-2.246A4.535 4.535 0 0011 9.092V7.151c.391.127.68.317.843.504a1 1 0 101.51-1.31c-.562-.649-1.413-1.076-2.353-1.253V5z" clipRule="evenodd" />
+              <div className="bg-white rounded-lg shadow-sm p-6">
+                <div className="flex items-start justify-between mb-4">
+                  <div>
+                    <h1 className="text-3xl font-bold text-gray-900 mb-2">{service?.title}</h1>
+                    <div className="flex items-center text-sm text-gray-600">
+                      <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
                       </svg>
-                      Price Range
-                    </h4>
-                    <p className="text-xl font-semibold text-red-500">{service.price || 'Contact for pricing'}</p>
+                      {service?.category}
+                    </div>
                   </div>
                   
-                  {service.duration && (
-                    <div className="bg-gray-50 p-4 rounded-lg">
-                      <h4 className="font-medium text-gray-900 mb-2 flex items-center">
-                        <svg className="w-5 h-5 mr-2 text-blue-500" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clipRule="evenodd" />
-                        </svg>
-                        Duration
-                      </h4>
-                      <p className="text-gray-700 font-medium">{service.duration}</p>
-                    </div>
-                  )}
+                  <button
+                    onClick={handleSaveService}
+                    className={`p-2 rounded-full ${
+                      isSaved ? 'text-red-600' : 'text-gray-400 hover:text-red-600'
+                    }`}
+                  >
+                    <svg className="w-6 h-6" fill={isSaved ? 'currentColor' : 'none'} stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                    </svg>
+                  </button>
                 </div>
 
-                {/* Tags */}
-                {service.tags && service.tags.length > 0 && (
+                {/* Service Description */}
+                <div className="mb-6">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2">Description</h3>
+                  <p className="text-gray-700 leading-relaxed">{service?.description}</p>
+                </div>
+
+                {/* Service Locations */}
+                {service?.locations && service.locations.length > 0 && (
                   <div className="mb-6">
-                    <h4 className="font-medium text-gray-900 mb-3">Tags</h4>
+                    <h3 className="text-lg font-semibold text-gray-900 mb-2">Service Areas</h3>
                     <div className="flex flex-wrap gap-2">
-                      {service.tags.map((tag, index) => (
-                        <span key={index} className="bg-gray-100 text-gray-700 px-3 py-1 rounded-full text-sm">
-                          {tag}
+                      {service.locations.map((location, index) => (
+                        <span key={index} className="px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-sm">
+                          {location.name || location.lga || location}
+                          {location.type === 'locality' && location.lga && (
+                            <span className="text-gray-500 ml-1">({location.lga})</span>
+                          )}
                         </span>
                       ))}
                     </div>
                   </div>
                 )}
               </div>
-            </div>
 
-            {/* Sidebar */}
-            <div className="lg:col-span-1">
-              {/* Action Buttons */}
-              <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
-                <h3 className="text-lg font-semibold text-gray-800 mb-4">Get This Service</h3>
-                
-                {isAuthenticated ? (
-                  userType === 'customer' ? (
-                    <div className="space-y-3">
-                      {/* Direct Booking Button */}
-                      <button
-                        onClick={handleBookNow}
-                        disabled={!service.isActive}
-                        className={`w-full py-3 rounded-lg font-medium transition ${
-                          !service.isActive
-                            ? 'bg-gray-400 cursor-not-allowed text-white'
-                            : 'bg-red-500 hover:bg-red-600 text-white'
-                        }`}
-                      >
-                        📅 Book Now
-                      </button>
-
-                      {/* Service Request Button */}
-                      <button
-                        onClick={handleRequestQuote}
-                        className="w-full py-3 rounded-lg font-medium transition bg-blue-500 hover:bg-blue-600 text-white"
-                      >
-                        💬 Request Custom Quote
-                      </button>
-
-                      {/* Save Button */}
-                      <button
-                        onClick={handleSaveService}
-                        className={`w-full py-3 rounded-lg font-medium transition border-2 ${
-                          isSaved
-                            ? 'border-red-500 text-red-500 bg-red-50 hover:bg-red-100'
-                            : 'border-gray-300 text-gray-700 hover:bg-gray-50'
-                        }`}
-                      >
-                        <div className="flex items-center justify-center">
-                          <svg className={`w-5 h-5 mr-2 ${isSaved ? 'text-red-500' : 'text-gray-400'}`} 
-                               fill={isSaved ? 'currentColor' : 'none'} 
-                               stroke="currentColor" 
-                               viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} 
-                                  d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
-                          </svg>
-                          {isSaved ? 'Saved' : 'Save for Later'}
-                        </div>
-                      </button>
-
-                      <div className="bg-blue-50 p-3 rounded-lg text-sm">
-                        <p className="text-blue-800 font-medium mb-1">💡 What's the difference?</p>
-                        <p className="text-blue-700 text-xs">
-                          <strong>Book Now:</strong> Direct booking for standard service<br/>
-                          <strong>Request Quote:</strong> Discuss custom requirements and get personalized pricing
-                        </p>
-                      </div>
+              {/* NO PAYMENT PROCESSING WARNING */}
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6">
+                <div className="flex items-start">
+                  <div className="text-yellow-600">
+                    <svg className="w-6 h-6 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                    </svg>
+                  </div>
+                  <div className="ml-3">
+                    <h3 className="text-sm font-medium text-yellow-800">Important Payment Notice</h3>
+                    <div className="text-sm text-yellow-700 mt-1">
+                      <p><strong>BizBridge does not process payments.</strong> All payment arrangements and transactions are made directly between you and the artisan. We facilitate connections and provide dispute resolution support where applicable.</p>
                     </div>
-                  ) : (
-                    <div className="text-center py-4 bg-gray-100 rounded-lg">
-                      <p className="text-gray-600">Only customers can book services</p>
-                      <p className="text-sm text-gray-500 mt-1">Switch to a customer account to book</p>
-                    </div>
-                  )
-                ) : (
-                  <button
-                    onClick={() => navigate('/login', { state: { from: `/services/${serviceId}` } })}
-                    className="w-full bg-red-500 text-white py-3 rounded-lg hover:bg-red-600 transition font-medium"
-                  >
-                    Sign In to Book
-                  </button>
-                )}
-
-                <div className="mt-4 text-center">
-                  <p className="text-xs text-gray-500">
-                    💡 By booking, you agree to our Terms of Service
-                  </p>
+                  </div>
                 </div>
               </div>
+            </div>
 
-              {/* Artisan Card */}
-              {artisan && (
-                <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-                  <h3 className="text-lg font-semibold text-gray-800 mb-4">Meet Your Artisan</h3>
-                  
-                  <div className="flex items-center space-x-4 mb-4">
-                    <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center">
-                      {artisan.profileImage ? (
-                        <img 
-                          src={`http://localhost:5000${artisan.profileImage}`} 
-                          alt={artisan.contactName || artisan.businessName}
-                          className="w-16 h-16 rounded-full object-cover"
-                        />
-                      ) : (
-                        <span className="text-2xl font-bold text-red-500">
-                          {(artisan.contactName || artisan.businessName || 'A').charAt(0)}
-                        </span>
-                      )}
-                    </div>
-                    <div className="flex-1">
-                      <h4 className="font-semibold text-gray-800">
-                        {artisan.businessName || artisan.contactName || 'Artisan'}
-                      </h4>
-                      {artisan.contactName && artisan.businessName && (
-                        <p className="text-sm text-gray-600">{artisan.contactName}</p>
-                      )}
-                      <div className="flex items-center text-sm text-gray-600 mt-1">
-                        <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd" />
-                        </svg>
-                        {artisan.location?.lga || 'Lagos'}
-                      </div>
+            {/* Right Column - Pricing and Action */}
+            <div className="space-y-6">
+              {/* Pricing Display */}
+              <PricingDisplay />
+
+              {/* Artisan Information */}
+              <div className="bg-white rounded-lg shadow-sm p-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Artisan</h3>
+                
+                <div className="flex items-center space-x-4 mb-4">
+                  <img
+                    src={getProfileImageUrl(artisan?.profileImage)}
+                    alt={artisan?.contactName || artisan?.businessName}
+                    className="w-16 h-16 rounded-full object-cover"
+                    onError={(e) => {
+                      e.target.src = '/api/placeholder/64/64';
+                    }}
+                  />
+                  <div>
+                    <h4 className="font-semibold text-gray-900">
+                      {artisan?.businessName || artisan?.contactName}
+                    </h4>
+                    <p className="text-sm text-gray-600">{artisan?.contactName}</p>
+                    <div className="flex items-center text-sm text-gray-500">
+                      <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                      </svg>
+                      {artisan?.city || 'Lagos'}
                     </div>
                   </div>
-
-                  {/* Artisan Stats */}
-                  <div className="grid grid-cols-2 gap-4 mb-4">
-                    <div className="text-center">
-                      <div className="text-lg font-bold text-red-500">
-                        {artisan.analytics?.averageRating?.toFixed(1) || '5.0'}
-                      </div>
-                      <div className="text-xs text-gray-600">Rating</div>
-                    </div>
-                    <div className="text-center">
-                      <div className="text-lg font-bold text-blue-500">
-                        {artisan.analytics?.completedBookings || '0'}
-                      </div>
-                      <div className="text-xs text-gray-600">Completed</div>
-                    </div>
-                  </div>
-
-                  <button
-                    onClick={() => navigate(`/user/${artisan._id}`)}
-                    className="w-full bg-gray-100 text-gray-700 py-2 rounded-lg hover:bg-gray-200 transition font-medium"
-                  >
-                    View Profile
-                  </button>
                 </div>
-              )}
+
+                <button
+                  onClick={() => navigate(`/profile/${artisan?._id}`)}
+                  className="w-full bg-gray-100 text-gray-700 py-2 px-4 rounded-lg hover:bg-gray-200 transition"
+                >
+                  View Artisan Profile
+                </button>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="space-y-3">
+                <button
+                  onClick={handleRequestQuote}
+                  className="w-full bg-red-500 text-white py-3 px-6 rounded-lg font-medium hover:bg-red-600 transition"
+                >
+                  {service?.pricing?.type === 'negotiate' ? 'Request Quote' : 'Request This Service'}
+                </button>
+                
+                <button
+                  onClick={handleSaveService}
+                  className="w-full bg-gray-100 text-gray-700 py-2 px-4 rounded-lg hover:bg-gray-200 transition"
+                >
+                  {isSaved ? 'Saved ❤️' : 'Save for Later'}
+                </button>
+              </div>
+
+              {/* Platform Responsibility Notice */}
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <h4 className="text-sm font-medium text-blue-800 mb-1">Platform Support</h4>
+                <p className="text-xs text-blue-700">
+                  {service?.pricing?.type === 'categorized' 
+                    ? 'Enhanced dispute resolution and price protection available for this service.'
+                    : service?.pricing?.type === 'fixed'
+                    ? 'Basic dispute mediation available based on agreed terms.'
+                    : 'Platform facilitates communication only - all negotiations between parties.'
+                  }
+                </p>
+              </div>
             </div>
           </div>
         </div>
-      </main>
+      </div>
 
       {/* Service Request Form Modal */}
       {showRequestForm && (
@@ -617,32 +656,8 @@ const ServiceView = () => {
           onSuccess={handleRequestSuccess}
         />
       )}
-
-      {/* Direct Booking Form Modal */}
-      {showBookingForm && (
-        <DirectBookingForm
-          service={service}
-          artisan={artisan}
-          onClose={() => setShowBookingForm(false)}
-          onSuccess={handleBookingSuccess}
-        />
-      )}
-
-      {/* Footer */}
-      <footer className="bg-black text-white py-8">
-        <div className="container mx-auto px-4">
-          <div className="text-center">
-            <p>&copy; {new Date().getFullYear()} BizBridge. All rights reserved.</p>
-            <div className="mt-2 flex flex-wrap justify-center">
-              <span onClick={() => navigate('/terms')} className="text-red-400 hover:text-red-500 mx-2 cursor-pointer">Terms of Service</span>
-              <span onClick={() => navigate('/privacy')} className="text-red-400 hover:text-red-500 mx-2 cursor-pointer">Privacy Policy</span>
-              <span onClick={() => navigate('/contact')} className="text-red-400 hover:text-red-500 mx-2 cursor-pointer">Contact Us</span>
-            </div>
-          </div>
-        </div>
-      </footer>
     </div>
   );
-};
+}
 
 export default ServiceView;

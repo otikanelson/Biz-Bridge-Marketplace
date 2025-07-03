@@ -1,4 +1,4 @@
-// backend/src/models/booking.js - Enhanced version
+// models/booking.js - Simplified No-Payment Version
 import mongoose from 'mongoose';
 
 const BookingSchema = new mongoose.Schema({
@@ -40,6 +40,31 @@ const BookingSchema = new mongoose.Schema({
     maxlength: [500, "Description cannot exceed 500 characters"]
   },
 
+  // ========== SIMPLIFIED STATUS SYSTEM ==========
+  status: {
+    type: String,
+    enum: ['in_progress', 'completed', 'cancelled'],
+    default: 'in_progress',
+    index: true
+  },
+
+  // ========== STATUS HISTORY (SIMPLIFIED) ==========
+  statusHistory: [{
+    status: {
+      type: String,
+      enum: ['in_progress', 'completed', 'cancelled']
+    },
+    changedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User"
+    },
+    reason: String, // For cancellations
+    timestamp: {
+      type: Date,
+      default: Date.now
+    }
+  }],
+
   // ========== SCHEDULING ==========
   scheduledDate: {
     startDate: {
@@ -73,130 +98,126 @@ const BookingSchema = new mongoose.Schema({
         },
         message: "Invalid time format. Use HH:MM (24-hour format)"
       }
-    },
-    duration: {
-      value: Number,
-      unit: {
-        type: String,
-        enum: ["minutes", "hours", "days", "weeks"]
-      }
     }
   },
 
-  // ========== PRICING ==========
-  pricing: {
-    agreedPrice: {
-      type: Number,
-      required: [true, "Agreed price is required"],
-      min: [0, "Price cannot be negative"]
+  // ========== NEW: AGREEMENT TRACKING ==========
+  agreement: {
+    contractAccepted: {
+      customer: { 
+        type: Boolean, 
+        default: false 
+      },
+      artisan: { 
+        type: Boolean, 
+        default: false 
+      },
+      timestamps: {
+        customer: Date,
+        artisan: Date
+      }
     },
-    currency: {
-      type: String,
-      default: "NGN",
-      enum: ["NGN", "USD"]
+    agreedTerms: {
+      pricing: {
+        type: String,
+        required: false // What was agreed upon (e.g., "₦50,000 for Furniture Making")
+      },
+      duration: {
+        type: String,
+        required: false // Expected completion time
+      },
+      meetingLocation: {
+        type: String,
+        required: false // Where service will be performed
+      },
+      specialTerms: {
+        type: String,
+        maxlength: [500, "Special terms cannot exceed 500 characters"]
+      },
+      selectedCategory: {
+        type: String,
+        required: false // For categorized services
+      }
     },
-    breakdown: [{
-      item: String,
-      cost: Number,
-      description: String
-    }],
-    paymentTerms: {
-      type: String,
-      enum: ["full_upfront", "deposit_balance", "milestone_based", "on_completion"],
-      default: "deposit_balance"
+    contractText: {
+      type: String, // Generated contract content
+      required: false
     },
-    depositAmount: {
-      type: Number,
-      min: [0, "Deposit cannot be negative"]
-    },
-    depositPaid: {
+    bothPartiesAccepted: {
+      type: Boolean,
+      default: false
+    }
+  },
+
+  // ========== NEW: DISPUTE HANDLING ==========
+  dispute: {
+    isDisputed: {
       type: Boolean,
       default: false
     },
-    finalPaymentDue: {
-      type: Date
+    filedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User"
+    },
+    reason: {
+      type: String,
+      enum: [
+        'service_not_delivered',
+        'quality_issues', 
+        'timeline_exceeded',
+        'category_mismatch',
+        'artisan_unresponsive',
+        'customer_unresponsive',
+        'scope_disagreement',
+        'other'
+      ]
+    },
+    description: {
+      type: String,
+      maxlength: [1000, "Dispute description cannot exceed 1000 characters"]
+    },
+    filedAt: Date,
+    status: {
+      type: String,
+      enum: ['open', 'investigating', 'resolved', 'closed'],
+      default: 'open'
+    },
+    resolution: {
+      resolvedBy: {
+        type: String,
+        enum: ['admin', 'mutual_agreement', 'auto_resolved']
+      },
+      resolutionDate: Date,
+      resolutionNotes: String
     }
   },
 
   // ========== LOCATION ==========
   location: {
-    type: {
-      type: String,
-      enum: ["customer_location", "artisan_workshop", "neutral_location", "pickup_delivery"],
-      required: [true, "Location type is required"]
-    },
-    address: {
-      type: String,
-      trim: true
-    },
-    city: {
-      type: String,
-      default: "Lagos"
-    },
+    address: String,
+    lga: String,
     state: {
       type: String,
-      default: "Lagos"
-    },
-    lga: {
-      type: String,
-      required: true
+      default: 'Lagos'
     },
     coordinates: {
       latitude: Number,
       longitude: Number
-    },
-    meetingPoint: {
-      type: String,
-      trim: true
     }
   },
-
-  // ========== STATUS MANAGEMENT ==========
-  status: {
-    type: String,
-    enum: [
-      "pending",        // Just created, waiting for artisan confirmation
-      "confirmed",      // Artisan confirmed, booking is active
-      "in_progress",    // Work has begun
-      "pending_review", // Work completed, waiting for customer review
-      "completed",      // Successfully completed
-      "cancelled",      // Cancelled by either party
-      "disputed",       // There's a dispute
-      "refunded"        // Payment was refunded
-    ],
-    default: "pending",
-    index: true
-  },
-  statusHistory: [{
-    status: String,
-    changedBy: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "User"
-    },
-    reason: String,
-    timestamp: {
-      type: Date,
-      default: Date.now
-    }
-  }],
 
   // ========== COMMUNICATION ==========
   messages: [{
     sender: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
-      required: true
+      ref: "User"
     },
     message: {
       type: String,
-      required: [true, "Message content is required"],
-      trim: true
+      required: true,
+      maxlength: [1000, "Message cannot exceed 1000 characters"]
     },
-    attachments: [{
-      url: String,
-      filename: String,
-      type: String
-    }],
+    attachments: [String], // URLs to attached files
     timestamp: {
       type: Date,
       default: Date.now
@@ -207,24 +228,7 @@ const BookingSchema = new mongoose.Schema({
     }
   }],
 
-  // ========== PROGRESS TRACKING ==========
-  milestones: [{
-    title: {
-      type: String,
-      required: true
-    },
-    description: String,
-    dueDate: Date,
-    completedDate: Date,
-    status: {
-      type: String,
-      enum: ["pending", "in_progress", "completed", "overdue"],
-      default: "pending"
-    },
-    images: [String] // Progress photos
-  }],
-
-  // ========== REVIEW & RATING ==========
+  // ========== REVIEWS (SIMPLIFIED) ==========
   review: {
     customerReview: {
       rating: {
@@ -236,7 +240,6 @@ const BookingSchema = new mongoose.Schema({
         type: String,
         maxlength: [500, "Review comment cannot exceed 500 characters"]
       },
-      images: [String],
       reviewDate: Date
     },
     artisanReview: {
@@ -253,7 +256,7 @@ const BookingSchema = new mongoose.Schema({
     }
   },
 
-  // ========== CANCELLATION ==========
+  // ========== CANCELLATION (SIMPLIFIED) ==========
   cancellation: {
     cancelledBy: {
       type: mongoose.Schema.Types.ObjectId,
@@ -262,24 +265,27 @@ const BookingSchema = new mongoose.Schema({
     reason: {
       type: String,
       enum: [
-        "customer_request", "artisan_unavailable", "payment_issues", 
-        "scope_changes", "timeline_conflicts", "quality_concerns", "other"
+        "customer_request", 
+        "artisan_unavailable", 
+        "scope_changes", 
+        "timeline_conflicts", 
+        "quality_concerns", 
+        "mutual_agreement",
+        "other"
       ]
     },
-    description: String,
-    cancellationDate: Date,
-    refundAmount: Number,
-    refundProcessed: {
-      type: Boolean,
-      default: false
-    }
+    description: {
+      type: String,
+      maxlength: [500, "Cancellation description cannot exceed 500 characters"]
+    },
+    cancellationDate: Date
   },
 
   // ========== METADATA ==========
   source: {
     type: String,
     enum: ["direct_booking", "service_request", "repeat_customer"],
-    default: "direct_booking"
+    default: "service_request"
   },
   tags: [String],
   priority: {
@@ -291,12 +297,14 @@ const BookingSchema = new mongoose.Schema({
   timestamps: true 
 });
 
-// ========== INDEXES ==========
+// ========== INDEXES FOR PERFORMANCE ==========
 BookingSchema.index({ customer: 1, status: 1 });
 BookingSchema.index({ artisan: 1, status: 1 });
 BookingSchema.index({ "scheduledDate.startDate": 1 });
 BookingSchema.index({ status: 1, createdAt: -1 });
 BookingSchema.index({ serviceRequest: 1 });
+BookingSchema.index({ "dispute.isDisputed": 1 });
+BookingSchema.index({ "agreement.bothPartiesAccepted": 1 });
 
 // ========== VIRTUAL FIELDS ==========
 BookingSchema.virtual('totalDuration').get(function() {
@@ -308,79 +316,102 @@ BookingSchema.virtual('totalDuration').get(function() {
 
 BookingSchema.virtual('isOverdue').get(function() {
   return this.scheduledDate.startDate < new Date() && 
-         !['completed', 'cancelled'].includes(this.status);
+         this.status === 'in_progress';
 });
 
-// ========== METHODS ==========
-BookingSchema.methods.confirm = function() {
-  this.status = 'confirmed';
-  this.statusHistory.push({
-    status: 'confirmed',
-    changedBy: this.artisan,
-    timestamp: new Date()
-  });
+BookingSchema.virtual('contractFullyAccepted').get(function() {
+  return this.agreement.contractAccepted.customer && 
+         this.agreement.contractAccepted.artisan;
+});
+
+BookingSchema.virtual('daysSinceCreated').get(function() {
+  const now = new Date();
+  const diffTime = Math.abs(now - this.createdAt);
+  return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+});
+
+// ========== INSTANCE METHODS ==========
+
+// Agreement methods
+BookingSchema.methods.acceptContract = function(userId, userType) {
+  if (userType === 'customer') {
+    this.agreement.contractAccepted.customer = true;
+    this.agreement.contractAccepted.timestamps.customer = new Date();
+  } else if (userType === 'artisan') {
+    this.agreement.contractAccepted.artisan = true;
+    this.agreement.contractAccepted.timestamps.artisan = new Date();
+  }
+  
+  // Check if both parties have accepted
+  this.agreement.bothPartiesAccepted = 
+    this.agreement.contractAccepted.customer && 
+    this.agreement.contractAccepted.artisan;
+  
   return this.save();
 };
 
-BookingSchema.methods.startWork = function() {
-  this.status = 'in_progress';
+// Status management methods
+BookingSchema.methods.markAsCompleted = function(customerId) {
+  // Only customer can mark as completed
+  if (this.customer.toString() !== customerId.toString()) {
+    throw new Error('Only the customer can mark a booking as completed');
+  }
+  
+  this.status = 'completed';
   this.statusHistory.push({
-    status: 'in_progress',
-    changedBy: this.artisan,
+    status: 'completed',
+    changedBy: customerId,
     timestamp: new Date()
   });
+  
   return this.save();
 };
 
-BookingSchema.methods.complete = function() {
-  this.status = 'pending_review';
-  this.statusHistory.push({
-    status: 'pending_review',
-    changedBy: this.artisan,
-    timestamp: new Date()
-  });
-  return this.save();
-};
-
-BookingSchema.methods.cancel = function(cancelledBy, reason, description) {
+BookingSchema.methods.cancel = function(userId, reason, description) {
   this.status = 'cancelled';
   this.cancellation = {
-    cancelledBy,
+    cancelledBy: userId,
     reason,
     description,
     cancellationDate: new Date()
   };
+  
   this.statusHistory.push({
     status: 'cancelled',
-    changedBy: cancelledBy,
+    changedBy: userId,
     reason,
     timestamp: new Date()
   });
+  
   return this.save();
 };
 
-BookingSchema.methods.addReview = function(reviewerType, rating, comment, images = []) {
-  const reviewData = {
-    rating,
-    comment,
-    images,
-    reviewDate: new Date()
+// Dispute methods
+BookingSchema.methods.fileDispute = function(userId, reason, description) {
+  this.dispute = {
+    isDisputed: true,
+    filedBy: userId,
+    reason,
+    description,
+    filedAt: new Date(),
+    status: 'open'
   };
-
-  if (reviewerType === 'customer') {
-    this.review.customerReview = reviewData;
-  } else if (reviewerType === 'artisan') {
-    this.review.artisanReview = reviewData;
-  }
-
-  // Mark as completed if both parties have reviewed
-  if (this.review.customerReview && this.review.artisanReview) {
-    this.status = 'completed';
-  }
-
+  
   return this.save();
 };
 
+BookingSchema.methods.resolveDispute = function(resolvedBy, resolutionNotes) {
+  this.dispute.status = 'resolved';
+  this.dispute.resolution = {
+    resolvedBy,
+    resolutionDate: new Date(),
+    resolutionNotes
+  };
+  
+  return this.save();
+};
+
+// Communication methods
 BookingSchema.methods.addMessage = function(senderId, message, attachments = []) {
   this.messages.push({
     sender: senderId,
@@ -390,41 +421,97 @@ BookingSchema.methods.addMessage = function(senderId, message, attachments = [])
   return this.save();
 };
 
-BookingSchema.methods.addMilestone = function(milestoneData) {
-  this.milestones.push(milestoneData);
+// Review methods
+BookingSchema.methods.addReview = function(reviewerType, rating, comment) {
+  const reviewData = {
+    rating,
+    comment,
+    reviewDate: new Date()
+  };
+
+  if (reviewerType === 'customer') {
+    this.review.customerReview = reviewData;
+  } else if (reviewerType === 'artisan') {
+    this.review.artisanReview = reviewData;
+  }
+
   return this.save();
 };
 
-BookingSchema.methods.updateMilestone = function(milestoneId, updateData) {
-  const milestone = this.milestones.id(milestoneId);
-  if (milestone) {
-    Object.assign(milestone, updateData);
-    return this.save();
-  }
-  throw new Error('Milestone not found');
-};
-
 // ========== STATIC METHODS ==========
-BookingSchema.statics.getUpcomingBookings = function(artisanId, days = 7) {
-  const endDate = new Date();
-  endDate.setDate(endDate.getDate() + days);
+BookingSchema.statics.getActiveBookings = function(userId, userType) {
+  const query = {
+    status: 'in_progress'
+  };
   
-  return this.find({
-    artisan: artisanId,
-    status: { $in: ['confirmed', 'in_progress'] },
-    'scheduledDate.startDate': {
-      $gte: new Date(),
-      $lte: endDate
-    }
-  }).sort({ 'scheduledDate.startDate': 1 });
+  if (userType === 'customer') {
+    query.customer = userId;
+  } else {
+    query.artisan = userId;
+  }
+  
+  return this.find(query)
+    .populate('service', 'title category')
+    .populate('customer', 'name email')
+    .populate('artisan', 'name email')
+    .sort({ 'scheduledDate.startDate': 1 });
 };
 
-BookingSchema.statics.getOverdueBookings = function(artisanId) {
+BookingSchema.statics.getBookingHistory = function(userId, userType, limit = 20) {
+  const query = {};
+  
+  if (userType === 'customer') {
+    query.customer = userId;
+  } else {
+    query.artisan = userId;
+  }
+  
+  return this.find(query)
+    .populate('service', 'title category')
+    .populate('customer', 'name email')
+    .populate('artisan', 'name email')
+    .sort({ createdAt: -1 })
+    .limit(limit);
+};
+
+BookingSchema.statics.getDisputedBookings = function() {
+  return this.find({ 'dispute.isDisputed': true })
+    .populate('service', 'title category')
+    .populate('customer', 'name email')
+    .populate('artisan', 'name email')
+    .populate('dispute.filedBy', 'name email')
+    .sort({ 'dispute.filedAt': -1 });
+};
+
+BookingSchema.statics.getPendingContracts = function(userId, userType) {
+  const acceptanceField = userType === 'customer' ? 
+    'agreement.contractAccepted.customer' : 
+    'agreement.contractAccepted.artisan';
+  
+  const query = {
+    status: 'in_progress',
+    [acceptanceField]: false
+  };
+  
+  if (userType === 'customer') {
+    query.customer = userId;
+  } else {
+    query.artisan = userId;
+  }
+  
+  return this.find(query)
+    .populate('service', 'title category')
+    .populate('customer', 'name email')
+    .populate('artisan', 'name email');
+};
+
+BookingSchema.statics.getOverdueBookings = function() {
   return this.find({
-    artisan: artisanId,
-    status: { $in: ['confirmed', 'in_progress'] },
+    status: 'in_progress',
     'scheduledDate.startDate': { $lt: new Date() }
-  });
+  }).populate('service', 'title category')
+    .populate('customer', 'name email')
+    .populate('artisan', 'name email');
 };
 
 export default mongoose.model("Booking", BookingSchema);

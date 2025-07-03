@@ -1,731 +1,539 @@
-// src/components/forms/ServiceRequestForm.jsx
-import React, { useState } from 'react';
-import { useAuth } from '../../context/AuthContext';
+// src/components/forms/ServiceRequestForm.jsx - Day 7: Updated for New Pricing System
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+
+// API function for creating service requests (assuming this exists in your services)
+const createServiceRequest = async (requestData) => {
+  try {
+    const token = localStorage.getItem('token');
+    const response = await fetch('http://localhost:3000/api/service-requests', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(requestData)
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.message || 'Failed to create service request');
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('❌ Error creating service request:', error);
+    throw error;
+  }
+};
 
 const ServiceRequestForm = ({ service, artisan, onClose, onSuccess }) => {
-  const { currentUser } = useAuth();
+  const navigate = useNavigate();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState('');
   
-  // Form state
   const [formData, setFormData] = useState({
-    title: service?.title ? `Custom ${service.title}` : '',
-    description: '',
-    budgetMin: '',
-    budgetMax: '',
-    preferredStartDate: '',
-    preferredEndDate: '',
-    flexibility: 'somewhat_flexible',
-    locationType: 'customer_location',
-    address: '',
-    lga: '',
-    materials: [{ name: '', specifications: '', customerProvided: false }],
-    dimensions: { length: '', width: '', height: '', unit: 'cm' },
-    colors: [''],
-    specialInstructions: '',
-    inspiration: '',
-    priority: 'medium'
+    customerMessage: '',
+    specialRequirements: '',
+    selectedCategory: '', // NEW: For categorized pricing
+    contactPreference: 'phone',
+    urgency: 'medium',
+    budget: {
+      min: '',
+      max: '',
+      currency: 'NGN'
+    },
+    timeline: {
+      preferredStartDate: '',
+      isFlexible: true
+    },
+    location: {
+      meetingLocation: '',
+      isRemote: false
+    }
   });
 
-  // UI state
-  const [currentStep, setCurrentStep] = useState(1);
-  const [errors, setErrors] = useState({});
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [referenceImages, setReferenceImages] = useState([]);
-
-  // Lagos LGAs
-  const lagosLGAs = [
-    'Agege', 'Ajeromi-Ifelodun', 'Alimosho', 'Amuwo-Odofin', 'Badagry',
-    'Epe', 'Eti-Osa', 'Ibeju-Lekki', 'Ifako-Ijaiye', 'Ikeja',
-    'Ikorodu', 'Kosofe', 'Lagos Island', 'Lagos Mainland', 'Mushin',
-    'Ojo', 'Oshodi-Isolo', 'Shomolu', 'Surulere', 'Yaba'
-  ];
+  // Initialize selected category for categorized services
+  useEffect(() => {
+    if (service?.pricing?.type === 'categorized' && service.pricing.categories?.length > 0) {
+      // Don't auto-select, let user choose
+      setFormData(prev => ({ ...prev, selectedCategory: '' }));
+    }
+  }, [service]);
 
   // Handle input changes
-  const handleInputChange = (field, value) => {
-    setFormData(prev => ({
-      ...prev,
-      [field]: value
-    }));
-    // Clear error when user starts typing
-    if (errors[field]) {
-      setErrors(prev => ({
+  const handleInputChange = (e) => {
+    const { name, value, type, checked } = e.target;
+    
+    if (name.includes('.')) {
+      const [parent, child] = name.split('.');
+      setFormData(prev => ({
         ...prev,
-        [field]: ''
+        [parent]: {
+          ...prev[parent],
+          [child]: type === 'checkbox' ? checked : value
+        }
+      }));
+    } else {
+      setFormData(prev => ({
+        ...prev,
+        [name]: type === 'checkbox' ? checked : value
       }));
     }
-  };
-
-  // Handle nested object changes
-  const handleNestedChange = (parent, field, value) => {
-    setFormData(prev => ({
-      ...prev,
-      [parent]: {
-        ...prev[parent],
-        [field]: value
-      }
-    }));
-  };
-
-  // Handle array changes
-  const handleArrayChange = (field, index, value) => {
-    setFormData(prev => ({
-      ...prev,
-      [field]: prev[field].map((item, i) => i === index ? value : item)
-    }));
-  };
-
-  // Add material
-  const addMaterial = () => {
-    setFormData(prev => ({
-      ...prev,
-      materials: [...prev.materials, { name: '', specifications: '', customerProvided: false }]
-    }));
-  };
-
-  // Remove material
-  const removeMaterial = (index) => {
-    setFormData(prev => ({
-      ...prev,
-      materials: prev.materials.filter((_, i) => i !== index)
-    }));
-  };
-
-  // Add color
-  const addColor = () => {
-    setFormData(prev => ({
-      ...prev,
-      colors: [...prev.colors, '']
-    }));
-  };
-
-  // Remove color
-  const removeColor = (index) => {
-    setFormData(prev => ({
-      ...prev,
-      colors: prev.colors.filter((_, i) => i !== index)
-    }));
-  };
-
-  // Handle image upload
-  const handleImageUpload = (e) => {
-    const files = Array.from(e.target.files);
-    const maxFiles = 5;
     
-    if (referenceImages.length + files.length > maxFiles) {
-      alert(`You can upload a maximum of ${maxFiles} reference images`);
-      return;
-    }
-
-    files.forEach(file => {
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        setReferenceImages(prev => [...prev, {
-          file,
-          url: event.target.result,
-          name: file.name
-        }]);
-      };
-      reader.readAsDataURL(file);
-    });
+    // Clear error when user starts typing
+    if (error) setError('');
   };
 
-  // Remove image
-  const removeImage = (index) => {
-    setReferenceImages(prev => prev.filter((_, i) => i !== index));
-  };
-
-  // Validate current step
-  const validateStep = (step) => {
-    const newErrors = {};
-
-    switch (step) {
-      case 1:
-        if (!formData.title.trim()) newErrors.title = 'Title is required';
-        if (!formData.description.trim()) newErrors.description = 'Description is required';
-        if (!formData.budgetMin) newErrors.budgetMin = 'Minimum budget is required';
-        if (formData.budgetMax && parseFloat(formData.budgetMax) < parseFloat(formData.budgetMin)) {
-          newErrors.budgetMax = 'Maximum budget must be greater than minimum';
+  // Get pricing display for the service
+  const getPricingDisplay = () => {
+    if (!service?.pricing) return 'Contact for pricing';
+    
+    switch (service.pricing.type) {
+      case 'fixed':
+        return service.pricing.basePrice 
+          ? `₦${Number(service.pricing.basePrice).toLocaleString()} - ${service.pricing.baseDuration}`
+          : 'Contact for pricing';
+      case 'negotiate':
+        return 'Price will be negotiated based on your requirements';
+      case 'categorized':
+        if (formData.selectedCategory) {
+          const category = service.pricing.categories.find(cat => cat.name === formData.selectedCategory);
+          return category 
+            ? `₦${Number(category.price).toLocaleString()} - ${category.duration}`
+            : 'Select a category';
         }
-        break;
-      case 2:
-        if (!formData.preferredStartDate) newErrors.preferredStartDate = 'Preferred start date is required';
-        if (formData.preferredEndDate && new Date(formData.preferredEndDate) <= new Date(formData.preferredStartDate)) {
-          newErrors.preferredEndDate = 'End date must be after start date';
-        }
-        if (formData.locationType === 'customer_location' && !formData.address.trim()) {
-          newErrors.address = 'Address is required for customer location';
-        }
-        if (!formData.lga) newErrors.lga = 'LGA is required';
-        break;
-      case 3:
-        // Optional step - no required validation
-        break;
-    }
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
-
-  // Handle next step
-  const handleNext = () => {
-    if (validateStep(currentStep)) {
-      setCurrentStep(prev => prev + 1);
+        return 'Select a service category';
+      default:
+        return 'Contact for pricing';
     }
   };
 
-  // Handle previous step
-  const handlePrevious = () => {
-    setCurrentStep(prev => prev - 1);
+  // Get selected category details
+  const getSelectedCategoryDetails = () => {
+    if (service?.pricing?.type === 'categorized' && formData.selectedCategory) {
+      return service.pricing.categories.find(cat => cat.name === formData.selectedCategory);
+    }
+    return null;
+  };
+
+  // Check if categorized pricing is supported
+  const supportsCategorizedPricing = (category) => {
+    const allowedCategories = ['Woodworking', 'Metalwork', 'Textile Art'];
+    return allowedCategories.includes(category);
+  };
+
+  // Get platform responsibility level
+  const getPlatformResponsibility = () => {
+    if (!service?.pricing) return 'Platform facilitates connection only';
+    
+    switch (service.pricing.type) {
+      case 'fixed':
+        return 'Platform will help mediate disputes based on agreed terms';
+      case 'negotiate':
+        return 'Platform facilitates communication only - all negotiations between you and artisan';
+      case 'categorized':
+        return 'Platform provides enhanced dispute resolution and price protection for this service';
+      default:
+        return 'Platform facilitates connection only';
+    }
+  };
+
+  // Validate form
+  const validateForm = () => {
+    if (!formData.customerMessage.trim()) {
+      setError('Please describe what you need');
+      return false;
+    }
+
+    if (service?.pricing?.type === 'categorized' && !formData.selectedCategory) {
+      setError('Please select a service category');
+      return false;
+    }
+
+    if (!formData.timeline.preferredStartDate) {
+      setError('Please provide your preferred start date');
+      return false;
+    }
+
+    // Ensure minimum budget is provided (backend requirement)
+    if (!formData.budget.min || Number(formData.budget.min) <= 0) {
+      setError('Please provide a minimum budget amount');
+      return false;
+    }
+
+    return true;
   };
 
   // Handle form submission
-  const handleSubmit = async () => {
-    if (!validateStep(currentStep)) return;
-
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    
+    if (!validateForm()) return;
+    
     setIsSubmitting(true);
+    setError('');
+    
     try {
-      // Prepare request data
+      // Prepare request data to match backend expectations
       const requestData = {
+        // Required fields that backend expects
         artisanId: artisan._id,
         serviceId: service._id,
-        title: formData.title,
-        description: formData.description,
+        title: `${service.title} Request`,
+        description: formData.customerMessage,
         category: service.category,
+        
+        // Budget information (backend expects budget.min)
         budget: {
-          min: parseFloat(formData.budgetMin),
-          max: formData.budgetMax ? parseFloat(formData.budgetMax) : null,
+          min: formData.budget.min ? Number(formData.budget.min) : 1000, // Default minimum if not provided
+          max: formData.budget.max ? Number(formData.budget.max) : null,
           currency: 'NGN'
         },
+        
+        // Timeline (backend expects timeline.preferredStartDate)
         timeline: {
-          preferredStartDate: formData.preferredStartDate,
-          preferredEndDate: formData.preferredEndDate || null,
-          flexibility: formData.flexibility
+          preferredStartDate: formData.timeline.preferredStartDate,
+          preferredEndDate: null, // Can be added later if needed
+          flexibility: formData.timeline.isFlexible ? 'flexible' : 'fixed'
         },
+        
+        // Location (backend expects location.lga)
         location: {
-          type: formData.locationType,
-          address: formData.address,
-          lga: formData.lga
+          lga: formData.location.meetingLocation || 'Lagos', // Default to Lagos if not specified
+          address: formData.location.meetingLocation,
+          isRemote: formData.location.isRemote
         },
-        requirements: {
-          materials: formData.materials.filter(m => m.name.trim()),
-          dimensions: formData.dimensions.length ? formData.dimensions : null,
-          colors: formData.colors.filter(c => c.trim()),
-          specialInstructions: formData.specialInstructions,
-          referenceImages: referenceImages.map(img => img.url), // In production, upload to server first
-          inspiration: formData.inspiration
-        },
-        priority: formData.priority,
-        source: 'direct_service'
+        
+        // Additional fields for enhanced functionality
+        selectedCategory: formData.selectedCategory || null,
+        requirements: formData.specialRequirements,
+        priority: formData.urgency,
+        source: 'web'
       };
 
-      // TODO: Replace with actual API call
-      console.log('📝 Creating service request:', requestData);
+      console.log('📝 Sending service request with backend-compatible format:', requestData);
+
+      // Send request to backend
+      const response = await createServiceRequest(requestData);
+
+      console.log('✅ Service request created successfully:', response);
+
+      // Success - call success callback and close form
+      if (onSuccess) {
+        onSuccess(response.serviceRequest);
+      }
       
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      onClose();
       
-      console.log('✅ Service request created successfully');
-      onSuccess();
+      // Navigate to customer dashboard with success message
+      navigate('/dashboard', { 
+        state: { message: 'Service request sent successfully! The artisan will respond soon.' }
+      });
       
     } catch (error) {
       console.error('❌ Error creating service request:', error);
-      alert('Failed to create service request. Please try again.');
+      setError(error.message || 'Failed to send request. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
   };
 
+  // Get service image URL
+  const getServiceImageUrl = (imagePath) => {
+    if (!imagePath) return '/api/placeholder/80/80';
+    if (imagePath.startsWith('http')) return imagePath;
+    return `http://localhost:3000${imagePath}`;
+  };
+
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-hidden">
+    <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+      <div className="relative top-4 mx-auto p-5 border max-w-2xl shadow-lg rounded-md bg-white my-8">
         {/* Header */}
-        <div className="bg-blue-500 text-white p-6">
-          <div className="flex justify-between items-center">
-            <div>
-              <h2 className="text-2xl font-bold">Request Custom Quote</h2>
-              <p className="text-blue-100 mt-1">Get a personalized quote from {artisan?.businessName || artisan?.contactName}</p>
-            </div>
-            <button
-              onClick={onClose}
-              className="text-white hover:text-gray-200 text-2xl"
-            >
-              ×
-            </button>
-          </div>
-          
-          {/* Progress Bar */}
-          <div className="mt-4">
-            <div className="flex items-center">
-              {[1, 2, 3].map((step) => (
-                <React.Fragment key={step}>
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
-                    step <= currentStep ? 'bg-white text-blue-500' : 'bg-blue-400 text-blue-100'
-                  }`}>
-                    {step}
-                  </div>
-                  {step < 3 && (
-                    <div className={`flex-1 h-1 mx-2 ${
-                      step < currentStep ? 'bg-white' : 'bg-blue-400'
-                    }`} />
-                  )}
-                </React.Fragment>
-              ))}
-            </div>
-            <div className="flex justify-between text-xs text-blue-100 mt-2">
-              <span>Basic Info</span>
-              <span>Timeline & Location</span>
-              <span>Requirements</span>
+        <div className="flex justify-between items-center mb-6">
+          <h2 className="text-2xl font-bold text-gray-900">Request Service</h2>
+          <button
+            onClick={onClose}
+            className="text-gray-400 hover:text-gray-600 text-2xl font-bold"
+          >
+            ×
+          </button>
+        </div>
+
+        {/* Service Summary */}
+        <div className="bg-gray-50 rounded-lg p-4 mb-6">
+          <div className="flex items-start space-x-4">
+            <img
+              src={getServiceImageUrl(service?.images?.[0] || service?.image)}
+              alt={service?.title}
+              className="w-20 h-20 object-cover rounded-lg"
+            />
+            <div className="flex-1">
+              <h3 className="font-semibold text-gray-900">{service?.title}</h3>
+              <p className="text-sm text-gray-600 mb-2">by {artisan?.businessName || artisan?.contactName}</p>
+              <div className="text-sm">
+                <span className="font-medium text-gray-700">Pricing: </span>
+                <span className="text-red-600 font-medium">{getPricingDisplay()}</span>
+              </div>
             </div>
           </div>
         </div>
 
-        {/* Form Content */}
-        <div className="p-6 overflow-y-auto" style={{ maxHeight: 'calc(90vh - 200px)' }}>
-          {/* Step 1: Basic Information */}
-          {currentStep === 1 && (
-            <div className="space-y-6">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Request Title *
-                </label>
-                <input
-                  type="text"
-                  value={formData.title}
-                  onChange={(e) => handleInputChange('title', e.target.value)}
-                  placeholder="e.g., Custom dining table with storage"
-                  className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                    errors.title ? 'border-red-500' : 'border-gray-300'
-                  }`}
-                />
-                {errors.title && <p className="text-red-500 text-sm mt-1">{errors.title}</p>}
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Detailed Description *
-                </label>
-                <textarea
-                  value={formData.description}
-                  onChange={(e) => handleInputChange('description', e.target.value)}
-                  rows={4}
-                  placeholder="Describe what you need in detail. Include size, style, materials, and any specific requirements..."
-                  className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                    errors.description ? 'border-red-500' : 'border-gray-300'
-                  }`}
-                />
-                {errors.description && <p className="text-red-500 text-sm mt-1">{errors.description}</p>}
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Minimum Budget (₦) *
-                  </label>
-                  <input
-                    type="number"
-                    value={formData.budgetMin}
-                    onChange={(e) => handleInputChange('budgetMin', e.target.value)}
-                    placeholder="50000"
-                    className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                      errors.budgetMin ? 'border-red-500' : 'border-gray-300'
-                    }`}
-                  />
-                  {errors.budgetMin && <p className="text-red-500 text-sm mt-1">{errors.budgetMin}</p>}
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Maximum Budget (₦)
-                  </label>
-                  <input
-                    type="number"
-                    value={formData.budgetMax}
-                    onChange={(e) => handleInputChange('budgetMax', e.target.value)}
-                    placeholder="100000"
-                    className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                      errors.budgetMax ? 'border-red-500' : 'border-gray-300'
-                    }`}
-                  />
-                  {errors.budgetMax && <p className="text-red-500 text-sm mt-1">{errors.budgetMax}</p>}
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Priority Level
-                </label>
-                <select
-                  value={formData.priority}
-                  onChange={(e) => handleInputChange('priority', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="low">Low - I'm flexible with timing</option>
-                  <option value="medium">Medium - Standard timeline</option>
-                  <option value="high">High - I need this soon</option>
-                  <option value="urgent">Urgent - This is time-sensitive</option>
-                </select>
+        {/* NO PAYMENT WARNING */}
+        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
+          <div className="flex items-start">
+            <div className="text-yellow-600">
+              <svg className="w-5 h-5 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+              </svg>
+            </div>
+            <div className="ml-3">
+              <h3 className="text-sm font-medium text-yellow-800">Important Notice</h3>
+              <div className="text-sm text-yellow-700 mt-1">
+                <strong>BizBridge does not process payments.</strong> All payment arrangements and negotiations are made directly between you and the artisan. {getPlatformResponsibility()}
               </div>
             </div>
-          )}
+          </div>
+        </div>
 
-          {/* Step 2: Timeline & Location */}
-          {currentStep === 2 && (
-            <div className="space-y-6">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Preferred Start Date *
-                  </label>
-                  <input
-                    type="date"
-                    value={formData.preferredStartDate}
-                    onChange={(e) => handleInputChange('preferredStartDate', e.target.value)}
-                    min={new Date().toISOString().split('T')[0]}
-                    className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                      errors.preferredStartDate ? 'border-red-500' : 'border-gray-300'
-                    }`}
-                  />
-                  {errors.preferredStartDate && <p className="text-red-500 text-sm mt-1">{errors.preferredStartDate}</p>}
-                </div>
+        {/* Error Display */}
+        {error && (
+          <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-lg mb-6">
+            {error}
+          </div>
+        )}
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Preferred End Date
-                  </label>
-                  <input
-                    type="date"
-                    value={formData.preferredEndDate}
-                    onChange={(e) => handleInputChange('preferredEndDate', e.target.value)}
-                    min={formData.preferredStartDate}
-                    className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                      errors.preferredEndDate ? 'border-red-500' : 'border-gray-300'
-                    }`}
-                  />
-                  {errors.preferredEndDate && <p className="text-red-500 text-sm mt-1">{errors.preferredEndDate}</p>}
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Timeline Flexibility
-                </label>
-                <select
-                  value={formData.flexibility}
-                  onChange={(e) => handleInputChange('flexibility', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="rigid">Rigid - These dates are fixed</option>
-                  <option value="somewhat_flexible">Somewhat Flexible - Can adjust by a few days</option>
-                  <option value="very_flexible">Very Flexible - Dates are just a guideline</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Where should the work be done?
-                </label>
-                <select
-                  value={formData.locationType}
-                  onChange={(e) => handleInputChange('locationType', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="customer_location">My Location</option>
-                  <option value="artisan_workshop">Artisan's Workshop</option>
-                  <option value="neutral_location">Neutral Location</option>
-                  <option value="pickup_delivery">Pickup/Delivery</option>
-                </select>
-              </div>
-
-              {(formData.locationType === 'customer_location' || formData.locationType === 'neutral_location') && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Address *
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.address}
-                    onChange={(e) => handleInputChange('address', e.target.value)}
-                    placeholder="Enter complete address"
-                    className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                      errors.address ? 'border-red-500' : 'border-gray-300'
-                    }`}
-                  />
-                  {errors.address && <p className="text-red-500 text-sm mt-1">{errors.address}</p>}
+        <form onSubmit={handleSubmit} className="space-y-6">
+          
+          {/* Category Selection for Categorized Pricing */}
+          {service?.pricing?.type === 'categorized' && (
+            <div className="mb-6">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Select Service Category *
+              </label>
+              <select
+                name="selectedCategory"
+                value={formData.selectedCategory}
+                onChange={handleInputChange}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500"
+                required
+              >
+                <option value="">-- Choose a category --</option>
+                {service.pricing.categories?.map((category, index) => (
+                  <option key={index} value={category.name}>
+                    {category.name} - ₦{Number(category.price).toLocaleString()} ({category.duration})
+                  </option>
+                ))}
+              </select>
+              
+              {/* Category Benefits Notice */}
+              {supportsCategorizedPricing(service.category) && (
+                <div className="mt-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                  <div className="flex items-start">
+                    <div className="text-blue-500 mr-2">⭐</div>
+                    <div className="text-sm text-blue-800">
+                      <strong>Enhanced Protection:</strong> Categorized pricing includes special dispute resolution support from BizBridge. 
+                      Your selected category price is fixed and protected.
+                    </div>
+                  </div>
                 </div>
               )}
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Local Government Area (LGA) *
-                </label>
-                <select
-                  value={formData.lga}
-                  onChange={(e) => handleInputChange('lga', e.target.value)}
-                  className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                    errors.lga ? 'border-red-500' : 'border-gray-300'
-                  }`}
-                >
-                  <option value="">Select LGA</option>
-                  {lagosLGAs.map(lga => (
-                    <option key={lga} value={lga}>{lga}</option>
-                  ))}
-                </select>
-                {errors.lga && <p className="text-red-500 text-sm mt-1">{errors.lga}</p>}
-              </div>
-            </div>
-          )}
-
-          {/* Step 3: Requirements */}
-          {currentStep === 3 && (
-            <div className="space-y-6">
-              {/* Materials */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Materials Needed
-                </label>
-                {formData.materials.map((material, index) => (
-                  <div key={index} className="flex gap-2 mb-2">
-                    <input
-                      type="text"
-                      value={material.name}
-                      onChange={(e) => handleArrayChange('materials', index, { ...material, name: e.target.value })}
-                      placeholder="Material name"
-                      className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                    <input
-                      type="text"
-                      value={material.specifications}
-                      onChange={(e) => handleArrayChange('materials', index, { ...material, specifications: e.target.value })}
-                      placeholder="Specifications"
-                      className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                    <label className="flex items-center">
-                      <input
-                        type="checkbox"
-                        checked={material.customerProvided}
-                        onChange={(e) => handleArrayChange('materials', index, { ...material, customerProvided: e.target.checked })}
-                        className="mr-1"
-                      />
-                      <span className="text-xs">I'll provide</span>
-                    </label>
-                    {formData.materials.length > 1 && (
-                      <button
-                        type="button"
-                        onClick={() => removeMaterial(index)}
-                        className="text-red-500 hover:text-red-700"
-                      >
-                        ×
-                      </button>
-                    )}
-                  </div>
-                ))}
-                <button
-                  type="button"
-                  onClick={addMaterial}
-                  className="text-blue-500 hover:text-blue-700 text-sm"
-                >
-                  + Add Material
-                </button>
-              </div>
-
-              {/* Dimensions */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Dimensions (Optional)
-                </label>
-                <div className="grid grid-cols-4 gap-2">
-                  <input
-                    type="number"
-                    value={formData.dimensions.length}
-                    onChange={(e) => handleNestedChange('dimensions', 'length', e.target.value)}
-                    placeholder="Length"
-                    className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                  <input
-                    type="number"
-                    value={formData.dimensions.width}
-                    onChange={(e) => handleNestedChange('dimensions', 'width', e.target.value)}
-                    placeholder="Width"
-                    className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                  <input
-                    type="number"
-                    value={formData.dimensions.height}
-                    onChange={(e) => handleNestedChange('dimensions', 'height', e.target.value)}
-                    placeholder="Height"
-                    className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                  <select
-                    value={formData.dimensions.unit}
-                    onChange={(e) => handleNestedChange('dimensions', 'unit', e.target.value)}
-                    className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="cm">cm</option>
-                    <option value="m">m</option>
-                    <option value="inch">inch</option>
-                    <option value="ft">ft</option>
-                  </select>
+              {/* Selected Category Details */}
+              {getSelectedCategoryDetails() && (
+                <div className="mt-3 p-3 bg-green-50 border border-green-200 rounded-lg">
+                  <h4 className="font-medium text-green-800 mb-1">{getSelectedCategoryDetails().name}</h4>
+                  <p className="text-sm text-green-700">
+                    <strong>Price:</strong> ₦{Number(getSelectedCategoryDetails().price).toLocaleString()} | 
+                    <strong> Duration:</strong> {getSelectedCategoryDetails().duration}
+                  </p>
+                  {getSelectedCategoryDetails().description && (
+                    <p className="text-sm text-green-600 mt-1">{getSelectedCategoryDetails().description}</p>
+                  )}
                 </div>
-              </div>
-
-              {/* Colors */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Preferred Colors
-                </label>
-                {formData.colors.map((color, index) => (
-                  <div key={index} className="flex gap-2 mb-2">
-                    <input
-                      type="text"
-                      value={color}
-                      onChange={(e) => handleArrayChange('colors', index, e.target.value)}
-                      placeholder="Color preference"
-                      className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                    {formData.colors.length > 1 && (
-                      <button
-                        type="button"
-                        onClick={() => removeColor(index)}
-                        className="text-red-500 hover:text-red-700"
-                      >
-                        ×
-                      </button>
-                    )}
-                  </div>
-                ))}
-                <button
-                  type="button"
-                  onClick={addColor}
-                  className="text-blue-500 hover:text-blue-700 text-sm"
-                >
-                  + Add Color
-                </button>
-              </div>
-
-              {/* Reference Images */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Reference Images (Optional)
-                </label>
-                <input
-                  type="file"
-                  multiple
-                  accept="image/*"
-                  onChange={handleImageUpload}
-                  className="hidden"
-                  id="reference-images"
-                />
-                <label
-                  htmlFor="reference-images"
-                  className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center cursor-pointer hover:border-blue-500 block"
-                >
-                  <span className="text-gray-600">Click to upload reference images</span>
-                  <span className="text-xs text-gray-500 block mt-1">Maximum 5 images</span>
-                </label>
-                
-                {referenceImages.length > 0 && (
-                  <div className="grid grid-cols-3 gap-2 mt-2">
-                    {referenceImages.map((image, index) => (
-                      <div key={index} className="relative">
-                        <img
-                          src={image.url}
-                          alt={`Reference ${index + 1}`}
-                          className="w-full h-20 object-cover rounded"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => removeImage(index)}
-                          className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs"
-                        >
-                          ×
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {/* Special Instructions */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Special Instructions
-                </label>
-                <textarea
-                  value={formData.specialInstructions}
-                  onChange={(e) => handleInputChange('specialInstructions', e.target.value)}
-                  rows={3}
-                  placeholder="Any special requirements, techniques, or considerations..."
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-
-              {/* Inspiration */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Style Inspiration
-                </label>
-                <input
-                  type="text"
-                  value={formData.inspiration}
-                  onChange={(e) => handleInputChange('inspiration', e.target.value)}
-                  placeholder="e.g., Modern minimalist, Rustic farmhouse, Traditional Nigerian..."
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
+              )}
             </div>
           )}
 
-        {/* Footer */}
-        <div className="bg-gray-50 px-6 py-4 flex justify-between items-center">
-          <div className="text-sm text-gray-600">
-            Step {currentStep} of 3
+          {/* Service Description */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Describe what you need *
+            </label>
+            <textarea
+              name="customerMessage"
+              value={formData.customerMessage}
+              onChange={handleInputChange}
+              rows={4}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500"
+              placeholder="Please provide detailed information about your requirements..."
+              required
+            />
           </div>
-          
-          <div className="flex space-x-3">
-            {currentStep > 1 && (
-              <button
-                onClick={handlePrevious}
-                className="px-4 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition"
-              >
-                Previous
-              </button>
-            )}
-            
-            {currentStep < 3 ? (
-              <button
-                onClick={handleNext}
-                className="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition"
-              >
-                Next
-              </button>
-            ) : (
-              <button
-                onClick={handleSubmit}
-                disabled={isSubmitting}
-                className={`px-6 py-2 rounded-lg transition ${
-                  isSubmitting
-                    ? 'bg-gray-400 cursor-not-allowed text-white'
-                    : 'bg-blue-500 hover:bg-blue-600 text-white'
-                }`}
-              >
-                {isSubmitting ? (
-                  <div className="flex items-center">
-                    <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                    Sending Request...
-                  </div>
-                ) : (
-                  'Send Request'
-                )}
-              </button>
-            )}
+
+          {/* Budget Range (Required for backend) */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Budget Range * (Required for request processing)
+              </label>
+              <div className="grid grid-cols-2 gap-2">
+                <input
+                  type="number"
+                  name="budget.min"
+                  value={formData.budget.min}
+                  onChange={handleInputChange}
+                  placeholder="Min (₦) *"
+                  className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500"
+                  required
+                  min="1000"
+                />
+                <input
+                  type="number"
+                  name="budget.max"
+                  value={formData.budget.max}
+                  onChange={handleInputChange}
+                  placeholder="Max (₦)"
+                  className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500"
+                  min={formData.budget.min || "1000"}
+                />
+              </div>
+              <p className="text-xs text-gray-500 mt-1">
+                Minimum budget helps artisans understand if they can meet your needs. This is for reference only - final pricing is negotiated directly.
+              </p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Preferred Start Date *
+              </label>
+              <input
+                type="date"
+                name="timeline.preferredStartDate"
+                value={formData.timeline.preferredStartDate}
+                onChange={handleInputChange}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500"
+                required
+              />
+            </div>
           </div>
-        </div>
+
+          {/* Timeline Flexibility */}
+          <div>
+            <label className="flex items-center">
+              <input
+                type="checkbox"
+                name="timeline.isFlexible"
+                checked={formData.timeline.isFlexible}
+                onChange={handleInputChange}
+                className="text-red-500 focus:ring-red-500"
+              />
+              <span className="ml-2 text-sm text-gray-700">My timeline is flexible</span>
+            </label>
+          </div>
+
+          {/* Meeting Location */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Preferred Meeting Location
+            </label>
+            <input
+              type="text"
+              name="location.meetingLocation"
+              value={formData.location.meetingLocation}
+              onChange={handleInputChange}
+              placeholder="e.g., My home in Ikeja, Your workshop, etc."
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500"
+            />
+          </div>
+
+          {/* Special Requirements */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Special Requirements or Notes
+            </label>
+            <textarea
+              name="specialRequirements"
+              value={formData.specialRequirements}
+              onChange={handleInputChange}
+              rows={3}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500"
+              placeholder="Any specific materials, techniques, or other requirements..."
+            />
+          </div>
+
+          {/* Contact Preference */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              How would you like the artisan to contact you?
+            </label>
+            <select
+              name="contactPreference"
+              value={formData.contactPreference}
+              onChange={handleInputChange}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500"
+            >
+              <option value="phone">Phone call</option>
+              <option value="sms">SMS/Text</option>
+              <option value="email">Email</option>
+              <option value="whatsapp">WhatsApp</option>
+              <option value="any">Any method is fine</option>
+            </select>
+          </div>
+
+          {/* Urgency Level */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              How urgent is this request?
+            </label>
+            <select
+              name="urgency"
+              value={formData.urgency}
+              onChange={handleInputChange}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500"
+            >
+              <option value="low">Not urgent - within a few weeks</option>
+              <option value="medium">Moderately urgent - within a week</option>
+              <option value="high">Very urgent - within a few days</option>
+            </select>
+          </div>
+
+          {/* Contract Preview Section */}
+          <div className="bg-gray-50 border border-gray-300 rounded-lg p-4">
+            <h3 className="font-medium text-gray-900 mb-2">What happens next?</h3>
+            <div className="text-sm text-gray-700 space-y-1">
+              <p>1. The artisan will review your request and respond within 24-48 hours</p>
+              <p>2. You'll discuss details and finalize terms directly with the artisan</p>
+              <p>3. Once both parties agree, a simple contract will be generated</p>
+              <p>4. You'll meet in person to complete the service and payment</p>
+              <p>5. You can mark the service as complete when finished</p>
+            </div>
+          </div>
+
+          {/* Submit Buttons */}
+          <div className="flex justify-end space-x-4 pt-4">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-6 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className={`px-6 py-2 rounded-lg transition ${
+                isSubmitting
+                  ? 'bg-gray-400 text-gray-700 cursor-not-allowed'
+                  : 'bg-red-500 text-white hover:bg-red-600'
+              }`}
+            >
+              {isSubmitting ? 'Sending Request...' : 'Send Request'}
+            </button>
+          </div>
+        </form>
       </div>
     </div>
-</div>
-
   );
 };
 

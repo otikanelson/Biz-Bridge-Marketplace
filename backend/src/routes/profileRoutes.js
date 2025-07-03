@@ -1,99 +1,51 @@
-// backend/src/routes/bookingRoutes.js - Enhanced version
+// backend/src/routes/profileRoutes.js - FIXED VERSION
 import express from 'express';
-import { protect, authorize } from '../middleware/authMiddleware.js';
+import { protect } from '../middleware/authMiddleware.js';
+import { uploadProfileImage } from '../middleware/upload.js';
 import {
-  createDirectBooking,
-  getMyBookings,
-  cancelBooking,
-  addCustomerReview,
-  getMyWork,
-  confirmBooking,
-  startWork,
-  completeWork,
-  addArtisanReview,
-  getBookingById,
-  addMessage,
-  addMilestone,
-  updateMilestone,
-  getBookingAnalytics
-} from '../controllers/bookingController.js';
+  getUserProfile,
+  getMyProfile,
+  updateMyProfile,
+  uploadProfileImage as uploadImage,
+  getFeaturedArtisans
+} from '../controllers/userController.js';
 
 const router = express.Router();
 
-// Apply authentication to all routes
-router.use(protect);
+// @desc    Get featured artisans (public)
+// @route   GET /api/profiles/featured
+// @access  Public
+router.get('/featured', getFeaturedArtisans);
 
-// ========== CUSTOMER ROUTES ==========
-// @desc    Create direct booking (without service request)
-// @route   POST /api/bookings
-// @access  Private (Customer only)
-router.post('/', authorize('customer'), createDirectBooking);
+// @desc    Get current user's own profile (private view)
+// @route   GET /api/profiles/me
+// @access  Private
+router.get('/me', protect, getMyProfile);
 
-// @desc    Get customer's bookings
-// @route   GET /api/bookings/my-bookings
-// @access  Private (Customer only)
-router.get('/my-bookings', authorize('customer'), getMyBookings);
+// @desc    Update current user's profile
+// @route   PUT /api/profiles/me
+// @access  Private
+router.put('/me', protect, updateMyProfile);
 
-// @desc    Cancel booking
-// @route   POST /api/bookings/:bookingId/cancel
-// @access  Private (Customer only)
-router.post('/:bookingId/cancel', authorize('customer'), cancelBooking);
+// @desc    Upload profile image
+// @route   POST /api/profiles/me/image
+// @access  Private
+router.post('/me/image', protect, uploadProfileImage.single('profileImage'), uploadImage);
 
-// @desc    Add customer review
-// @route   POST /api/bookings/:bookingId/review
-// @access  Private (Customer only)
-router.post('/:bookingId/review', authorize('customer'), addCustomerReview);
-
-// ========== ARTISAN ROUTES ==========
-// @desc    Get artisan's bookings
-// @route   GET /api/bookings/my-work
-// @access  Private (Artisan only)
-router.get('/my-work', authorize('artisan'), getMyWork);
-
-// @desc    Confirm booking
-// @route   POST /api/bookings/:bookingId/confirm
-// @access  Private (Artisan only)
-router.post('/:bookingId/confirm', authorize('artisan'), confirmBooking);
-
-// @desc    Start work on booking
-// @route   POST /api/bookings/:bookingId/start
-// @access  Private (Artisan only)
-router.post('/:bookingId/start', authorize('artisan'), startWork);
-
-// @desc    Complete work on booking
-// @route   POST /api/bookings/:bookingId/complete
-// @access  Private (Artisan only)
-router.post('/:bookingId/complete', authorize('artisan'), completeWork);
-
-// @desc    Add artisan review for customer
-// @route   POST /api/bookings/:bookingId/artisan-review
-// @access  Private (Artisan only)
-router.post('/:bookingId/artisan-review', authorize('artisan'), addArtisanReview);
-
-// @desc    Add milestone to booking
-// @route   POST /api/bookings/:bookingId/milestones
-// @access  Private (Artisan only)
-router.post('/:bookingId/milestones', authorize('artisan'), addMilestone);
-
-// @desc    Update milestone
-// @route   PUT /api/bookings/:bookingId/milestones/:milestoneId
-// @access  Private (Artisan only)
-router.put('/:bookingId/milestones/:milestoneId', authorize('artisan'), updateMilestone);
-
-// @desc    Get booking analytics
-// @route   GET /api/bookings/analytics
-// @access  Private (Artisan only)
-router.get('/analytics', authorize('artisan'), getBookingAnalytics);
-
-// ========== SHARED ROUTES (CUSTOMER & ARTISAN) ==========
-// @desc    Get single booking details
-// @route   GET /api/bookings/:bookingId
-// @access  Private (Customer/Artisan - only involved parties)
-router.get('/:bookingId', getBookingById);
-
-// @desc    Add message to booking
-// @route   POST /api/bookings/:bookingId/messages
-// @access  Private (Customer/Artisan - only involved parties)
-router.post('/:bookingId/messages', addMessage);
+// @desc    Get any user's profile by ID (public view, but context-aware if authenticated)
+// @route   GET /api/profiles/:userId
+// @access  Public (but adds user context if logged in)
+router.get('/:userId', (req, res, next) => {
+  // Optional authentication middleware - adds user context if token is present
+  const authHeader = req.headers.authorization;
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    // User is authenticated, add context
+    protect(req, res, next);
+  } else {
+    // User is not authenticated, proceed without user context
+    req.user = null;
+    next();
+  }
+}, getUserProfile);
 
 export default router;

@@ -1,5 +1,5 @@
 // backend/src/api/Bookings.js
-const API_URL = 'http://localhost:5000/api';
+const API_URL = 'http://localhost:3000/api';
 
 // Helper function to get auth headers
 const getAuthHeaders = () => {

@@ -191,85 +191,89 @@ const ServiceSearch = () => {
               <span className="text-red-500 text-lg select-none font-semibold ml-3">BizBridge</span>
             </div>
 
-            {/* ✅ SEARCH BAR - ONLY FOR CUSTOMERS */}
-              <div className="flex-1 max-w-3xl mx-8">
-                <div className="flex">
-                  {/* Category Selector */}
-                  <select 
-                    value={selectedCategory}
-                    onChange={(e) => setSelectedCategory(e.target.value)}
-                    className="bg-gray-200 text-black px-3 py-2 rounded-l-md border-r border-gray-300 focus:outline-none text-sm min-w-[140px]"
-                  >
-                    <option value="">All Categories</option>
-                    {categories.map((category) => (
-                      <option key={category} value={category}>{category}</option>
-                    ))}
-                  </select>
-                  
-                  {/* Search Input */}
-                  <input
-                    type="text"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    onKeyPress={handleKeyPress}
-                    placeholder="Search for services, artisans, or crafts..."
-                    className="flex-1 px-4 py-2 text-black focus:outline-none text-sm"
-                  />
-                  
-                  {/* Location Selector */}
-                  <select 
-                    value={selectedLocation}
-                    onChange={(e) => setSelectedLocation(e.target.value)}
-                    className="bg-gray-200 text-black px-3 py-2 border-l border-gray-300 focus:outline-none text-sm min-w-[120px]"
-                  >
-                    <option value="">All LGAs</option>
-                    {locations.map((location) => (
-                      <option key={location} value={location}>{location}</option>
-                    ))}
-                  </select>
-                  
-                  {/* Search Button */}
-                  <button 
-                    onClick={handleSearch}
-                    className="bg-red-500 hover:bg-red-600 px-4 py-2 rounded-r-md transition"
-                  >
-                    <svg className="w-5 h-5 text-black" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                    </svg>
-                  </button>
-                </div>
+            {/* ✅ AMAZON-STYLE SEARCH BAR */}
+            <div className="flex-1 max-w-3xl mx-8">
+              <div className="flex">
+                {/* Category Selector */}
+                <select 
+                  value={selectedCategory}
+                  onChange={(e) => setSelectedCategory(e.target.value)}
+                  className="bg-gray-200 text-black px-3 py-2 rounded-l-md border-r border-gray-300 focus:outline-none text-sm min-w-[140px]"
+                >
+                  <option value="">All Categories</option>
+                  {categories.map((category) => (
+                    <option key={category} value={category}>{category}</option>
+                  ))}
+                </select>
+                
+                {/* Search Input */}
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onKeyPress={handleKeyPress}
+                  placeholder="Search for services, artisans, or crafts..."
+                  className="flex-1 px-4 py-2 text-black focus:outline-none text-sm"
+                />
+                
+                {/* Location Selector */}
+                <select 
+                  value={selectedLocation}
+                  onChange={(e) => setSelectedLocation(e.target.value)}
+                  className="bg-gray-200 text-black px-3 py-2 border-l border-gray-300 focus:outline-none text-sm min-w-[120px]"
+                >
+                  <option value="">All LGAs</option>
+                  {locations.map((location) => (
+                    <option key={location} value={location}>{location}</option>
+                  ))}
+                </select>
+                
+                {/* Search Button */}
+                <button 
+                  onClick={handleSearch}
+                  className="bg-red-500 hover:bg-red-600 px-4 py-2 rounded-r-md transition"
+                >
+                  <svg className="w-5 h-5 text-black" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                  </svg>
+                </button>
               </div>
+            </div>
 
             {/* Account & Navigation */}
             <div className="flex items-center space-x-6">
-              {isAuthenticated ? (
+              {!isAuthenticated ? (
                 <>
-
-                  <div className="text-xs cursor-pointer hover:text-red-400" onClick={() => navigate(userType === 'customer' ? '/bookings' : '/ServicesManagement')}>
-                    <div>Your</div>
-                    <div className="font-bold">{userType === 'customer' ? 'Bookings' : 'Services'}</div>
+                  <div className="text-center cursor-pointer hover:text-red-400" onClick={() => navigate('/login')}>
+                    <div className="text-xs">Hey, sign up/in</div>
+                    <div className="text-sm font-bold">to Book a service</div>
                   </div>
-
-                  <div className="text-xs cursor-pointer hover:text-red-400" onClick={() => navigate('/profile')}>
-                    <div>Your</div>
-                    <div className="font-bold">Profile</div>
-                  </div>
-
-                  <div className="text-xs cursor-pointer hover:text-red-400" onClick={handleLogout}>
-                    <div>Sign</div>
-                    <div className="font-bold">Out</div>
+                  <div className="text-center cursor-pointer hover:text-red-400" onClick={() => navigate('/signup?type=artisan')}>
+                    <div className="text-xs">Get your</div>
+                    <div className="text-sm font-bold">Professional service listed</div>
                   </div>
                 </>
               ) : (
                 <>
-                  <div className="text-xs cursor-pointer hover:text-red-400" onClick={() => navigate('/login')}>
-                    <div>Hello,</div>
-                    <div className="font-bold">Sign In</div>
+                  <div className="text-center cursor-pointer" onClick={() => navigate('/dashboard')}>
+                    <div className="text-xs">Hello, {userType}</div>
+                    <div className="text-sm font-bold">Dashboard</div>
                   </div>
-
-                  <div className="text-xs cursor-pointer hover:text-red-400" onClick={() => navigate('/signup')}>
-                    <div>New User?</div>
-                    <div className="font-bold">Sign Up</div>
+                  {userType === 'customer' && (
+                    <div className="text-center cursor-pointer" onClick={() => navigate('/bookings')}>
+                      <div className="text-xs">Your</div>
+                      <div className="text-sm font-bold">Bookings</div>
+                    </div>
+                  )}
+                  {userType === 'artisan' && (
+                    <div className="text-center cursor-pointer" onClick={() => navigate('/ServicesManagement')}>
+                      <div className="text-xs">Your</div>
+                      <div className="text-sm font-bold">Services</div>
+                    </div>
+                  )}
+                  <div className="text-center cursor-pointer" onClick={handleLogout}>
+                    <div className="text-xs">Sign</div>
+                    <div className="text-sm font-bold">Out</div>
                   </div>
                 </>
               )}

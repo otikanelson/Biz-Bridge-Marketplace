@@ -1,7 +1,112 @@
-// backend/src/controllers/serviceController.js - COMPLETE FIXED VERSION
+// backend/src/controllers/serviceController.js - Updated for No-Payment System
 import Service from '../models/service.js';
 import User from '../models/user.js';
 import { getFileUrl } from '../middleware/upload.js';
+
+// ========== CATEGORY BREAKDOWN DATA ==========
+const CATEGORY_BREAKDOWNS = {
+  'Woodworking': [
+    { name: 'Furniture Making', defaultPrice: 50000, duration: '2-3 weeks', description: 'Custom furniture creation' },
+    { name: 'Cabinet Making', defaultPrice: 75000, duration: '3-4 weeks', description: 'Kitchen and storage cabinets' },
+    { name: 'Wood Carving', defaultPrice: 25000, duration: '1-2 weeks', description: 'Decorative wood carving' },
+    { name: 'Wood Turning', defaultPrice: 20000, duration: '1 week', description: 'Lathe work and turned items' },
+    { name: 'Joinery', defaultPrice: 40000, duration: '2-3 weeks', description: 'Precision wood joining' },
+    { name: 'Restoration', defaultPrice: 30000, duration: '1-2 weeks', description: 'Furniture restoration services' },
+    { name: 'Custom Shelving', defaultPrice: 35000, duration: '1-2 weeks', description: 'Built-in and custom shelves' },
+    { name: 'Decorative Items', defaultPrice: 15000, duration: '1 week', description: 'Small decorative wooden pieces' }
+  ],
+  'Metalwork': [
+    { name: 'Welding', defaultPrice: 40000, duration: '1-2 weeks', description: 'General welding services' },
+    { name: 'Blacksmithing', defaultPrice: 45000, duration: '2-3 weeks', description: 'Traditional blacksmith work' },
+    { name: 'Metal Fabrication', defaultPrice: 60000, duration: '2-4 weeks', description: 'Custom metal fabrication' },
+    { name: 'Jewelry Making', defaultPrice: 20000, duration: '1 week', description: 'Metal jewelry creation' },
+    { name: 'Tool Making', defaultPrice: 25000, duration: '1 week', description: 'Custom tool creation' },
+    { name: 'Decorative Metalwork', defaultPrice: 50000, duration: '2-3 weeks', description: 'Artistic metal pieces' },
+    { name: 'Repair Services', defaultPrice: 15000, duration: '3-5 days', description: 'Metal item repairs' },
+    { name: 'Custom Hardware', defaultPrice: 30000, duration: '1-2 weeks', description: 'Door handles, fixtures, etc.' }
+  ],
+  'Textile Art': [
+    { name: 'Weaving', defaultPrice: 30000, duration: '2-3 weeks', description: 'Custom textile weaving' },
+    { name: 'Embroidery', defaultPrice: 15000, duration: '1 week', description: 'Decorative embroidery work' },
+    { name: 'Tailoring', defaultPrice: 25000, duration: '1-2 weeks', description: 'Custom clothing tailoring' },
+    { name: 'Fabric Dyeing', defaultPrice: 20000, duration: '1 week', description: 'Natural and synthetic dyeing' },
+    { name: 'Quilting', defaultPrice: 35000, duration: '2-3 weeks', description: 'Traditional and modern quilts' },
+    { name: 'Textile Repair', defaultPrice: 10000, duration: '3-5 days', description: 'Clothing and fabric repairs' },
+    { name: 'Custom Clothing', defaultPrice: 40000, duration: '2-3 weeks', description: 'Bespoke clothing creation' },
+    { name: 'Home Textiles', defaultPrice: 25000, duration: '1-2 weeks', description: 'Curtains, cushions, linens' }
+  ]
+};
+
+// Helper function to get supported categories
+const getSupportedCategories = () => {
+  return Object.keys(CATEGORY_BREAKDOWNS);
+};
+
+// Helper function to validate pricing type for category
+const validatePricingForCategory = (category, pricingType) => {
+  const supportedCategories = getSupportedCategories();
+  
+  if (pricingType === 'categorized' && !supportedCategories.includes(category)) {
+    return {
+      valid: false,
+      message: `Categorized pricing is only available for: ${supportedCategories.join(', ')}`
+    };
+  }
+  
+  return { valid: true };
+};
+
+// Helper function to validate pricing structure
+const validatePricingStructure = (pricing, category) => {
+  if (!pricing || !pricing.type) {
+    return { valid: false, message: 'Pricing type is required' };
+  }
+
+  const { type, basePrice, baseDuration, categories } = pricing;
+
+  switch (type) {
+    case 'fixed':
+      if (!basePrice || basePrice <= 0) {
+        return { valid: false, message: 'Base price is required for fixed pricing and must be greater than 0' };
+      }
+      if (!baseDuration) {
+        return { valid: false, message: 'Base duration is required for fixed pricing' };
+      }
+      break;
+
+    case 'negotiate':
+      // No additional validation needed for negotiate pricing
+      break;
+
+    case 'categorized':
+      const categoryValidation = validatePricingForCategory(category, type);
+      if (!categoryValidation.valid) {
+        return categoryValidation;
+      }
+      
+      if (!categories || !Array.isArray(categories) || categories.length === 0) {
+        return { valid: false, message: 'At least one category is required for categorized pricing' };
+      }
+      
+      // Validate each category
+      for (const cat of categories) {
+        if (!cat.name || !cat.price || !cat.duration) {
+          return { valid: false, message: 'Each category must have name, price, and duration' };
+        }
+        if (cat.price <= 0) {
+          return { valid: false, message: 'Category prices must be greater than 0' };
+        }
+      }
+      break;
+
+    default:
+      return { valid: false, message: 'Invalid pricing type. Must be: fixed, negotiate, or categorized' };
+  }
+
+  return { valid: true };
+};
+
+// ========== SERVICE CRUD OPERATIONS ==========
 
 // @desc    Create a new service
 // @route   POST /api/services
@@ -10,33 +115,55 @@ export const createService = async (req, res) => {
   try {
     console.log("📝 Service creation request:", {
       body: req.body,
-      filesCount: req.files ? req.files.length : 0,
-      files: req.files ? req.files.map(f => ({ 
-        originalname: f.originalname, 
-        filename: f.filename,
-        path: f.path,
-        size: f.size 
-      })) : []
+      filesCount: req.files ? req.files.length : 0
     });
     
     const {
-      title, description, category, price, duration, locations, tags, isActive
+      title, 
+      description, 
+      category, 
+      pricing, // NEW: Pricing structure instead of simple price
+      duration, 
+      locations, 
+      tags, 
+      isActive
     } = req.body;
 
-    // Validation check before DB operation
-    if (!title || !description || !price) {
+    // Basic validation
+    if (!title || !description || !category || !pricing) {
       return res.status(400).json({
         success: false,
         message: 'Missing required fields',
         details: {
           title: title ? 'Valid' : 'Missing',
           description: description ? 'Valid' : 'Missing',
-          price: price ? 'Valid' : 'Missing'
+          category: category ? 'Valid' : 'Missing',
+          pricing: pricing ? 'Valid' : 'Missing'
         }
       });
     }
 
-    // Parse locations more safely
+    // Parse pricing if it's a string
+    let parsedPricing;
+    try {
+      parsedPricing = typeof pricing === 'string' ? JSON.parse(pricing) : pricing;
+    } catch (error) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid pricing structure format'
+      });
+    }
+
+    // Validate pricing structure
+    const pricingValidation = validatePricingStructure(parsedPricing, category);
+    if (!pricingValidation.valid) {
+      return res.status(400).json({
+        success: false,
+        message: pricingValidation.message
+      });
+    }
+
+    // Parse locations safely
     let parsedLocations = [];
     try {
       if (locations) {
@@ -46,38 +173,37 @@ export const createService = async (req, res) => {
       console.error('Error parsing locations:', error);
     }
 
-    // Handle tags more safely
+    // Handle tags safely
     let parsedTags = [];
     if (tags) {
       if (typeof tags === 'string') {
         try {
           parsedTags = JSON.parse(tags);
         } catch (e) {
-          parsedTags = tags.split(',').map(tag => tag.trim());
+          parsedTags = tags.split(',').map(tag => tag.trim()).filter(tag => tag.length > 0);
         }
       } else if (Array.isArray(tags)) {
         parsedTags = tags;
       }
     }
 
-    // Create service
+    // Create service with new pricing structure
     const service = new Service({
       artisan: req.user._id,
       title,
       description,
-      category: category || 'Other',
-      price,
-      duration: duration || 'Varies',
+      category,
+      pricing: parsedPricing, // NEW: Use new pricing structure
+      duration: duration || 'Varies', // Keep as fallback for compatibility
       locations: parsedLocations,
       tags: parsedTags,
       isActive: isActive === 'true' || isActive === true
     });
 
-    // ✅ FIXED: Handle image uploads properly
+    // Handle image uploads
     if (req.files && req.files.length > 0) {
       console.log('📸 Processing uploaded images...');
       
-      // Convert file paths to proper URLs for storage
       const imageUrls = req.files.map(file => {
         const fileUrl = getFileUrl(file.path);
         console.log('📸 Image processed:', {
@@ -96,7 +222,7 @@ export const createService = async (req, res) => {
     }
 
     await service.save();
-    console.log('✅ Service saved with ID:', service._id);
+    console.log('✅ Service created with new pricing structure:', service._id);
 
     // Update artisan's services array
     await User.findByIdAndUpdate(
@@ -106,8 +232,11 @@ export const createService = async (req, res) => {
 
     res.status(201).json({
       success: true,
-      message: 'Service created successfully',
-      service
+      message: 'Service created successfully with new pricing system',
+      service: {
+        ...service.toObject(),
+        displayPrice: service.displayPrice // Include virtual field
+      }
     });
   } catch (error) {
     console.error('❌ Create service error:', error);
@@ -134,9 +263,17 @@ export const getServiceById = async (req, res) => {
       });
     }
 
+    // Add virtual fields to response
+    const serviceResponse = {
+      ...service.toObject(),
+      displayPrice: service.displayPrice,
+      supportsCategorizedPricing: service.supportsCategorizedPricing,
+      availableCategories: service.pricing.type === 'categorized' ? service.getAvailableCategories() : null
+    };
+
     res.status(200).json({
       success: true,
-      service
+      service: serviceResponse
     });
   } catch (error) {
     console.error('Get service error:', error);
@@ -177,15 +314,46 @@ export const updateService = async (req, res) => {
     }
 
     const {
-      title, description, category, price, duration, locations, tags, isActive, removeImages
+      title, 
+      description, 
+      category, 
+      pricing, // NEW: Handle pricing updates
+      duration, 
+      locations, 
+      tags, 
+      isActive, 
+      removeImages
     } = req.body;
 
     // Update basic fields
     if (title) service.title = title;
     if (description) service.description = description;
     if (category) service.category = category;
-    if (price) service.price = price;
     if (duration) service.duration = duration;
+
+    // Handle pricing updates
+    if (pricing) {
+      let parsedPricing;
+      try {
+        parsedPricing = typeof pricing === 'string' ? JSON.parse(pricing) : pricing;
+      } catch (error) {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid pricing structure format'
+        });
+      }
+
+      // Validate new pricing structure
+      const pricingValidation = validatePricingStructure(parsedPricing, service.category);
+      if (!pricingValidation.valid) {
+        return res.status(400).json({
+          success: false,
+          message: pricingValidation.message
+        });
+      }
+
+      service.pricing = parsedPricing;
+    }
 
     // Update locations
     if (locations) {
@@ -207,46 +375,47 @@ export const updateService = async (req, res) => {
         try {
           service.tags = JSON.parse(tags);
         } catch (e) {
-          service.tags = tags.split(',').map(tag => tag.trim());
+          service.tags = tags.split(',').map(tag => tag.trim()).filter(tag => tag.length > 0);
         }
       } else if (Array.isArray(tags)) {
         service.tags = tags;
       }
     }
 
-    // ✅ FIXED: Handle image removal
+    // Handle image removal
     if (removeImages && removeImages.length > 0) {
-      const imagesToRemove = typeof removeImages === 'string' ? JSON.parse(removeImages) : removeImages;
+      const imagesToRemove = typeof removeImages === 'string' ? 
+        JSON.parse(removeImages) : removeImages;
+      
       service.images = service.images.filter(img => !imagesToRemove.includes(img));
-      console.log('🗑️ Removed images:', imagesToRemove);
+      console.log('🗑️ Images after removal:', service.images);
     }
 
-    // ✅ FIXED: Handle new image uploads
+    // Handle new image uploads
     if (req.files && req.files.length > 0) {
-      console.log('📸 Processing new uploaded images...');
+      console.log('📸 Adding new images...');
       
-      const newImageUrls = req.files.map(file => {
-        const fileUrl = getFileUrl(file.path);
-        console.log('📸 New image processed:', {
-          originalPath: file.path,
-          convertedUrl: fileUrl,
-          filename: file.filename
-        });
-        return fileUrl;
-      });
+      const newImageUrls = req.files.map(file => getFileUrl(file.path));
+      service.images = [...service.images, ...newImageUrls];
       
-      // Add new images to existing ones
-      service.images = [...(service.images || []), ...newImageUrls];
-      console.log('📸 Updated service images:', service.images);
+      console.log('📸 Final images after update:', service.images);
     }
 
     await service.save();
-    console.log('✅ Service updated successfully');
+    
+    console.log('✅ Service updated successfully:', service._id);
+
+    // Return updated service with virtual fields
+    const serviceResponse = {
+      ...service.toObject(),
+      displayPrice: service.displayPrice,
+      supportsCategorizedPricing: service.supportsCategorizedPricing
+    };
 
     res.status(200).json({
       success: true,
       message: 'Service updated successfully',
-      service
+      service: serviceResponse
     });
   } catch (error) {
     console.error('❌ Update service error:', error);
@@ -280,21 +449,20 @@ export const deleteService = async (req, res) => {
       });
     }
 
-    // Remove service from artisan's services array
+    await Service.findByIdAndDelete(req.params.serviceId);
+
+    // Remove from artisan's services array
     await User.findByIdAndUpdate(
       req.user._id,
-      { $pull: { services: service._id } }
+      { $pull: { services: req.params.serviceId } }
     );
-
-    // Delete the service
-    await Service.findByIdAndDelete(req.params.serviceId);
 
     res.status(200).json({
       success: true,
       message: 'Service deleted successfully'
     });
   } catch (error) {
-    console.error('Delete service error:', error);
+    console.error('❌ Delete service error:', error);
     res.status(500).json({
       success: false,
       message: 'Failed to delete service',
@@ -303,234 +471,234 @@ export const deleteService = async (req, res) => {
   }
 };
 
-// @desc    Get all services with filtering and search
-// @route   GET /api/services
+// ========== NEW PRICING-SPECIFIC ENDPOINTS ==========
+
+// @desc    Get available categories for a service category
+// @route   GET /api/services/categories/:category/breakdown
 // @access  Public
-export const getAllServices = async (req, res) => {
+export const getCategoryBreakdown = async (req, res) => {
   try {
-    const { 
-      category, 
-      location, 
-      search,
-      page = 1,
-      limit = 12,
-      sort = 'newest'
-    } = req.query;
-
-    console.log('📋 getAllServices params:', { category, location, search, page, limit, sort });
-
-    // Build query - only show active services
-    const query = { isActive: true };
-
-    // Apply category filter
-    if (category && category !== '') {
-      query.category = { $regex: new RegExp(category, 'i') };
-    }
-
-    // Apply location filter - search in locations array
-    if (location && location !== '') {
-      query.$or = [
-        { 'locations.name': { $regex: new RegExp(location, 'i') } },
-        { 'locations.lga': { $regex: new RegExp(location, 'i') } }
-      ];
-    }
-
-    // Apply search filter - search in title, description, and tags
-    if (search && search !== '') {
-      query.$or = [
-        { title: { $regex: new RegExp(search, 'i') } },
-        { description: { $regex: new RegExp(search, 'i') } },
-        { tags: { $regex: new RegExp(search, 'i') } },
-        { category: { $regex: new RegExp(search, 'i') } }
-      ];
-    }
-
-    // Determine sort order
-    let sortOption = {};
-    switch (sort) {
-      case 'oldest':
-        sortOption = { createdAt: 1 };
-        break;
-      case 'title':
-        sortOption = { title: 1 };
-        break;
-      case 'popular':
-        sortOption = { 'ratings.average': -1, createdAt: -1 };
-        break;
-      case 'newest':
-      default:
-        sortOption = { createdAt: -1 };
-    }
-
-    // Convert page and limit to numbers
-    const pageNum = Math.max(1, parseInt(page));
-    const limitNum = Math.min(50, Math.max(1, parseInt(limit))); // Max 50 per page
-    const skip = (pageNum - 1) * limitNum;
-
-    console.log('📋 Final query:', query);
-    console.log('📋 Sort option:', sortOption);
-
-    // Count total documents for pagination
-    const total = await Service.countDocuments(query);
-
-    // Fetch services with pagination
-    const services = await Service.find(query)
-      .populate('artisan', 'contactName businessName profileImage phoneNumber localGovernmentArea')
-      .sort(sortOption)
-      .skip(skip)
-      .limit(limitNum);
-
-    // Calculate pagination info
-    const totalPages = Math.ceil(total / limitNum);
-
-    console.log(`📋 Retrieved ${services.length} services (page ${pageNum}/${totalPages})`);
-
-    res.status(200).json({
-      success: true,
-      services,
-      pagination: {
-        currentPage: pageNum,
-        totalPages,
-        totalResults: total,
-        hasNextPage: pageNum < totalPages,
-        hasPrevPage: pageNum > 1
-      }
-    });
-  } catch (error) {
-    console.error('Get all services error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to retrieve services',
-      error: error.message
-    });
-  }
-};
-
-// @desc    Get services by artisan ID
-// @route   GET /api/services/artisan/:artisanId
-// @access  Public
-export const getArtisanServices = async (req, res) => {
-  try {
-    const { artisanId } = req.params;
-    const { active = 'true' } = req.query;
-
-    console.log('👤 Getting services for artisan:', artisanId, 'Active only:', active);
-
-    // Build query
-    const query = { artisan: artisanId };
-    if (active === 'true') {
-      query.isActive = true;
-    }
-
-    const services = await Service.find(query)
-      .populate('artisan', 'contactName businessName profileImage')
-      .sort({ createdAt: -1 });
-
-    console.log(`👤 Found ${services.length} services for artisan ${artisanId}`);
-
-    res.status(200).json({
-      success: true,
-      services,
-      count: services.length
-    });
-  } catch (error) {
-    console.error('Get artisan services error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to retrieve artisan services',
-      error: error.message
-    });
-  }
-};
-
-// @desc    Get current user's services
-// @route   GET /api/services/my-services
-// @access  Private - Artisans only
-export const getMyServices = async (req, res) => {
-  try {
-    console.log('🔧 Getting services for current user:', req.user._id);
-
-    const services = await Service.find({ artisan: req.user._id })
-      .sort({ createdAt: -1 });
-
-    console.log(`🔧 Found ${services.length} services for user`);
-
-    res.status(200).json({
-      success: true,
-      services,
-      count: services.length
-    });
-  } catch (error) {
-    console.error('Get my services error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to retrieve your services',
-      error: error.message
-    });
-  }
-};
-
-// @desc    Toggle service active status
-// @route   PATCH /api/services/:serviceId/status
-// @access  Private - Artisan owner only
-export const toggleServiceStatus = async (req, res) => {
-  try {
-    const service = await Service.findById(req.params.serviceId);
-
-    if (!service) {
+    const { category } = req.params;
+    
+    if (!CATEGORY_BREAKDOWNS[category]) {
       return res.status(404).json({
         success: false,
-        message: 'Service not found'
+        message: `Category breakdown not available for ${category}`
       });
     }
-
-    // Check ownership
-    if (service.artisan.toString() !== req.user._id.toString()) {
-      return res.status(403).json({
-        success: false,
-        message: 'Not authorized to update this service'
-      });
-    }
-
-    // Toggle status
-    service.isActive = !service.isActive;
-    await service.save();
-
-    console.log(`🔄 Service ${service._id} status toggled to: ${service.isActive}`);
 
     res.status(200).json({
       success: true,
-      message: `Service ${service.isActive ? 'activated' : 'deactivated'} successfully`,
-      service
+      category,
+      breakdown: CATEGORY_BREAKDOWNS[category],
+      supportsCategorizedPricing: true
     });
   } catch (error) {
-    console.error('Toggle service status error:', error);
+    console.error('❌ Get category breakdown error:', error);
     res.status(500).json({
       success: false,
-      message: 'Failed to update service status',
+      message: 'Failed to get category breakdown',
       error: error.message
     });
   }
 };
 
+// @desc    Get all supported categories for categorized pricing
+// @route   GET /api/services/categorized-pricing/supported
+// @access  Public
+export const getSupportedCategorizedPricing = async (req, res) => {
+  try {
+    const supportedCategories = getSupportedCategories();
+    
+    res.status(200).json({
+      success: true,
+      supportedCategories,
+      breakdowns: CATEGORY_BREAKDOWNS
+    });
+  } catch (error) {
+    console.error('❌ Get supported categories error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get supported categories',
+      error: error.message
+    });
+  }
+};
+
+// @desc    Search services with pricing filters
+// @route   GET /api/services/search
+// @access  Public
+export const searchServicesWithPricing = async (req, res) => {
+  try {
+    const {
+      category,
+      pricingType,
+      location,
+      minPrice,
+      maxPrice,
+      tags,
+      artisanId,
+      limit = 20,
+      page = 1
+    } = req.query;
+
+    // Build search parameters
+    const searchParams = {};
+    
+    if (category) searchParams.category = category;
+    if (pricingType) searchParams.pricingType = pricingType;
+    if (location) searchParams.location = location;
+    if (artisanId) searchParams.artisanId = artisanId;
+    
+    if (minPrice || maxPrice) {
+      searchParams.priceRange = {};
+      if (minPrice) searchParams.priceRange.min = parseInt(minPrice);
+      if (maxPrice) searchParams.priceRange.max = parseInt(maxPrice);
+    }
+
+    // Use the new search method from the model
+    let services = await Service.searchWithPricing(searchParams);
+
+    // Apply tag filtering if specified
+    if (tags) {
+      const tagArray = tags.split(',').map(tag => tag.trim());
+      services = services.filter(service => 
+        service.tags.some(tag => tagArray.includes(tag))
+      );
+    }
+
+    // Apply pagination
+    const startIndex = (page - 1) * limit;
+    const endIndex = page * limit;
+    const paginatedServices = services.slice(startIndex, endIndex);
+
+    // Add virtual fields to each service
+    const servicesWithDisplayPrice = paginatedServices.map(service => ({
+      ...service.toObject(),
+      displayPrice: service.displayPrice,
+      supportsCategorizedPricing: service.supportsCategorizedPricing
+    }));
+
+    res.status(200).json({
+      success: true,
+      count: paginatedServices.length,
+      total: services.length,
+      page: parseInt(page),
+      pages: Math.ceil(services.length / limit),
+      services: servicesWithDisplayPrice
+    });
+  } catch (error) {
+    console.error('❌ Search services error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to search services',
+      error: error.message
+    });
+  }
+};
+
+// @desc    Get services by pricing type
+// @route   GET /api/services/pricing/:pricingType
+// @access  Public
+export const getServicesByPricingType = async (req, res) => {
+  try {
+    const { pricingType } = req.params;
+    const { limit = 20, page = 1 } = req.query;
+
+    if (!['fixed', 'negotiate', 'categorized'].includes(pricingType)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid pricing type. Must be: fixed, negotiate, or categorized'
+      });
+    }
+
+    const services = await Service.getByPricingType(pricingType);
+
+    // Apply pagination
+    const startIndex = (page - 1) * limit;
+    const endIndex = page * limit;
+    const paginatedServices = services.slice(startIndex, endIndex);
+
+    // Add virtual fields
+    const servicesWithDisplayPrice = paginatedServices.map(service => ({
+      ...service.toObject(),
+      displayPrice: service.displayPrice,
+      supportsCategorizedPricing: service.supportsCategorizedPricing
+    }));
+
+    res.status(200).json({
+      success: true,
+      count: paginatedServices.length,
+      total: services.length,
+      page: parseInt(page),
+      pages: Math.ceil(services.length / limit),
+      pricingType,
+      services: servicesWithDisplayPrice
+    });
+  } catch (error) {
+    console.error('❌ Get services by pricing type error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get services by pricing type',
+      error: error.message
+    });
+  }
+};
+
+// @desc    Get featured services
+// @route   GET /api/services/featured
+// @access  Public
 export const getFeaturedServices = async (req, res) => {
   try {
     const { limit = 6 } = req.query;
-    const limitNum = Math.min(20, Math.max(1, parseInt(limit)));
-
+    
+    console.log(`⭐ Getting featured services, limit: ${limit}`);
+    
+    // Get featured services (you can customize this logic)
+    // For now, get the newest services with good ratings
     const services = await Service.find({ 
-      isActive: true 
+      isActive: true,
+      'ratings.average': { $gte: 4.0 } // Only services with 4+ stars
     })
-      .populate('artisan', 'contactName businessName profileImage')
-      .sort({ createdAt: -1 })
-      .limit(limitNum);
+      .populate('artisan', 'contactName businessName profileImage phoneNumber localGovernmentArea city ratings')
+      .sort({ 
+        'ratings.average': -1, // Sort by rating first
+        createdAt: -1 // Then by newest
+      })
+      .limit(parseInt(limit));
+
+    // If not enough highly rated services, fill with newest services
+    if (services.length < limit) {
+      const additionalNeeded = limit - services.length;
+      const serviceIds = services.map(s => s._id);
+      
+      const additionalServices = await Service.find({ 
+        isActive: true,
+        _id: { $nin: serviceIds } // Exclude already selected services
+      })
+        .populate('artisan', 'contactName businessName profileImage phoneNumber localGovernmentArea city ratings')
+        .sort({ createdAt: -1 })
+        .limit(additionalNeeded);
+      
+      services.push(...additionalServices);
+    }
+
+    // Add virtual fields to response
+    const servicesWithDisplayPrice = services.map(service => ({
+      ...service.toObject(),
+      displayPrice: service.displayPrice,
+      supportsCategorizedPricing: service.supportsCategorizedPricing
+    }));
+
+    console.log(`✅ Found ${services.length} featured services`);
 
     res.status(200).json({
       success: true,
-      services,
-      count: services.length
+      count: services.length,
+      services: servicesWithDisplayPrice
     });
   } catch (error) {
+    console.error('❌ Get featured services error:', error);
     res.status(500).json({
       success: false,
       message: 'Failed to retrieve featured services',
@@ -539,94 +707,105 @@ export const getFeaturedServices = async (req, res) => {
   }
 };
 
-// @desc    Search services for customers
-// @route   GET /api/services/search
+// ========== EXISTING ENDPOINTS (Updated) ==========
+
+// @desc    Get all services
+// @route   GET /api/services
 // @access  Public
-export const searchServicesForCustomers = async (req, res) => {
+export const getAllServices = async (req, res) => {
   try {
-    const { 
-      q: query, 
+    const {
       category, 
-      location,
+      location, 
+      tags, 
+      isActive = true,
+      limit = 20,
       page = 1,
-      limit = 12,
-      sort = 'newest'
+      sortBy = 'createdAt',
+      sortOrder = 'desc'
     } = req.query;
 
-    console.log('🔍 Customer service search:', { query, category, location, page, limit, sort });
-
-    // Build search query - only active services
-    const searchQuery = { isActive: true };
-    const orConditions = [];
-
-    // Text search across multiple fields
-    if (query && query.trim() !== '') {
-      const searchRegex = new RegExp(query.trim(), 'i');
-      orConditions.push(
-        { title: searchRegex },
-        { description: searchRegex },
-        { tags: searchRegex },
-        { category: searchRegex }
-      );
+    // Build query
+    const query = { isActive };
+    
+    if (category) {
+      query.category = category;
+    }
+    
+    if (location) {
+      query['locations.lga'] = new RegExp(location, 'i');
+    }
+    
+    if (tags) {
+      const tagArray = tags.split(',');
+      query.tags = { $in: tagArray };
     }
 
-    // Category filter
-    if (category && category !== '') {
-      searchQuery.category = { $regex: new RegExp(category, 'i') };
-    }
+    // Calculate pagination
+    const skip = (page - 1) * limit;
+    
+    // Build sort object
+    const sort = {};
+    sort[sortBy] = sortOrder === 'asc' ? 1 : -1;
 
-    // Location filter
-    if (location && location !== '') {
-      orConditions.push(
-        { 'locations.name': { $regex: new RegExp(location, 'i') } },
-        { 'locations.lga': { $regex: new RegExp(location, 'i') } }
-      );
-    }
-
-    // Add OR conditions to main query
-    if (orConditions.length > 0) {
-      searchQuery.$or = orConditions;
-    }
-
-    // Sort options
-    let sortOption = { createdAt: -1 }; // Default: newest first
-    if (sort === 'oldest') sortOption = { createdAt: 1 };
-    if (sort === 'title') sortOption = { title: 1 };
-
-    // Pagination
-    const pageNum = Math.max(1, parseInt(page));
-    const limitNum = Math.min(50, Math.max(1, parseInt(limit)));
-    const skip = (pageNum - 1) * limitNum;
-
-    // Execute search
-    const total = await Service.countDocuments(searchQuery);
-    const services = await Service.find(searchQuery)
-      .populate('artisan', 'contactName businessName profileImage')
-      .sort(sortOption)
+    const services = await Service.find(query)
+      .populate('artisan', 'contactName businessName profileImage phoneNumber localGovernmentArea city')
+      .sort(sort)
       .skip(skip)
-      .limit(limitNum);
+      .limit(parseInt(limit));
 
-    const totalPages = Math.ceil(total / limitNum);
+    const total = await Service.countDocuments(query);
 
-    console.log(`🔍 Search returned ${services.length} services (${total} total)`);
+    // Add virtual fields to response
+    const servicesWithDisplayPrice = services.map(service => ({
+      ...service.toObject(),
+      displayPrice: service.displayPrice,
+      supportsCategorizedPricing: service.supportsCategorizedPricing
+    }));
 
     res.status(200).json({
       success: true,
-      services,
-      pagination: {
-        currentPage: pageNum,
-        totalPages,
-        totalResults: total,
-        hasNextPage: pageNum < totalPages,
-        hasPrevPage: pageNum > 1
-      },
-      searchQuery: { query, category, location }
+      count: services.length,
+      total,
+      page: parseInt(page),
+      pages: Math.ceil(total / limit),
+      services: servicesWithDisplayPrice
     });
   } catch (error) {
-    console.error('Search services error:', error);
+    console.error('❌ Get all services error:', error);
     res.status(500).json({
       success: false,
-      message: 'Failed to search services',
+      message: 'Failed to retrieve services',
+      error: error.message
+    });
+  }
+};
+
+// @desc    Get artisan's services
+// @route   GET /api/services/my-services
+// @access  Private - Artisan only
+export const getMyServices = async (req, res) => {
+  try {
+    const services = await Service.find({ artisan: req.user._id })
+      .sort({ createdAt: -1 });
+
+    // Add virtual fields to response
+    const servicesWithDisplayPrice = services.map(service => ({
+      ...service.toObject(),
+      displayPrice: service.displayPrice,
+      supportsCategorizedPricing: service.supportsCategorizedPricing
+    }));
+
+    res.status(200).json({
+      success: true,
+      count: services.length,
+      services: servicesWithDisplayPrice
+    });
+  } catch (error) {
+    console.error('❌ Get my services error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to retrieve your services',
       error: error.message
     });
   }
