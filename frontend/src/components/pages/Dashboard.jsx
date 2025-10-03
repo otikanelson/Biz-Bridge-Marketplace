@@ -1,4 +1,3 @@
-// src/components/pages/Dashboard.jsx - Updated with real API calls
 import React, { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
@@ -281,7 +280,7 @@ const Dashboard = () => {
 
               {/* Search Bar - Only for customers */}
               {userType === 'customer' && (
-              <div className="flex-1 max-w-3xl mx-8">
+              <div className="flex-1 max-w-4xl mx-8">
                   <div className="flex">
                     {/* Category Selector */}
                     <select 
@@ -332,15 +331,6 @@ const Dashboard = () => {
 
               {/* User Menu */}
               <div className="flex items-center space-x-6">
-                <div className="text-xs cursor-pointer hover:text-red-400" onClick={() => navigate('/dashboard')}>
-                  <div>Your</div>
-                  <div className="font-bold">Dashboard</div>
-                </div>
-
-                <div className="text-xs cursor-pointer hover:text-red-400" onClick={() => navigate(userType === 'customer' ? '/bookings' : '/ServicesManagement')}>
-                  <div>Your</div>
-                  <div className="font-bold">{userType === 'customer' ? 'Bookings' : 'Services'}</div>
-                </div>
 
                 <div className="text-xs cursor-pointer hover:text-red-400" onClick={() => navigate('/profile')}>
                   <div>Your</div>
@@ -465,7 +455,7 @@ const Dashboard = () => {
                       onClick={() => navigate("/bookings/my-bookings")}
                       className="text-red-500 hover:text-red-600 font-medium"
                     >
-                      View All →
+                      View All Bookings→
                     </button>
                   </div>
                 </div>
@@ -530,7 +520,7 @@ const Dashboard = () => {
                       onClick={() => navigate("/customer-requests/history")}
                       className="text-red-500 hover:text-red-600 font-medium"
                     >
-                      Make New Request →
+                      View All Requests →
                     </button>
                   </div>
                 </div>

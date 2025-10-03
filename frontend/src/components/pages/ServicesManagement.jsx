@@ -236,9 +236,12 @@ const ServicesManagement = () => {
               <span onClick={() => navigate('/dashboard')} className="text-xs cursor-pointer hover:text-red-400">
               <div>Your</div>
               <div className='font-bold'>Dashboard</div></span>
-              <span onClick={() => navigate('/ServicesManagement')} className="text-xs cursor-pointer hover:text-red-400">
+              <span onClick={() => navigate('/bookings/my-work')} className="text-xs cursor-pointer hover:text-red-400">
               <div>Your</div>
-              <div className='font-bold'>services</div></span>
+              <div className='font-bold'>bookings</div></span>
+              <span onClick={() => navigate('/service-requests/inbox')} className="text-xs cursor-pointer hover:text-red-400">
+              <div>Service</div>
+              <div className='font-bold'>requests</div></span>
               <span onClick={() => navigate('/profile')} className="text-xs cursor-pointer hover:text-red-400">
               <div>Your</div>
               <div className='font-bold'>Profile</div></span>

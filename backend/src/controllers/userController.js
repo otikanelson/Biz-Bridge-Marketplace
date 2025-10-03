@@ -218,12 +218,21 @@ export const updateMyProfile = async (req, res) => {
 // @access  Private
 export const uploadProfileImage = async (req, res) => {
   try {
+    console.log('📸 Profile image upload request for user:', req.user._id);
+    
     if (!req.file) {
       return res.status(400).json({
         success: false,
         message: 'No image file uploaded'
       });
     }
+
+    console.log('📸 Uploaded file:', {
+      filename: req.file.filename,
+      path: req.file.path,
+      size: req.file.size,
+      mimetype: req.file.mimetype
+    });
 
     const user = await User.findById(req.user._id);
     if (!user) {
@@ -233,18 +242,37 @@ export const uploadProfileImage = async (req, res) => {
       });
     }
 
+    // ✅ FIX: Store the proper URL path format
+    // Convert file path to proper URL format: /uploads/profiles/filename.jpg
+    const relativePath = req.file.path.replace(/\\/g, '/'); // Convert Windows backslashes
+    let imageUrl;
+    
+    if (relativePath.includes('uploads/')) {
+      // Extract the uploads/... portion
+      const uploadsIndex = relativePath.indexOf('uploads/');
+      imageUrl = '/' + relativePath.substring(uploadsIndex);
+    } else {
+      // Fallback: construct path manually
+      imageUrl = `/uploads/profiles/${req.file.filename}`;
+    }
+
+    console.log('📸 Storing image URL:', imageUrl);
+
     // Update user's profile image
-    user.profileImage = req.file.path;
+    user.profileImage = imageUrl;
     await user.save();
+
+    console.log('✅ Profile image updated successfully');
 
     res.json({
       success: true,
       message: 'Profile image uploaded successfully',
-      profileImage: user.profileImage
+      imageUrl: imageUrl,
+      profileImage: imageUrl // Send both for compatibility
     });
 
   } catch (error) {
-    console.error('Upload profile image error:', error);
+    console.error('❌ Upload profile image error:', error);
     res.status(500).json({
       success: false,
       message: 'Failed to upload profile image',

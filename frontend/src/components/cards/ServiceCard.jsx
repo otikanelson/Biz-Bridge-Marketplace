@@ -1,328 +1,341 @@
-// src/components/cards/ServiceCard.jsx - Fixed Image URL Handling
+// Updated Service Card Component with Fixed Profile Pictures
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
 
-// API Base URL for constructing image URLs
-const API_BASE_URL = process.env.NODE_ENV === 'production' 
-  ? 'https://your-api-domain.com' 
-  : 'http://localhost:3000';
+// Profile Picture Utility Component
+const ProfilePicture = ({ 
+  imagePath, 
+  name = 'User', 
+  size = 'medium', 
+  className = '',
+  onClick = null 
+}) => {
+  // Get API base URL
+  const getApiBaseUrl = () => {
+    return process.env.NODE_ENV === 'production' 
+      ? process.env.REACT_APP_API_URL || 'https://your-api-domain.com'
+      : 'http://localhost:3000';
+  };
 
-// Helper function to construct proper image URLs
-const getImageUrl = (imagePath, type = 'service') => {
-  if (!imagePath) {
-    // Return appropriate placeholder based on type
-    return type === 'profile' 
-      ? '/api/placeholder/32/32' 
-      : '/api/placeholder/300/200';
-  }
-  
-  // If already a full URL, return as is
-  if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
-    return imagePath;
-  }
-  
-  // If it starts with /uploads, construct full URL
-  if (imagePath.startsWith('/uploads')) {
-    return `${API_BASE_URL}${imagePath}`;
-  }
-  
-  // If it's just a filename, construct full path
-  if (type === 'profile') {
-    return `${API_BASE_URL}/uploads/profiles/${imagePath}`;
-  } else {
-    return `${API_BASE_URL}/uploads/services/${imagePath}`;
-  }
-};
-
-// Enhanced pricing display component
-const PricingDisplay = ({ service }) => {
-  const getPricingInfo = () => {
-    if (!service.pricing) {
-      return {
-        display: 'Contact for Pricing',
-        subtitle: 'Custom quote required',
-        badge: 'Quote',
-        badgeColor: 'bg-blue-100 text-blue-800'
-      };
-    }
-
-    switch (service.pricing.type) {
-      case 'fixed':
-        const price = service.pricing.basePrice;
-        return {
-          display: price ? `₦${parseInt(price).toLocaleString()}` : 'Contact for Pricing',
-          subtitle: service.pricing.baseDuration || 'Duration varies',
-          badge: 'Fixed Price',
-          badgeColor: 'bg-green-100 text-green-800'
-        };
-
-      case 'negotiate':
-        return {
-          display: 'Contact for Pricing',
-          subtitle: 'Price negotiable',
-          badge: 'Negotiable',
-          badgeColor: 'bg-orange-100 text-orange-800'
-        };
-
-      case 'categorized':
-        const categories = service.pricing.categories || [];
-        if (categories.length === 0) {
-          return {
-            display: 'Contact for Pricing',
-            subtitle: 'Category-based pricing',
-            badge: 'Categories',
-            badgeColor: 'bg-purple-100 text-purple-800'
-          };
-        }
-        
-        const prices = categories.map(cat => cat.price).filter(Boolean);
-        if (prices.length === 0) {
-          return {
-            display: 'Contact for Pricing',
-            subtitle: 'Category-based pricing',
-            badge: 'Categories',
-            badgeColor: 'bg-purple-100 text-purple-800'
-          };
-        }
-        
-        const minPrice = Math.min(...prices);
-        const maxPrice = Math.max(...prices);
-        
-        return {
-          display: minPrice === maxPrice 
-            ? `₦${minPrice.toLocaleString()}`
-            : `₦${minPrice.toLocaleString()} - ₦${maxPrice.toLocaleString()}`,
-          subtitle: `${categories.length} categories available`,
-          badge: 'Categories',
-          badgeColor: 'bg-purple-100 text-purple-800'
-        };
-
-      default:
-        return {
-          display: 'Contact for Pricing',
-          subtitle: 'Custom quote required',
-          badge: 'Quote',
-          badgeColor: 'bg-gray-100 text-gray-800'
-        };
+  // Get proper image URL
+  const getImageUrl = (path) => {
+    if (!path) return null;
+    
+    if (path.startsWith('http://') || path.startsWith('https://')) {
+      return path;
+    } else if (path.startsWith('/uploads/')) {
+      return `${getApiBaseUrl()}${path}`;
+    } else if (path.startsWith('uploads/')) {
+      return `${getApiBaseUrl()}/${path}`;
+    } else {
+      return `${getApiBaseUrl()}/uploads/${path}`;
     }
   };
 
-  const pricingInfo = getPricingInfo();
+  // Generate consistent color based on name
+  const getPlaceholderColor = (userName) => {
+    const colors = [
+      { bg: 'bg-red-400', text: 'text-white' },
+      { bg: 'bg-blue-400', text: 'text-white' },
+      { bg: 'bg-green-400', text: 'text-white' },
+      { bg: 'bg-yellow-400', text: 'text-white' },
+      { bg: 'bg-purple-400', text: 'text-white' },
+      { bg: 'bg-pink-400', text: 'text-white' },
+      { bg: 'bg-indigo-400', text: 'text-white' },
+      { bg: 'bg-gray-400', text: 'text-white' }
+    ];
+
+    const hash = userName.split('').reduce((acc, char) => {
+      return acc + char.charCodeAt(0);
+    }, 0);
+
+    return colors[hash % colors.length];
+  };
+
+  const sizeClasses = {
+    small: 'w-8 h-8 text-xs',
+    medium: 'w-10 h-10 text-sm', 
+    large: 'w-16 h-16 text-lg',
+    xl: 'w-20 h-20 text-xl'
+  };
+
+  const imageUrl = getImageUrl(imagePath);
+  const colorConfig = getPlaceholderColor(name);
+  const initial = name.charAt(0).toUpperCase();
+
+  const handleImageError = (e) => {
+    e.target.style.display = 'none';
+    e.target.nextSibling.style.display = 'flex';
+  };
 
   return (
-    <div className="space-y-2">
-      {/* Pricing Badge */}
-      <div className="flex justify-between items-center">
-        <span className={`inline-block px-2 py-1 rounded-full text-xs font-medium ${pricingInfo.badgeColor}`}>
-          {pricingInfo.badge}
-        </span>
-        {service.pricing?.type === 'categorized' && (
-          <span className="text-xs text-purple-600 font-medium">⭐ Protected</span>
-        )}
-      </div>
-      
-      {/* Price Display */}
-      <div>
-        <div className="text-lg font-bold text-gray-900">{pricingInfo.display}</div>
-        <div className="text-sm text-gray-600">{pricingInfo.subtitle}</div>
-      </div>
-      
-      {/* Additional Info for Categorized */}
-      {service.pricing?.type === 'categorized' && service.pricing.categories && (
-        <div className="text-xs text-gray-500">
-          Categories: {service.pricing.categories.slice(0, 2).map(cat => cat.name).join(', ')}
-          {service.pricing.categories.length > 2 && ` +${service.pricing.categories.length - 2} more`}
+    <div 
+      className={`${sizeClasses[size]} rounded-full overflow-hidden relative ${className} ${onClick ? 'cursor-pointer' : ''}`}
+      onClick={onClick}
+    >
+      {imageUrl ? (
+        <>
+          <img 
+            src={imageUrl}
+            alt={`${name}'s profile`}
+            className="w-full h-full object-cover"
+            onError={handleImageError}
+          />
+          {/* Fallback placeholder */}
+          <div 
+            className={`w-full h-full ${colorConfig.bg} ${colorConfig.text} flex items-center justify-center font-bold absolute top-0 left-0`}
+            style={{ display: 'none' }}
+          >
+            {initial}
+          </div>
+        </>
+      ) : (
+        <div className={`w-full h-full ${colorConfig.bg} ${colorConfig.text} flex items-center justify-center font-bold`}>
+          {initial}
         </div>
       )}
     </div>
   );
 };
 
-// Enhanced Service Card Component with Fixed Image URLs
-const ServiceCard = ({ service, onClick, showActions = false, onEdit, onDelete, onToggleStatus }) => {
-  const navigate = useNavigate();
-
-  const handleCardClick = () => {
-    if (onClick) {
-      onClick(service);
+// Updated Service Card Component
+const ServiceCard = ({ service, navigate, currentUser }) => {
+  // Navigation helper
+  const navigateToArtisanProfile = (artisanId) => {
+    if (currentUser && artisanId === currentUser._id) {
+      navigate('/profile');
     } else {
-      navigate(`/services/${service._id || service.id}`);
+      navigate(`/profile/${artisanId}`);
     }
   };
 
-  const handleViewProfile = (e) => {
-    e.stopPropagation();
-    navigate(`/profile/${service.artisan?._id || service.artisanId}`);
+  const handleServiceView = () => {
+    navigate(`/services/${service._id}`);
   };
 
-  const handleAction = (action, e) => {
-    e.stopPropagation();
-    switch (action) {
-      case 'edit':
-        onEdit && onEdit(service);
-        break;
-      case 'delete':
-        onDelete && onDelete(service);
-        break;
-      case 'toggle':
-        onToggleStatus && onToggleStatus(service);
-        break;
-      default:
-        break;
+  const handleRequestService = () => {
+    if (!currentUser) {
+      navigate('/login');
+      return;
     }
-  };
-
-  // Get service image URL with proper fallback
-  const getServiceImage = () => {
-    // Try multiple possible image properties
-    const imageCandidate = 
-      service?.images?.[0] ||      // First image from array
-      service?.serviceImage ||     // Single service image
-      service?.image ||            // Legacy image property
-      null;
-
-    return getImageUrl(imageCandidate, 'service');
-  };
-
-  // Get artisan profile image URL with proper fallback
-  const getArtisanImage = () => {
-    if (!service.artisan) return '/api/placeholder/32/32';
-    
-    const profileImageCandidate = 
-      service.artisan.profileImage ||
-      service.artisan.image ||
-      null;
-
-    return getImageUrl(profileImageCandidate, 'profile');
-  };
-
-  // Handle image loading errors
-  const handleImageError = (e, type = 'service') => {
-    console.log(`❌ Image failed to load for ${type}:`, e.target.src);
-    
-    if (type === 'profile') {
-      e.target.src = '/api/placeholder/32/32';
-    } else {
-      e.target.src = '/api/placeholder/300/200';
-    }
-    
-    // Prevent infinite error loops
-    e.target.onerror = null;
+    navigate(`/services/${service._id}/request`);
   };
 
   return (
-    <div className="bg-white rounded-lg border border-gray-200 overflow-hidden hover:shadow-lg transition-shadow duration-300 cursor-pointer">
+    <div className="bg-white rounded-lg shadow-sm border hover:shadow-md transition-shadow duration-200">
       {/* Service Image */}
-      <div className="relative h-48 bg-gray-200" onClick={handleCardClick}>
-        <img 
-          src={getServiceImage()}
-          alt={service.title || 'Service image'}
-          className="w-full h-full object-cover"
-          onError={(e) => handleImageError(e, 'service')}
-          onLoad={() => console.log('✅ Service image loaded successfully:', getServiceImage())}
-        />
+      <div className="relative">
+        {service.images && service.images.length > 0 ? (
+          <img 
+            src={(() => {
+              const imagePath = service.images[0];
+              if (imagePath.startsWith('http')) {
+                return imagePath;
+              } else if (imagePath.startsWith('/uploads')) {
+                return `http://localhost:3000${imagePath}`;
+              } else if (imagePath.startsWith('uploads/')) {
+                return `http://localhost:3000/${imagePath}`;
+              } else {
+                return `http://localhost:3000/uploads/${imagePath}`;
+              }
+            })()} 
+            alt={service.title}
+            className="w-full h-48 object-cover rounded-t-lg"
+            onError={(e) => {
+              e.target.style.display = 'none';
+              e.target.nextSibling.style.display = 'flex';
+            }}
+          />
+        ) : null}
         
-        {/* Status Badge */}
-        <div className="absolute top-2 right-2">
-          <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-            service.isActive 
-              ? 'bg-green-100 text-green-800' 
-              : 'bg-red-100 text-red-800'
-          }`}>
-            {service.isActive ? 'Active' : 'Inactive'}
+        {/* Fallback for service image */}
+        <div 
+          className="w-full h-48 bg-gray-200 rounded-t-lg flex items-center justify-center"
+          style={{ display: (service.images && service.images.length > 0) ? 'none' : 'flex' }}
+        >
+          <svg className="w-12 h-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+          </svg>
+        </div>
+        
+        {/* Category Badge */}
+        <div className="absolute top-3 left-3">
+          <span className="bg-black bg-opacity-70 text-white px-2 py-1 rounded text-xs font-medium">
+            {service.category}
           </span>
         </div>
       </div>
 
       {/* Service Content */}
       <div className="p-4">
-        {/* Service Title */}
-        <h3 className="font-semibold text-gray-900 mb-2 line-clamp-2 cursor-pointer" onClick={handleCardClick}>
+        {/* Service Title & Description */}
+        <h3 className="font-bold text-gray-900 mb-2 line-clamp-1">
           {service.title}
         </h3>
+        <p className="text-gray-600 text-sm mb-3 line-clamp-2">
+          {service.description}
+        </p>
 
-        {/* Service Category */}
-        <div className="flex items-center text-sm text-gray-600 mb-2">
-          <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
-          </svg>
-          {service.category || 'Uncategorized'}
-        </div>
-
-        {/* Service Locations */}
-        <div className="flex items-center text-sm text-gray-600 mb-3">
-          <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-          </svg>
-          <span>
-            {service.locations && service.locations.length > 0
-              ? service.locations.slice(0, 2).map(loc => loc.name || loc.lga || loc).join(', ')
-              : 'Location not specified'
+        {/* Pricing Display */}
+        <div className="mb-4">
+          <span className="text-red-600 font-bold text-lg">
+            {service.pricing?.type === 'fixed' && service.pricing?.amount 
+              ? `₦${service.pricing.amount.toLocaleString()}`
+              : service.pricing?.type === 'negotiate' 
+              ? 'Contact for Price'
+              : 'Categorized Pricing'
             }
-            {service.locations && service.locations.length > 2 && ` +${service.locations.length - 2} more`}
           </span>
+          {service.pricing?.type === 'categorized' && (
+            <p className="text-xs text-gray-500 mt-1">
+              Prices vary by project scope
+            </p>
+          )}
         </div>
 
-        {/* Pricing Information */}
-        <PricingDisplay service={service} />
-
-        {/* Artisan Info */}
-        {service.artisan && (
-          <div className="flex items-center justify-between mt-4 pt-3 border-t border-gray-100">
-            <div className="flex items-center">
-              <img
-                src={getArtisanImage()}
-                alt={service.artisan.contactName || service.artisan.businessName || 'Artisan'}
-                className="w-8 h-8 rounded-full object-cover mr-2 border border-gray-200"
-                onError={(e) => handleImageError(e, 'profile')}
-                onLoad={() => console.log('✅ Artisan profile image loaded:', getArtisanImage())}
-              />
-              <span className="text-sm text-gray-700 truncate">
-                {service.artisan.contactName || service.artisan.businessName || 'Unknown Artisan'}
-              </span>
-            </div>
-            <button
-              onClick={handleViewProfile}
-              className="text-sm text-red-600 hover:text-red-700 font-medium flex-shrink-0"
-            >
-              View Profile
-            </button>
+        {/* Artisan Info - FIXED PROFILE PICTURE */}
+        <div className="flex items-center mb-4 p-3 bg-gray-50 rounded-lg">
+          {/* Fixed Profile Picture */}
+          <ProfilePicture
+            imagePath={service.artisan?.profileImage}
+            name={service.artisan?.name || service.artisan?.username || 'Artisan'}
+            size="medium"
+            className="mr-3 flex-shrink-0"
+          />
+          
+          <div className="flex-1 min-w-0">
+            <p className="font-bold text-gray-900 text-sm truncate">
+              {service.artisan?.name || service.artisan?.username || 'Unknown Artisan'}
+            </p>
+            <p className="text-gray-500 text-xs">
+              📍 {service.artisan?.location?.lga || 'Lagos'}
+            </p>
+            {service.artisan?.rating && (
+              <div className="flex items-center mt-1">
+                <span className="text-yellow-400 text-xs mr-1">⭐</span>
+                <span className="text-gray-600 text-xs">
+                  {service.artisan.rating}/5.0
+                </span>
+              </div>
+            )}
           </div>
-        )}
 
-        {/* Service Actions (for service management) */}
-        {showActions && (
-          <div className="flex items-center justify-between mt-4 pt-3 border-t border-gray-100">
-            <div className="flex space-x-2">
-              <button
-                onClick={(e) => handleAction('edit', e)}
-                className="text-sm text-blue-600 hover:text-blue-700 font-medium"
-              >
-                Edit
-              </button>
-              <button
-                onClick={(e) => handleAction('toggle', e)}
-                className={`text-sm font-medium ${
-                  service.isActive 
-                    ? 'text-orange-600 hover:text-orange-700' 
-                    : 'text-green-600 hover:text-green-700'
-                }`}
-              >
-                {service.isActive ? 'Deactivate' : 'Activate'}
-              </button>
-            </div>
-            <button
-              onClick={(e) => handleAction('delete', e)}
-              className="text-sm text-red-600 hover:text-red-700 font-medium"
-            >
-              Delete
-            </button>
+          {/* View Artisan Profile Button */}
+          <button
+            onClick={() => navigateToArtisanProfile(service.artisan?._id)}
+            className="bg-gray-200 hover:bg-gray-300 text-gray-700 px-3 py-1 rounded text-xs font-medium transition ml-2"
+            title="View Artisan Profile"
+          >
+            View Profile
+          </button>
+        </div>
+
+        {/* Action Buttons */}
+        <div className="flex gap-2">
+          <button
+            onClick={handleServiceView}
+            className="flex-1 bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-lg text-sm font-bold transition"
+          >
+            View Details
+          </button>
+          <button
+            onClick={handleRequestService}
+            className="flex-1 bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg text-sm font-bold transition"
+          >
+            Request Service
+          </button>
+        </div>
+
+        {/* Payment Warning */}
+        <div className="mt-3 p-2 bg-yellow-50 border border-yellow-200 rounded text-xs">
+          <div className="flex items-center">
+            <svg className="w-3 h-3 text-yellow-600 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.996-.833-2.464 0L3.34 16.5c-.77.833.192 2.5 1.732 2.5z" />
+            </svg>
+            <span className="text-yellow-700">
+              Payment handled directly with artisan
+            </span>
           </div>
-        )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Service Listing Grid Component
+const ServiceListing = ({ services, navigate, currentUser }) => {
+  return (
+    <div className="container mx-auto px-4 py-8">
+      <h2 className="text-2xl font-bold text-gray-900 mb-6">Available Services</h2>
+      
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {services.map(service => (
+          <ServiceCard 
+            key={service._id} 
+            service={service} 
+            navigate={navigate}
+            currentUser={currentUser}
+          />
+        ))}
+      </div>
+      
+      {services.length === 0 && (
+        <div className="text-center py-12">
+          <svg className="mx-auto h-12 w-12 text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.172 16.172a4 4 0 015.656 0M9 12h6m-6-4h6m2 5.291A7.962 7.962 0 0112 15c-2.34 0-4.29-1.885-4.29-4.209 0-.747.161-1.458.448-2.078l1.257-2.96a.5.5 0 01.92 0l1.257 2.96A3.97 3.97 0 0112 10.791z" />
+          </svg>
+          <h3 className="text-lg font-medium text-gray-900 mb-2">No Services Found</h3>
+          <p className="text-gray-500">Try adjusting your search criteria or browse all categories.</p>
+        </div>
+      )}
+    </div>
+  );
+};
+
+// Example of how to use ProfilePicture in other components
+const ProfilePictureExamples = () => {
+  return (
+    <div className="p-6 space-y-6 bg-gray-50">
+      <h2 className="text-2xl font-bold text-gray-900 mb-6">Profile Picture Examples</h2>
+      
+      {/* Different sizes */}
+      <div className="flex items-center space-x-4">
+        <ProfilePicture name="John Doe" size="small" />
+        <ProfilePicture name="Jane Smith" size="medium" />
+        <ProfilePicture name="Bob Wilson" size="large" />
+        <ProfilePicture name="Alice Johnson" size="xl" />
+      </div>
+
+      {/* With actual images (will fallback to placeholder if image fails) */}
+      <div className="flex items-center space-x-4">
+        <ProfilePicture 
+          imagePath="/uploads/profile1.jpg" 
+          name="John Doe" 
+          size="medium"
+        />
+        <ProfilePicture 
+          imagePath="https://example.com/invalid-image.jpg" 
+          name="Jane Smith" 
+          size="medium"
+        />
+        <ProfilePicture 
+          imagePath="" 
+          name="No Image User" 
+          size="medium"
+        />
+      </div>
+
+      {/* Clickable profile pictures */}
+      <div className="flex items-center space-x-4">
+        <ProfilePicture 
+          name="Clickable User" 
+          size="large"
+          onClick={() => alert('Profile clicked!')}
+          className="border-2 border-red-500"
+        />
       </div>
     </div>
   );
 };
 
 export default ServiceCard;
+export { ServiceListing, ProfilePicture, ProfilePictureExamples };
