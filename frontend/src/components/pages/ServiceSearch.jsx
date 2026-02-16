@@ -260,7 +260,7 @@ const ServiceSearch = () => {
                     <div className="text-sm font-bold">Dashboard</div>
                   </div>
                   {userType === 'customer' && (
-                    <div className="text-center cursor-pointer" onClick={() => navigate('/bookings')}>
+                    <div className="text-center cursor-pointer" onClick={() => navigate('/bookings/my-bookings')}>
                       <div className="text-xs">Your</div>
                       <div className="text-sm font-bold">Bookings</div>
                     </div>
@@ -291,11 +291,6 @@ const ServiceSearch = () => {
               <span className="cursor-pointer hover:text-red-400 text-red-400 font-semibold">
                 All Services
               </span>
-              {isAuthenticated && (
-                <span className="cursor-pointer hover:text-red-400" onClick={() => navigate('/dashboard')}>
-                  Dashboard
-                </span>
-              )}
               <span className="cursor-pointer hover:text-red-400" onClick={() => navigate('/services?category=Woodworking')}>
                 Woodworking
               </span>

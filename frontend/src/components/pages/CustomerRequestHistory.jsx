@@ -252,7 +252,7 @@ const CustomerRequestHistory = () => {
                 <div>Your</div>
                 <div className="font-bold">Dashboard</div>
               </div>
-              <div className="text-xs cursor-pointer hover:text-red-400" onClick={() => navigate('/my-bookings')}>
+              <div className="text-xs cursor-pointer hover:text-red-400" onClick={() => navigate('/bookings/my-bookings')}>
                 <div>Your</div>
                 <div className="font-bold">Bookings</div>
               </div>

@@ -1,4 +1,3 @@
-// src/pages/ServiceView.jsx - Day 7: Updated for New Pricing System with No Payment Processing
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';

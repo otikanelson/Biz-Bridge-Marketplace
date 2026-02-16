@@ -1,3 +1,5 @@
+// src/utils/profileNavigation.js - Enhanced Day 9 Implementation
+
 /**
  * Get the correct profile route based on user context
  * @param {string} userId - The user ID to view
@@ -21,7 +23,7 @@ export const canEditProfile = (profileUserId, currentUserId) => {
 };
 
 /**
- * Navigate to artisan profile from service card
+ * Navigate to artisan profile from service card - Day 9 Core Feature
  * @param {object} navigate - React Router navigate function
  * @param {string} artisanId - The artisan's user ID
  * @param {string} currentUserId - The current logged-in user's ID (optional)
@@ -32,7 +34,7 @@ export const navigateToArtisanProfile = (navigate, artisanId, currentUserId = nu
 };
 
 /**
- * Get profile context for UI rendering
+ * Get profile context for UI rendering - Enhanced Day 9 Version
  * @param {string} profileUserId - The profile owner's user ID
  * @param {string} currentUserId - The current logged-in user's ID
  * @param {object} profileData - The profile data object
@@ -48,119 +50,209 @@ export const getProfileContext = (profileUserId, currentUserId, profileData) => 
     canEdit: isOwnProfile,
     canContact: !isOwnProfile && isAuthenticated && profileData?.role === 'artisan',
     canSave: !isOwnProfile && isAuthenticated,
-    canViewServices: profileData?.role === 'artisan'
+    viewerRole: currentUserId ? 'user' : 'guest',
+    profileOwnerRole: profileData?.role || 'unknown'
   };
 };
 
 /**
- * Generate "View Artisan Profile" button props for service cards
- * @param {object} service - The service object containing artisan info
- * @param {function} navigate - React Router navigate function
- * @param {string} currentUserId - The current logged-in user's ID (optional)
- * @returns {object} Button props and handlers
+ * Get appropriate navigation items based on user role and context - Day 9 Feature
+ * @param {object} currentUser - Current logged-in user
+ * @param {boolean} isOwnProfile - Whether viewing own profile
+ * @returns {array} Navigation items array
  */
-export const getViewArtisanButtonProps = (service, navigate, currentUserId = null) => {
-  const artisanId = service.artisan?._id || service.artisan;
-  const artisanName = service.artisan?.businessName || service.artisan?.fullName || 'Artisan';
+export const getNavigationItems = (currentUser, isOwnProfile = true) => {
+  const baseItems = [
+    { href: '/services', label: 'Browse Services' },
+    { href: '/dashboard', label: 'Dashboard' }
+  ];
+
+  // Add "Your Profile" link when viewing others
+  if (currentUser && !isOwnProfile) {
+    baseItems.push({ href: '/profile', label: 'Your Profile' });
+  }
+
+  return baseItems;
+};
+
+/**
+ * Get role-based quick actions for profile sidebar - Day 9 Feature
+ * @param {string} userRole - User's role (artisan/customer)
+ * @param {boolean} canEdit - Whether user can edit this profile
+ * @param {number} servicesCount - Number of services (for artisans)
+ * @returns {array} Quick actions array
+ */
+export const getQuickActions = (userRole, canEdit, servicesCount = 0) => {
+  if (!canEdit) return [];
+
+  const actions = [
+    { 
+      label: 'Complete Profile', 
+      href: '/profile/edit', 
+      icon: '✏️',
+      variant: 'secondary'
+    }
+  ];
+
+  if (userRole === 'artisan') {
+    actions.unshift({
+      label: servicesCount === 0 ? 'Add Your First Service' : 'Add New Service',
+      href: '/ServicesAdd',
+      icon: '🛠️',
+      variant: 'primary'
+    });
+  }
+
+  if (userRole === 'customer') {
+    actions.push({
+      label: 'Browse Services',
+      href: '/services',
+      icon: '🔍',
+      variant: 'primary'
+    });
+  }
+
+  return actions;
+};
+
+/**
+ * Get appropriate warning messages for profile pages - Day 9 Feature
+ * @param {string} pageContext - Context where warning appears
+ * @param {string} userRole - User role
+ * @returns {object|null} Warning configuration or null
+ */
+export const getPaymentWarning = (pageContext, userRole = null) => {
+  const warnings = {
+    'profile-contact': {
+      size: 'small',
+      variant: 'warning',
+      show: userRole === 'artisan'
+    },
+    'service-request': {
+      size: 'default',
+      variant: 'warning',
+      show: true
+    },
+    'booking-page': {
+      size: 'large',
+      variant: 'critical',
+      show: true
+    },
+    'services-tab': {
+      size: 'default',
+      variant: 'info',
+      show: userRole === 'artisan'
+    }
+  };
+
+  const config = warnings[pageContext];
+  return config && config.show ? config : null;
+};
+
+/**
+ * Validate profile route and redirect if necessary - Day 9 Security Feature
+ * @param {string} userId - User ID from URL params
+ * @param {object} currentUser - Current logged-in user
+ * @param {object} navigate - React Router navigate function
+ * @returns {boolean} Whether route is valid
+ */
+export const validateProfileRoute = (userId, currentUser, navigate) => {
+  // If no userId in URL but user is logged in, redirect to own profile
+  if (!userId && currentUser) {
+    navigate('/profile', { replace: true });
+    return false;
+  }
+
+  // If userId matches current user, redirect to clean own profile URL
+  if (userId && currentUser && userId === currentUser._id) {
+    navigate('/profile', { replace: true });
+    return false;
+  }
+
+  return true;
+};
+
+/**
+ * Get tab configuration based on user role - Day 9 Feature
+ * @param {string} userRole - User role (artisan/customer)
+ * @param {number} servicesCount - Number of services for count display
+ * @returns {array} Tab configuration array
+ */
+export const getProfileTabs = (userRole, servicesCount = 0) => {
+  const baseTabs = [
+    { key: 'overview', label: 'Overview', icon: '📋' }
+  ];
+
+  if (userRole === 'artisan') {
+    return [
+      ...baseTabs,
+      { key: 'services', label: 'Services', icon: '🛠️', count: servicesCount },
+      { key: 'portfolio', label: 'Portfolio', icon: '🎨' },
+      { key: 'contact', label: 'Contact', icon: '📞' }
+    ];
+  } else {
+    return [
+      ...baseTabs,
+      { key: 'activity', label: 'Activity', icon: '📊' },
+      { key: 'preferences', label: 'Preferences', icon: '⚙️' }
+    ];
+  }
+};
+
+/**
+ * Generate profile page title and metadata - Day 9 SEO Feature
+ * @param {object} profileData - Profile data object
+ * @param {boolean} isOwnProfile - Whether viewing own profile
+ * @returns {object} Page metadata
+ */
+export const getProfileMetadata = (profileData, isOwnProfile) => {
+  const name = profileData?.name || profileData?.username || 'User';
+  const role = profileData?.role || 'user';
   
+  if (isOwnProfile) {
+    return {
+      title: 'Your Profile - BizBridge',
+      description: 'Manage your BizBridge profile and settings'
+    };
+  }
+
   return {
-    onClick: () => navigateToArtisanProfile(navigate, artisanId, currentUserId),
-    text: `View ${artisanName}'s Profile`,
-    shortText: 'View Profile',
-    disabled: !artisanId,
-    className: "text-blue-600 hover:text-blue-700 font-medium text-sm transition-colors"
+    title: `${name} - ${role === 'artisan' ? 'Artisan' : 'Customer'} Profile - BizBridge`,
+    description: `View ${name}'s ${role === 'artisan' ? 'services and portfolio' : 'profile'} on BizBridge`
   };
 };
 
 /**
- * Enhanced service card component with "View Artisan Profile" functionality
- * This is an example of how to integrate the profile navigation into service cards
+ * Check if profile action is allowed - Day 9 Security Feature
+ * @param {string} action - Action to check (edit, contact, save)
+ * @param {object} context - Profile context object
+ * @returns {boolean} Whether action is allowed
  */
-export const ServiceCardWithArtisanLink = ({ service, navigate, currentUserId, className = "" }) => {
-  const artisanButtonProps = getViewArtisanButtonProps(service, navigate, currentUserId);
-  
-  return (
-    <div className={`border border-gray-200 rounded-lg overflow-hidden hover:shadow-md transition ${className}`}>
-      {service.images && service.images.length > 0 && (
-        <img 
-          src={service.images[0]} 
-          alt={service.title}
-          className="w-full h-48 object-cover"
-        />
-      )}
-      <div className="p-4">
-        <h4 className="font-semibold text-gray-900 mb-2">{service.title}</h4>
-        <p className="text-gray-600 text-sm mb-3 line-clamp-2">{service.description}</p>
-        
-        {/* Artisan info with profile link */}
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-gray-200 rounded-full overflow-hidden">
-              {service.artisan?.profileImage ? (
-                <img 
-                  src={service.artisan.profileImage} 
-                  alt="Artisan"
-                  className="w-full h-full object-cover"
-                />
-              ) : (
-                <div className="w-full h-full flex items-center justify-center text-gray-400">
-                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
-                  </svg>
-                </div>
-              )}
-            </div>
-            <span className="text-sm text-gray-600">
-              {service.artisan?.businessName || service.artisan?.fullName || 'Unknown Artisan'}
-            </span>
-          </div>
-          <button
-            onClick={artisanButtonProps.onClick}
-            className={artisanButtonProps.className}
-            disabled={artisanButtonProps.disabled}
-          >
-            {artisanButtonProps.shortText}
-          </button>
-        </div>
-        
-        <div className="flex items-center justify-between">
-          <span className="text-red-600 font-semibold">
-            {service.pricing?.type === 'fixed' && service.pricing?.amount 
-              ? `₦${service.pricing.amount.toLocaleString()}`
-              : 'Contact for pricing'
-            }
-          </span>
-          <button
-            onClick={() => navigate(`/services/${service._id}`)}
-            className="text-red-600 hover:text-red-700 font-medium text-sm"
-          >
-            View Service
-          </button>
-        </div>
-      </div>
-    </div>
-  );
+export const isActionAllowed = (action, context) => {
+  const permissions = {
+    'edit': context.canEdit,
+    'contact': context.canContact,
+    'save': context.canSave,
+    'view-private': context.isOwnProfile,
+    'view-stats': context.isOwnProfile || context.profileOwnerRole === 'artisan'
+  };
+
+  return permissions[action] || false;
 };
 
-/**
- * Profile breadcrumb component for better navigation
- */
-export const ProfileBreadcrumb = ({ profileData, isOwnProfile, currentPath }) => {
-  return (
-    <nav className="flex items-center space-x-2 text-sm text-gray-500 mb-4">
-      <a href="/" className="hover:text-gray-700">Home</a>
-      <span>/</span>
-      {isOwnProfile ? (
-        <span className="text-gray-900 font-medium">Your Profile</span>
-      ) : (
-        <>
-          <span>Profiles</span>
-          <span>/</span>
-          <span className="text-gray-900 font-medium">
-            {profileData?.businessName || profileData?.fullName || 'Profile'}
-          </span>
-        </>
-      )}
-    </nav>
-  );
+// Export default object with all utilities
+const ProfileNavigation = {
+  getProfileRoute,
+  canEditProfile,
+  navigateToArtisanProfile,
+  getProfileContext,
+  getNavigationItems,
+  getQuickActions,
+  getPaymentWarning,
+  validateProfileRoute,
+  getProfileTabs,
+  getProfileMetadata,
+  isActionAllowed
 };
+
+export default ProfileNavigation;

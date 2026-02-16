@@ -7,6 +7,7 @@ import Login from './components/pages/Login';
 import Signup from './components/pages/Signup';
 import Dashboard from './components/pages/Dashboard';
 import Profile from './components/pages/Profile';
+import ProfileEdit from './components/pages/ProfileEdit';
 import ServiceView from './components/pages/ServiceView';
 import ServiceSearch from './components/pages/ServiceSearch';
 import ServicesAdd from './components/pages/ServicesAdd';
@@ -77,12 +78,12 @@ function App() {
               </ProtectedRoute>
             } />
             
-            {/* Profile Edit Route - for editing own profile
+            Profile Edit Route - for editing own profile
             <Route path="/profile/edit" element={
               <ProtectedRoute>
                 <ProfileEdit />
               </ProtectedRoute>
-            } /> */}
+            } />
             
             {/* Other User's Profile Route - /profile/:userId */}
             <Route path="/profile/:userId" element={<Profile />} />

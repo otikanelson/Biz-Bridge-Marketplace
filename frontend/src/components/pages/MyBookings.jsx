@@ -354,7 +354,7 @@ const MyBookings = () => {
                 <div>Your</div>
                 <div className="font-bold">Dashboard</div>
               </div>
-              <div className="text-xs cursor-pointer hover:text-red-400" onClick={() => navigate('/my-requests')}>
+              <div className="text-xs cursor-pointer hover:text-red-400" onClick={() => navigate('/customer-requests/history')}>
                 <div>Your</div>
                 <div className="font-bold">Requests</div>
               </div>
