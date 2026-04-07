@@ -1,7 +1,7 @@
 // src/api/Services.js - Updated for New Pricing System (Correct File Location)
 import axios from 'axios';
 
-import { API_URL } from '../../api/config';
+import { API_URL } from './config';
 
 const API_BASE_URL = API_URL.replace('/api', '');
 
