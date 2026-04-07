@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { API_URL } from '../../api/config'; = () => {
+import { API_URL } from '../../api/config';
+
+const MyBookings = () => {
   const navigate = useNavigate();
   const { userType, logout } = useAuth();
   const [bookings, setBookings] = useState([]);
