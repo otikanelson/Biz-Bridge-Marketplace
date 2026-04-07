@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-
-const CustomerRequestHistory = () => {
+import { API_URL } from '../../api/config'; = () => {
   const navigate = useNavigate();
   const { userType, logout } = useAuth();
   const [requests, setRequests] = useState([]);
@@ -29,9 +28,7 @@ const CustomerRequestHistory = () => {
   const fetchRequests = async () => {
     try {
       setLoading(true);
-      const baseURL = process.env.NODE_ENV === 'production' 
-        ? 'https://api.yourdomain.com/api' 
-        : 'http://localhost:3000/api';
+      const baseURL = API_URL;
       
       const response = await fetch(`${baseURL}/service-requests/my-requests`, {
         headers: {
@@ -150,9 +147,7 @@ const CustomerRequestHistory = () => {
 
   const handleAcceptQuote = async (requestId) => {
     try {
-      const baseURL = process.env.NODE_ENV === 'production' 
-        ? 'https://api.yourdomain.com/api' 
-        : 'http://localhost:3000/api';
+      const baseURL = API_URL;
         
       const response = await fetch(`${baseURL}/service-requests/${requestId}/accept`, {
         method: 'POST',

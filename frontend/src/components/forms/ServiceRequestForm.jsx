@@ -1,12 +1,13 @@
 // src/components/forms/ServiceRequestForm.jsx - Day 7: Updated for New Pricing System
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { API_URL } from '../../api/config';
 
 // API function for creating service requests (assuming this exists in your services)
 const createServiceRequest = async (requestData) => {
   try {
     const token = localStorage.getItem('token');
-    const response = await fetch('http://localhost:3000/api/service-requests', {
+    const response = await fetch(`${API_URL}/service-requests`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${token}`,
@@ -243,7 +244,7 @@ const ServiceRequestForm = ({ service, artisan, onClose, onSuccess }) => {
   const getServiceImageUrl = (imagePath) => {
     if (!imagePath) return '/api/placeholder/80/80';
     if (imagePath.startsWith('http')) return imagePath;
-    return `http://localhost:3000${imagePath}`;
+    return `${API_URL.replace('/api', '')}${imagePath}`;
   };
 
   return (

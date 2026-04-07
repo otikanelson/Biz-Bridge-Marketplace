@@ -2,11 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import ServiceRequestForm from '../../components/forms/ServiceRequestForm';
+import { API_URL } from '../../api/config';
 
 // API function to get service by ID
 const getServiceById = async (serviceId) => {
   try {
-    const response = await fetch(`http://localhost:3000/api/services/${serviceId}`);
+    const response = await fetch(`${API_URL}/services/${serviceId}`);
     if (!response.ok) {
       throw new Error('Service not found');
     }
@@ -141,14 +142,14 @@ function ServiceView() {
   const getServiceImageUrl = (imagePath) => {
     if (!imagePath) return '/api/placeholder/400/300';
     if (imagePath.startsWith('http')) return imagePath;
-    return `http://localhost:3000${imagePath}`;
+    return `${API_URL.replace('/api', '')}${imagePath}`;
   };
 
   // Get artisan profile image URL
   const getProfileImageUrl = (imagePath) => {
     if (!imagePath) return '/api/placeholder/80/80';
     if (imagePath.startsWith('http')) return imagePath;
-    return `http://localhost:3000${imagePath}`;
+    return `${API_URL.replace('/api', '')}${imagePath}`;
   };
 
   // Get all service images

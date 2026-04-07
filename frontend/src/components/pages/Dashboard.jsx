@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
+import { API_URL } from "../../api/config";
 
 const Dashboard = () => {
   const { currentUser, userType, logout } = useAuth();
@@ -88,7 +89,7 @@ const Dashboard = () => {
       };
 
       // Load customer bookings
-      const bookingsResponse = await fetch('http://localhost:3000/api/bookings/my-bookings?limit=5', {
+      const bookingsResponse = await fetch(`${API_URL}/bookings/my-bookings?limit=5`, {
         headers
       });
       
@@ -98,7 +99,7 @@ const Dashboard = () => {
       }
 
       // Load customer service requests
-      const requestsResponse = await fetch('http://localhost:3000/api/service-requests/my-requests?limit=5', {
+      const requestsResponse = await fetch(`${API_URL}/service-requests/my-requests?limit=5`, {
         headers
       });
       
@@ -136,7 +137,7 @@ const Dashboard = () => {
       };
 
       // Load artisan's bookings (work)
-      const bookingsResponse = await fetch('http://localhost:3000/api/bookings/my-work?limit=5', {
+      const bookingsResponse = await fetch(`${API_URL}/bookings/my-work?limit=5`, {
         headers
       });
       
@@ -146,7 +147,7 @@ const Dashboard = () => {
       }
 
       // Load incoming service requests
-      const requestsResponse = await fetch('http://localhost:3000/api/service-requests/inbox?limit=5', {
+      const requestsResponse = await fetch(`${API_URL}/service-requests/inbox?limit=5`, {
         headers
       });
       
@@ -156,7 +157,7 @@ const Dashboard = () => {
       }
 
       // Load artisan's services
-      const servicesResponse = await fetch('http://localhost:3000/api/services/my-services', {
+      const servicesResponse = await fetch(`${API_URL}/services/my-services`, {
         headers
       });
       
@@ -166,7 +167,7 @@ const Dashboard = () => {
       }
 
       // Load booking analytics
-      const analyticsResponse = await fetch('http://localhost:3000/api/bookings/analytics', {
+      const analyticsResponse = await fetch(`${API_URL}/bookings/analytics`, {
         headers
       });
       
@@ -681,15 +682,16 @@ const Dashboard = () => {
                     <img 
                       src={(() => {
                         const imagePath = service.images[0];
+                        const BASE = API_URL.replace('/api', '');
                         // Handle different image path formats
                         if (imagePath.startsWith('http')) {
                           return imagePath;
                         } else if (imagePath.startsWith('/uploads')) {
-                          return `http://localhost:3000${imagePath}`;
+                          return `${BASE}${imagePath}`;
                         } else if (imagePath.startsWith('uploads/')) {
-                          return `http://localhost:3000/${imagePath}`;
+                          return `${BASE}/${imagePath}`;
                         } else {
-                          return `http://localhost:3000/uploads/${imagePath}`;
+                          return `${BASE}/uploads/${imagePath}`;
                         }
                       })()} 
                       alt={service.title}
@@ -1033,7 +1035,7 @@ const Dashboard = () => {
                         <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
                           {artisan.profileImage ? (
                             <img 
-                              src={`http://localhost:3000${artisan.profileImage}`} 
+                              src={`${API_URL.replace('/api', '')}${artisan.profileImage}`} 
                               alt={artisan.businessName}
                               className="w-12 h-12 rounded-full object-cover"
                             />

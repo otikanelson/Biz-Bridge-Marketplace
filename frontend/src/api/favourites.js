@@ -1,8 +1,10 @@
-const API_URL = "http://localhost:3000/api/favourites";
+import { API_URL } from './config';
+
+const FAVOURITES_URL = `${API_URL}/favourites`;
 
 // Add to favourites
 export const saveToFavourites = async (artisanId, token) => {
-  const response = await fetch(`${API_URL}/add`, {
+  const response = await fetch(`${FAVOURITES_URL}/add`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",

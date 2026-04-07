@@ -1,5 +1,6 @@
 // Updated Service Card Component with Fixed Profile Pictures
 import React from 'react';
+import { API_URL } from '../../api/config';
 
 // Profile Picture Utility Component
 const ProfilePicture = ({ 
@@ -10,11 +11,7 @@ const ProfilePicture = ({
   onClick = null 
 }) => {
   // Get API base URL
-  const getApiBaseUrl = () => {
-    return process.env.NODE_ENV === 'production' 
-      ? process.env.REACT_APP_API_URL || 'https://your-api-domain.com'
-      : 'http://localhost:3000';
-  };
+  const getApiBaseUrl = () => API_URL.replace('/api', '');
 
   // Get proper image URL
   const getImageUrl = (path) => {
@@ -128,14 +125,15 @@ const ServiceCard = ({ service, navigate, currentUser }) => {
           <img 
             src={(() => {
               const imagePath = service.images[0];
+              const BASE = API_URL.replace('/api', '');
               if (imagePath.startsWith('http')) {
                 return imagePath;
               } else if (imagePath.startsWith('/uploads')) {
-                return `http://localhost:3000${imagePath}`;
+                return `${BASE}${imagePath}`;
               } else if (imagePath.startsWith('uploads/')) {
-                return `http://localhost:3000/${imagePath}`;
+                return `${BASE}/${imagePath}`;
               } else {
-                return `http://localhost:3000/uploads/${imagePath}`;
+                return `${BASE}/uploads/${imagePath}`;
               }
             })()} 
             alt={service.title}

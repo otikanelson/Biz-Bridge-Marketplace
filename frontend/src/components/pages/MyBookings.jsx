@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-
-const MyBookings = () => {
+import { API_URL } from '../../api/config'; = () => {
   const navigate = useNavigate();
   const { userType, logout } = useAuth();
   const [bookings, setBookings] = useState([]);
@@ -39,9 +38,7 @@ const MyBookings = () => {
   const fetchBookings = async () => {
     try {
       setLoading(true);
-      const baseURL = process.env.NODE_ENV === 'production' 
-        ? 'https://api.yourdomain.com/api' 
-        : 'http://localhost:3000/api';
+      const baseURL = API_URL;
         
       const response = await fetch(`${baseURL}/bookings/my-bookings`, {
         headers: {
@@ -159,9 +156,7 @@ const MyBookings = () => {
   // API Functions
   const handleMarkComplete = async () => {
     try {
-      const baseURL = process.env.NODE_ENV === 'production' 
-        ? 'https://api.yourdomain.com/api' 
-        : 'http://localhost:3000/api';
+      const baseURL = API_URL;
         
       const response = await fetch(`${baseURL}/bookings/${selectedBooking._id}/complete`, {
         method: 'PATCH',
@@ -193,9 +188,7 @@ const MyBookings = () => {
     }
 
     try {
-      const baseURL = process.env.NODE_ENV === 'production' 
-        ? 'https://api.yourdomain.com/api' 
-        : 'http://localhost:3000/api';
+      const baseURL = API_URL;
         
       const response = await fetch(`${baseURL}/bookings/${selectedBooking._id}/cancel`, {
         method: 'PATCH',
@@ -224,9 +217,7 @@ const MyBookings = () => {
 
   const handleAcceptContract = async (bookingId) => {
     try {
-      const baseURL = process.env.NODE_ENV === 'production' 
-        ? 'https://api.yourdomain.com/api' 
-        : 'http://localhost:3000/api';
+      const baseURL = API_URL;
         
       const response = await fetch(`${baseURL}/bookings/${bookingId}/accept-contract`, {
         method: 'PATCH',
@@ -257,9 +248,7 @@ const MyBookings = () => {
     }
 
     try {
-      const baseURL = process.env.NODE_ENV === 'production' 
-        ? 'https://api.yourdomain.com/api' 
-        : 'http://localhost:3000/api';
+      const baseURL = API_URL;
         
       const response = await fetch(`${baseURL}/bookings/${selectedBooking._id}/review`, {
         method: 'POST',

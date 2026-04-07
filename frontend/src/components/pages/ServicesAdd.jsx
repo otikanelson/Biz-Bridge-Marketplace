@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { createService, updateService, getServiceById } from '../../api/Services';
+import { createService, updateService, getServiceById } from '../../api/services';
 import ImageUpload from '../common/ImageUpload';
 import JobSelection from '../pages/JobSelection';
 import LocationSelection from '../pages/LocationSelection';

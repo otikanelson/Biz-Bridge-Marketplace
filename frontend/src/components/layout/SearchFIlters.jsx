@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 
 // Import your job categories and locations
-import { JOB_CATEGORIES, LAGOS_LGAS, LAGOS_LOCALITIES } from '../../utils/LocationData';
+import { JOB_CATEGORIES, LAGOS_LGAS, LAGOS_LOCALITIES } from '../../utils/locationData';
 
 const SearchFilters = ({ onSearch, compact = false, initialValues = {} }) => {
   const navigate = useNavigate();

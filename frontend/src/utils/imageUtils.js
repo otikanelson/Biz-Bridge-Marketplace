@@ -2,13 +2,9 @@
  * Get the API base URL for image requests
  * @returns {string} Base URL for API
  */
-const getApiBaseUrl = () => {
-  // In development, use localhost:3000
-  // In production, use your actual API URL
-  return process.env.NODE_ENV === 'production' 
-    ? process.env.REACT_APP_API_URL || 'https://your-api-domain.com'
-    : 'http://localhost:3000';
-};
+import { API_URL } from '../api/config';
+
+const getApiBaseUrl = () => API_URL.replace('/api', '');
 
 /**
  * Get the correct image URL for profile pictures
@@ -31,9 +27,7 @@ export const getProfileImageUrl = (imagePath, type = 'profile') => {
   }
   
   // Get API base URL
-  const API_BASE_URL = process.env.NODE_ENV === 'production' 
-    ? process.env.REACT_APP_API_URL || 'https://your-api-domain.com'
-    : 'http://localhost:3000';
+  const API_BASE_URL = getApiBaseUrl();
   
   // If it starts with /uploads, construct full URL
   if (imagePath.startsWith('/uploads')) {

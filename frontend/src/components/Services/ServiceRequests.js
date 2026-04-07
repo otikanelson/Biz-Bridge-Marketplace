@@ -1,9 +1,9 @@
 // frontend/src/services/ServiceRequests.js - Frontend API calls for Service Requests
 import axios from 'axios';
 
-const API_URL = process.env.NODE_ENV === 'production' 
-  ? 'https://api.yourdomain.com/api' 
-  : 'http://localhost:3000/api';
+import { API_URL } from '../../api/config';
+
+const API_BASE = API_URL.replace('/api', '');
 
 // Get auth headers
 const getAuthHeaders = () => {

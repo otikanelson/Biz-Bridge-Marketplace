@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import ServiceCard from '../../components/cards/ServiceCard';
+import { API_URL } from '../../api/config';
 
 // API service functions for managing artisan's services
 const getMyServices = async () => {
@@ -13,7 +14,7 @@ const getMyServices = async () => {
     }
 
     console.log('🔄 Fetching artisan services from API...');
-    const response = await fetch('http://localhost:3000/api/services/my-services', {
+    const response = await fetch(`${API_URL}/services/my-services`, {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${token}`,
@@ -52,7 +53,7 @@ const deleteService = async (serviceId) => {
     }
 
     console.log('🗑️ Deleting service:', serviceId);
-    const response = await fetch(`http://localhost:3000/api/services/${serviceId}`, {
+    const response = await fetch(`${API_URL}/services/${serviceId}`, {
       method: 'DELETE',
       headers: {
         'Authorization': `Bearer ${token}`,

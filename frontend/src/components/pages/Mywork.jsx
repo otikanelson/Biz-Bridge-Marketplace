@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { getMyWork, confirmBooking, startWork, completeWork } from '../../../../backend/src/api/Bookings';
+import { getMyWork, confirmBooking, startWork, completeWork } from '../../api/bookings';
 
 const MyWork = () => {
   const { userType, logout } = useAuth();
