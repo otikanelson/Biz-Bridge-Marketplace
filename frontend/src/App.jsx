@@ -20,7 +20,7 @@ import Unauthorized from './components/pages/Unauthorized';
 import ServiceRequestInbox from './components/pages/ServiceRequestInbox';
 import CustomerRequestHistory from './components/pages/CustomerRequestHistory';
 import MyBookings from './components/pages/MyBookings';
-import MyWork from './components/pages/MyWork';
+import MyWork from './components/pages/Mywork';
 import ProtectedRoute from './components/ProtectedRoute';
 // ... other imports and components
 
