@@ -24,7 +24,7 @@ This design covers the core setup and infrastructure phase including:
 
 - **Framework**: Expo SDK 50+ (latest stable)
 - **Language**: TypeScript 5.x with strict mode
-- **Navigation**: React Navigation v6
+- **Navigation**: Expo Router (file-based routing)
 - **HTTP Client**: Axios 1.x
 - **Storage**: @react-native-async-storage/async-storage
 - **UI Library**: React Native Paper 5.x
@@ -79,7 +79,41 @@ mobile/
 ├── app.json                    # Expo configuration
 ├── tsconfig.json              # TypeScript configuration
 ├── package.json               # Dependencies
-├── App.tsx                    # Root component
+├── app/                       # Expo Router app directory
+│   ├── _layout.tsx           # Root layout
+│   ├── index.tsx             # Entry point
+│   ├── (auth)/               # Auth group
+│   │   ├── _layout.tsx      # Auth layout
+│   │   ├── login.tsx        # Login screen
+│   │   ├── register-choice.tsx
+│   │   ├── register-customer.tsx
+│   │   └── register-artisan.tsx
+│   ├── (customer)/           # Customer group (tabs)
+│   │   ├── _layout.tsx      # Customer tabs layout
+│   │   ├── index.tsx        # Home
+│   │   ├── search.tsx       # Search
+│   │   ├── bookings.tsx     # My Bookings
+│   │   ├── requests.tsx     # My Requests
+│   │   └── profile.tsx      # Profile
+│   ├── (artisan)/            # Artisan group (tabs)
+│   │   ├── _layout.tsx      # Artisan tabs layout
+│   │   ├── index.tsx        # Dashboard
+│   │   ├── my-work.tsx      # My Work
+│   │   ├── inbox.tsx        # Request Inbox
+│   │   ├── services.tsx     # My Services
+│   │   └── profile.tsx      # Profile
+│   ├── service/              # Service screens
+│   │   ├── [id].tsx         # Service details
+│   │   ├── add.tsx          # Add service
+│   │   └── edit/[id].tsx    # Edit service
+│   ├── booking/              # Booking screens
+│   │   ├── [id].tsx         # Booking details
+│   │   └── create.tsx       # Create booking
+│   ├── request/              # Request screens
+│   │   └── [id].tsx         # Request details
+│   └── profile/              # Profile screens
+│       ├── edit.tsx         # Edit profile
+│       └── change-password.tsx
 ├── src/
 │   ├── constants/             # Static configuration
 │   │   ├── api.ts            # API endpoints and base URL
@@ -90,7 +124,6 @@ mobile/
 │   ├── types/                 # TypeScript definitions
 │   │   ├── models.ts         # Data model interfaces
 │   │   ├── api.ts            # API request/response types
-│   │   ├── navigation.ts     # Navigation param types
 │   │   └── theme.ts          # Theme configuration types
 │   ├── theme/                 # Theme system
 │   │   ├── colors.ts         # Color palette
@@ -126,18 +159,6 @@ mobile/
 │   │   ├── useProfile.ts     # Profile operations
 │   │   ├── useSearch.ts      # Search and filtering
 │   │   └── useTheme.ts       # Theme management
-│   ├── screens/               # Screen components
-│   │   ├── auth/             # Authentication screens
-│   │   ├── customer/         # Customer screens
-│   │   ├── artisan/          # Artisan screens
-│   │   ├── shared/           # Shared screens
-│   │   └── profile/          # Profile screens
-│   ├── navigation/            # Navigation configuration
-│   │   ├── AppNavigator.tsx  # Root navigator
-│   │   ├── AuthNavigator.tsx # Auth stack
-│   │   ├── CustomerNavigator.tsx  # Customer tabs
-│   │   ├── ArtisanNavigator.tsx   # Artisan tabs
-│   │   └── linking.ts        # Deep linking config
 │   ├── services/              # API services
 │   │   ├── api.ts            # Axios instance
 │   │   ├── auth.service.ts   # Auth endpoints

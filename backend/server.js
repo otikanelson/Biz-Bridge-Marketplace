@@ -65,12 +65,16 @@ await connectDB();
 
 // CORS Configuration
 const corsOptions = {
-  origin: [
-    'http://localhost:5173', 
-    'http://localhost:5174',
-    'http://localhost:3000',
-    process.env.FRONTEND_URL
-  ].filter(Boolean),
+  origin: (origin, callback) => {
+    // Allow requests with no origin (mobile apps, curl, Postman)
+    // and any localhost/LAN origin for development
+    if (!origin || origin.includes('localhost') || origin.includes('192.168.') || origin.includes('10.0.') || origin.includes('172.')) {
+      return callback(null, true);
+    }
+    const allowed = [process.env.FRONTEND_URL].filter(Boolean);
+    if (allowed.includes(origin)) return callback(null, true);
+    callback(new Error('Not allowed by CORS'));
+  },
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
   credentials: true
