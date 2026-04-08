@@ -61,13 +61,16 @@ const connectDB = async () => {
 };
 
 // Connect to database
-await connectDB();
+let isConnected = false;
+const ensureConnected = async () => {
+  if (isConnected) return;
+  await connectDB();
+  isConnected = true;
+};
 
 // CORS Configuration
 const corsOptions = {
   origin: (origin, callback) => {
-    // Allow requests with no origin (mobile apps, curl, Postman)
-    // and any localhost/LAN origin for development
     if (!origin || origin.includes('localhost') || origin.includes('192.168.') || origin.includes('10.0.') || origin.includes('172.')) {
       return callback(null, true);
     }
@@ -81,6 +84,16 @@ const corsOptions = {
 };
 
 app.use(cors(corsOptions));
+
+// Ensure DB is connected on each request (serverless-safe)
+app.use(async (req, res, next) => {
+  try {
+    await ensureConnected();
+    next();
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Database connection failed' });
+  }
+});
 
 // Middleware
 app.use(express.json({ limit: '10mb' }));
@@ -204,26 +217,16 @@ app.use((err, req, res, next) => {
 
 // Graceful shutdown
 process.on('SIGINT', async () => {
-  console.log('\n🛑 Received SIGINT. Graceful shutdown...');
   await mongoose.connection.close();
-  console.log('📴 MongoDB connection closed.');
   process.exit(0);
 });
 
+// Start server locally or export for serverless
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
-  console.log('\n🚀 ================================');
-  console.log(`🚀 BizBridge Server Started!`);
-  console.log(`🚀 Port: ${PORT}`);
-  console.log(`🚀 Environment: ${process.env.NODE_ENV}`);
-  console.log(`🚀 API URL: http://localhost:${PORT}`);
-  console.log('🚀 ================================');
-  console.log('🔥 NEW FEATURES AVAILABLE:');
-  console.log('   📝 Service Requests System');
-  console.log('   📅 Enhanced Booking Management');
-  console.log('   💬 In-app Messaging');
-  console.log('   ⭐ Dual Review System');
-  console.log('   🎯 Project Milestones');
-  console.log('   📊 Booking Analytics');
-  console.log('🚀 ================================\n');
-});
+if (process.env.NODE_ENV !== 'production') {
+  app.listen(PORT, () => {
+    console.log(`🚀 BizBridge Server running on port ${PORT}`);
+  });
+}
+
+export default app;
