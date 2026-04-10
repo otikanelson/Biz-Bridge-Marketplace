@@ -17,8 +17,9 @@ import authRoutes from './src/routes/authRoutes.js';
 import serviceRoutes from './src/routes/serviceRoutes.js';
 import userRoutes from './src/routes/userRoutes.js';
 import profileRoutes from './src/routes/profileRoutes.js';
-import serviceRequestRoutes from './src/routes/serviceRequestRoutes.js';  // ✅ NEW
-import bookingRoutes from './src/routes/bookingRoutes.js';              // ✅ ENHANCED
+import serviceRequestRoutes from './src/routes/serviceRequestRoutes.js';
+import bookingRoutes from './src/routes/bookingRoutes.js';
+import seedRoutes from './src/routes/seedRoutes.js';
 
 const app = express();
 
@@ -91,8 +92,9 @@ app.use('/api/auth', authRoutes);
 app.use('/api/services', serviceRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/profiles', profileRoutes);
-app.use('/api/service-requests', serviceRequestRoutes);  // ✅ NEW: Service request system
-app.use('/api/bookings', bookingRoutes);                // ✅ ENHANCED: Enhanced booking system
+app.use('/api/service-requests', serviceRequestRoutes);
+app.use('/api/bookings', bookingRoutes);
+app.use('/api/seed', seedRoutes);
 
 // Health check route
 app.get('/api/health', (req, res) => {
