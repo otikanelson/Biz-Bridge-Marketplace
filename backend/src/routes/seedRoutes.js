@@ -8,8 +8,8 @@ const router = express.Router();
 
 const SEED_SECRET = process.env.SEED_SECRET || 'bizbridge-seed-2024';
 
-// POST /api/seed?secret=bizbridge-seed-2024
-router.post('/', async (req, res) => {
+// GET /api/seed?secret=bizbridge-seed-2024
+router.get('/', async (req, res) => {
   try {
     const { secret } = req.query;
     if (secret !== SEED_SECRET) {
