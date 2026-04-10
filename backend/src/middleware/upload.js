@@ -7,8 +7,9 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Create uploads directories if they don't exist
+// Create uploads directories if they don't exist (local dev only)
 const createUploadDirs = () => {
+  if (process.env.NODE_ENV === 'production') return;
   const dirs = [
     path.join(__dirname, '../../uploads'),
     path.join(__dirname, '../../uploads/profiles'),
@@ -17,9 +18,13 @@ const createUploadDirs = () => {
   ];
 
   dirs.forEach(dir => {
-    if (!fs.existsSync(dir)) {
-      fs.mkdirSync(dir, { recursive: true });
-      console.log(`✅ Created directory: ${dir}`);
+    try {
+      if (!fs.existsSync(dir)) {
+        fs.mkdirSync(dir, { recursive: true });
+        console.log(`✅ Created directory: ${dir}`);
+      }
+    } catch (e) {
+      console.warn(`⚠️ Could not create directory ${dir}:`, e.message);
     }
   });
 };

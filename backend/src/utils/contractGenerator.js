@@ -455,8 +455,12 @@ export const generateContractPDF = async (contractText, booking) => {
     const contractsDir = path.join('uploads', 'contracts');
     
     // Ensure directory exists
-    if (!fs.existsSync(contractsDir)) {
-      fs.mkdirSync(contractsDir, { recursive: true });
+    try {
+      if (!fs.existsSync(contractsDir)) {
+        fs.mkdirSync(contractsDir, { recursive: true });
+      }
+    } catch (e) {
+      console.warn('Could not create contracts directory:', e.message);
     }
     
     const filepath = path.join(contractsDir, filename);

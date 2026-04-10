@@ -25,45 +25,18 @@ const app = express();
 // MongoDB Connection Function
 const connectDB = async () => {
   try {
-    const conn = await mongoose.connect(process.env.MONGO_URI, {
-      useNewUrlParser: true,
-      useUnifiedTopology: true,
-    });
-    
-    console.log(`✅ MongoDB Connected Successfully!`);
-    console.log(`📍 Database Host: ${conn.connection.host}`);
-    console.log(`📊 Database Name: ${conn.connection.name}`);
-    
-    // Listen for connection events
-    mongoose.connection.on('connected', () => {
-      console.log('🔗 Mongoose connected to DB');
-    });
-    
-    mongoose.connection.on('error', (err) => {
-      console.error('❌ Mongoose connection error:', err);
-    });
-    
-    mongoose.connection.on('disconnected', () => {
-      console.log('⚠️ Mongoose disconnected');
-    });
-    
+    await mongoose.connect(process.env.MONGO_URI);
+    console.log('✅ MongoDB Connected');
   } catch (error) {
-    console.error('❌ MongoDB Connection Failed!');
-    console.error('Error details:', error.message);
-    
-    if (error.message.includes('ECONNREFUSED')) {
-      console.log('🔧 Make sure MongoDB is running on your machine');
-      console.log('💡 Start MongoDB with: mongod --dbpath /your/db/path');
-    }
-    
-    process.exit(1);
+    console.error('❌ MongoDB Connection Failed:', error.message);
+    throw error; // let the request handler return a 500 instead of killing the process
   }
 };
 
-// Connect to database
+// Serverless-safe connection caching
 let isConnected = false;
 const ensureConnected = async () => {
-  if (isConnected) return;
+  if (isConnected && mongoose.connection.readyState === 1) return;
   await connectDB();
   isConnected = true;
 };
