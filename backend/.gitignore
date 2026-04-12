@@ -5,3 +5,4 @@ uploads/*
 !uploads/profiles/.gitkeep
 !uploads/services/.gitkeep
 !uploads/cac/.gitkeep
+.env.example
