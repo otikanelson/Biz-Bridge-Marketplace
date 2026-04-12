@@ -45,11 +45,23 @@ const ensureConnected = async () => {
 // CORS Configuration
 const corsOptions = {
   origin: (origin, callback) => {
-    if (!origin || origin.includes('localhost') || origin.includes('192.168.') || origin.includes('10.0.') || origin.includes('172.')) {
+    // Allow requests with no origin (mobile apps, Postman, etc.)
+    if (!origin) return callback(null, true);
+    
+    // Allow localhost and local network
+    if (origin.includes('localhost') || origin.includes('192.168.') || origin.includes('10.0.') || origin.includes('172.')) {
       return callback(null, true);
     }
+    
+    // Allow Vercel deployments
+    if (origin.includes('vercel.app')) {
+      return callback(null, true);
+    }
+    
+    // Allow specific frontend URL from env
     const allowed = [process.env.FRONTEND_URL].filter(Boolean);
     if (allowed.includes(origin)) return callback(null, true);
+    
     callback(new Error('Not allowed by CORS'));
   },
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
