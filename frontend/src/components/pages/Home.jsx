@@ -317,7 +317,7 @@ const HomePage = () => {
                   </button>
                 </div>
               ) : featuredServices.length > 0 ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-4">
                   {featuredServices.map(service => (
                     <div key={service._id || service.id} >
                       <ServiceCard 
@@ -376,7 +376,7 @@ const HomePage = () => {
                   </button>
                 </div>
               ) : featuredServices.length > 0 ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-4">
                   {featuredServices.map(service => (
                     <div key={service._id || service.id} >
                       <ServiceCard 
@@ -434,7 +434,7 @@ const HomePage = () => {
                   </button>
                 </div>
               ) : featuredServices.length > 0 ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-4">
                   {featuredServices.map(service => (
                     <div key={service._id || service.id} >
                       <ServiceCard 

@@ -136,8 +136,8 @@ const ServiceCard = ({ service, showControls = false }) => {
       onClick={handleViewDetails}
       className="bg-white rounded-lg shadow-sm border hover:shadow-lg transition-all duration-200 cursor-pointer overflow-hidden group"
     >
-      {/* Compact Image */}
-      <div className="relative h-32 overflow-hidden">
+      {/* Taller Image */}
+      <div className="relative h-48 overflow-hidden">
         {getServiceImage() ? (
           <img 
             src={getServiceImage()} 
@@ -228,7 +228,7 @@ const ServiceListing = ({ services }) => {
     <div className="container mx-auto px-4 py-8">
       <h2 className="text-2xl font-bold text-gray-900 mb-6">Available Services</h2>
       
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-4">
         {services.map(service => (
           <ServiceCard 
             key={service._id} 
