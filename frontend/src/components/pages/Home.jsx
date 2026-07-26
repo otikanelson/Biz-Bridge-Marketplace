@@ -10,6 +10,10 @@ import announcement from '../../assets/announcement.png';
 import ServiceCard from '../../components/cards/ServiceCard';
 import { getFeaturedServices } from '../../api/search';
 
+// Stock hero image (Unsplash, free to use / no attribution required)
+const heroImage =
+  'https://images.unsplash.com/photo-1736143157411-0a70fe999ecb?q=80&w=1920&auto=format&fit=crop';
+
 const HomePage = () => {
   const navigate = useNavigate();
   const { isAuthenticated, userType, logout } = useAuth();
@@ -284,19 +288,51 @@ const HomePage = () => {
 
       {/* Main Content */}
       <main className="flex-grow bg-white pt-24">
+
+        {/* ✅ HERO SECTION (stock image banner) */}
+        <section className="relative h-[480px] md:h-[560px] overflow-hidden">
+          <img
+            src={heroImage}
+            alt="Artisan crafting handmade pottery"
+            className="absolute inset-0 w-full h-full object-cover"
+          />
+          <div className="absolute inset-0 bg-gradient-to-r from-black/85 via-black/50 to-transparent" />
+
+          <div className="relative z-10 h-full flex items-center">
+            <div className="container mx-auto px-4">
+              <div className="max-w-2xl text-white">
+                <span className="inline-block bg-yellow-400 text-black text-xs font-bold uppercase tracking-wide px-3 py-1 rounded mb-4">
+                  Trusted by 1,000+ artisans across Lagos
+                </span>
+                <h1 className="text-4xl md:text-5xl font-extrabold mb-4 leading-tight">
+                  Discover Nigeria's <span className="text-yellow-300">Finest Artisans</span>
+                </h1>
+                <p className="text-lg mb-8 text-gray-200 max-w-lg">
+                  From handwoven baskets to custom furniture — connect with skilled
+                  craftsmen near you and bring authentic, handmade work into your life.
+                </p>
+                <div className="flex flex-wrap gap-4">
+                  <button
+                    onClick={handleGetStarted}
+                    className="bg-yellow-400 hover:bg-yellow-300 text-black font-bold py-3 px-8 rounded-lg transition shadow-lg"
+                  >
+                    Start Shopping Now
+                  </button>
+                  <button
+                    onClick={handleJoinAsArtisan}
+                    className="bg-transparent border-2 border-white hover:bg-white hover:text-black text-white font-bold py-3 px-8 rounded-lg transition"
+                  >
+                    Join as Artisan
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
         {/* ✅ HERO SECTION WITH FEATURED SERVICES */}
         <section className="bg-gradient-to-r from-red-500 to-orange-800 text-white py-8">
           <div className="container mx-auto px-4">
-            {/* Hero Text */}
-            <div className="text-center mb-8">
-              <h1 className="text-4xl font-bold mb-4">
-                Discover Nigeria's <span className="text-yellow-300">Finest Artisans</span>
-              </h1>
-              <p className="text-lg mb-6 opacity-90">
-                Connect with skilled craftsmen and bring authentic handmade creations to your life
-              </p>
-            </div>
-
             {/* Services Grid */}
             <div className="bg-white bg-opacity-10 backdrop-blur-sm rounded-lg p-6">
               <h2 className="text-2xl font-bold mb-6 text-center">All Services</h2>
