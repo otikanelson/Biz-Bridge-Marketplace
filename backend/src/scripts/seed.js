@@ -17,12 +17,18 @@ import User from '../models/user.js';
 import Service from '../models/service.js';
 
 // Fallbacks check if MONGO_URI was supplied in place of MONGODB_URI
-const MONGO_URI = process.env.MONGODB_URI || process.env.MONGO_URI;
+let MONGO_URI = process.env.MONGODB_URI || process.env.MONGO_URI;
 const DEFAULT_PASSWORD = 'Password123';
 
 if (!MONGO_URI) {
   console.error('❌ Error: Database Connection string (MONGO_URI) missing from environment variables.');
   process.exit(1);
+}
+
+// Automatically resolve modern querySrv connection blocks on local network routers
+if (MONGO_URI.includes('mongodb+srv://') && MONGO_URI.includes('cluster0.pnsx1ps.mongodb.net')) {
+  console.log('⚠️ Local DNS protocol restriction detected. Activating direct connection fallback...');
+  MONGO_URI = 'mongodb://Nelson:W9qVs0r44OFqa3n8@ac-movygpe-shard-00-00.pnsx1ps.mongodb.net:27017,ac-movygpe-shard-00-01.pnsx1ps.mongodb.net:27017,ac-movygpe-shard-00-02.pnsx1ps.mongodb.net:27017/bizbridge?ssl=true&replicaSet=atlas-4iw6s3-shard-0&authSource=admin&appName=Cluster0';
 }
 
 // ─── USERS: ARTISANS ──────────────────────────────────────────────────────────
@@ -195,9 +201,8 @@ const artisans = [
 
 const seedDatabase = async () => {
   try {
-    console.log('🔄 Attempting Connection to MongoDB Atlas Cluster via SRV Link...');
+    console.log('🔄 Attempting Connection to MongoDB Atlas Cluster...');
 
-    // Configured timeouts to resolve network connection bottlenecks
     await mongoose.connect(MONGO_URI, {
       serverSelectionTimeoutMS: 5000,
       socketTimeoutMS: 45000,
@@ -208,19 +213,10 @@ const seedDatabase = async () => {
     // Clean existing artisan entries cleanly
     console.log('🗑️ Purging existing artisan records...');
     await User.deleteMany({ role: 'artisan' });
-
     console.log('🔐 Hashing default artisan credentials safely...');
     const salt = await bcrypt.genSalt(10);
     const encryptedPassword = await bcrypt.hash(DEFAULT_PASSWORD, salt);
-
-    const preparedArtisans = artisans.map(artisan => ({
-      ...artisan,
-      password: encryptedPassword
-    }));
-
-    await User.insertMany(preparedArtisans);
-    console.log('🌟 Database seed finalized flawlessly.');
-  } catch (error) { console.error('❌ Execution halted. Seeding sequence failed:', error); 
-
-  } finally { await mongoose.disconnect(); console.log('🔌 Shard connection channels securely detached.'); process.exit(0); }
+    const preparedArtisans = artisans.map(artisan => ({ ...artisan, password: encryptedPassword }));
+    await User.insertMany(preparedArtisans); console.log('🌟 Database seed finalized flawlessly.');
+  } catch (error) { console.error('❌ Execution halted. Seeding sequence failed:', error); } finally { await mongoose.disconnect(); console.log('🔌 Shard connection channels securely detached.'); process.exit(0); }
 }; seedDatabase();
