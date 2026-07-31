@@ -1,15 +1,12 @@
 {
-  "name": "backend",
+  "name": "bizbridge-backend",
   "version": "1.0.0",
   "type": "module",
-  "description": "BizBridge backend API",
-  "main": "server.js",
   "scripts": {
-    "start": "node server.js",
-    "dev": "npx nodemon server.js",
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "migrate": "node --dns-result-order=ipv4first src/scripts/migrate-add-featured-popular.js",
-    "seed": "node --dns-result-order=ipv4first src/scripts/seed.js"
+    "start": "node src/server.js",
+    "dev": "nodemon src/server.js",
+    "seed": "node src/scripts/seed.js",
+    "migrate": "node src/scripts/migrateNoPaymentSystem.js"
   },
   "keywords": [
     "biz-bridge",

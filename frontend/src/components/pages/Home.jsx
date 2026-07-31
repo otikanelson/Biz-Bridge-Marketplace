@@ -12,6 +12,7 @@ import { getFeaturedServices } from '../../api/search';
 import AppHeader from '../layout/AppHeader';
 import Footer from '../layout/Footer';
 
+
 const heroImage =
   'https://images.unsplash.com/photo-1736143157411-0a70fe999ecb?q=80&w=1920&auto=format&fit=crop';
 
@@ -82,7 +83,6 @@ const HomePage = () => {
     navigate(`/services?category=${encodeURIComponent(category)}`);
   };
 
-  // Load services from the database and split into All / Popular / Featured
   useEffect(() => {
     const loadServices = async () => {
       setIsLoading(true);
@@ -112,10 +112,14 @@ const HomePage = () => {
     loadServices();
   }, []);
 
-  const popularServices = allActiveServices.filter(s => s.popular?.isPopular);
-  const featuredServices = allActiveServices.filter(s => s.featured?.isFeatured);
+  const popularServices = allActiveServices.filter(
+    s => s.isPopular || s.popular?.isPopular || (s.ratings?.average && s.ratings.average >= 4.7)
+  );
 
-  // Search handler for navbar search
+  const featuredServices = allActiveServices.filter(
+    s => s.isFeatured || s.featured?.isFeatured || s.artisan?.featured?.isFeatured
+  );
+
   const handleSearch = () => {
     const searchParams = new URLSearchParams();
 
@@ -152,7 +156,6 @@ const HomePage = () => {
       navigate('/signup?type=artisan');
     }
   };
-
 
   const renderServiceGrid = (list, emptyTitle, emptyBody) => {
     if (isLoading) {
@@ -214,12 +217,8 @@ const HomePage = () => {
         activePage="home"
       />
 
-
-
-      {/* Main Content */}
       <main className="flex-grow bg-white">
-
-        {/* ✅ HERO SECTION (stock image banner) */}
+        {/* HERO SECTION */}
         <section className="relative h-[440px] xs:h-[480px] sm:h-[480px] md:h-[560px] overflow-hidden">
           <img
             src={heroImage}
@@ -260,7 +259,7 @@ const HomePage = () => {
           </div>
         </section>
 
-        {/* ✅ ALL SERVICES */}
+        {/* ALL SERVICES */}
         <section className="bg-gradient-to-r from-red-500 to-orange-800 text-white py-8">
           <div className="container mx-auto px-4">
             <div className="bg-white bg-opacity-10 backdrop-blur-sm rounded-lg p-4 sm:p-6">
@@ -284,17 +283,17 @@ const HomePage = () => {
           </div>
         </section>
 
-        {/* ✅ POPULAR SERVICES — driven by service.popular.isPopular */}
+        {/* POPULAR SERVICES */}
         <section className="bg-gradient-to-r from-red-500 to-orange-800 text-white pb-4">
           <div className="container mx-auto px-4">
             <div className="bg-white bg-opacity-10 backdrop-blur-sm rounded-lg p-4 sm:p-6">
               <h2 className="text-xl sm:text-2xl font-bold mb-6 text-center">Popular Services</h2>
               {renderServiceGrid(
-                popularServices,
+                popularServices.length > 0 ? popularServices : allActiveServices.slice(0, 5),
                 'No popular services yet',
                 'Check back soon — popular picks are updated as bookings come in!'
               )}
-              {popularServices.length > 0 && (
+              {allActiveServices.length > 0 && (
                 <div className="text-center mt-8">
                   <button
                     onClick={handleViewAllServices}
@@ -308,17 +307,17 @@ const HomePage = () => {
           </div>
         </section>
 
-        {/* ✅ FEATURED SERVICES — driven by service.featured.isFeatured */}
+        {/* FEATURED SERVICES */}
         <section className="bg-gradient-to-r from-red-500 to-orange-800 text-white py-4">
           <div className="container mx-auto px-4">
             <div className="bg-white bg-opacity-10 backdrop-blur-sm rounded-lg p-4 sm:p-6">
               <h2 className="text-xl sm:text-2xl font-bold mb-6 text-center">Featured Services</h2>
               {renderServiceGrid(
-                featuredServices,
+                featuredServices.length > 0 ? featuredServices : allActiveServices.slice(0, 5),
                 'No featured services yet',
                 'Check back soon for amazing services from our artisans!'
               )}
-              {featuredServices.length > 0 && (
+              {allActiveServices.length > 0 && (
                 <div className="text-center mt-8">
                   <button
                     onClick={handleViewAllServices}

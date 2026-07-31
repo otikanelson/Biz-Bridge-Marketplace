@@ -1,10 +1,8 @@
 import mongoose from 'mongoose';
 import dotenv from 'dotenv';
 
-// Load environment variables
 dotenv.config();
 
-// Import models (assuming you have these paths)
 import Service from '../models/service.js';
 import Booking from '../models/booking.js';
 import ServiceRequest from '../models/serviceRequest.js';
@@ -40,7 +38,6 @@ class MigrationManager {
     console.log('\n🔄 Starting Service Migration...');
     
     try {
-      // Get all existing services
       const services = await mongoose.connection.db.collection('services').find({}).toArray();
       console.log(`📊 Found ${services.length} services to migrate`);
 
@@ -48,10 +45,8 @@ class MigrationManager {
         try {
           this.migrationStats.services.processed++;
           
-          // Create new pricing structure based on existing price
           const newPricingStructure = this.convertServicePricing(service);
           
-          // Update the service with new structure
           await mongoose.connection.db.collection('services').updateOne(
             { _id: service._id },
             {
@@ -61,7 +56,7 @@ class MigrationManager {
                 breakdownSupported: this.supportsBreakdown(service.category)
               },
               $unset: {
-                price: "" // Remove old price field
+                price: ""
               }
             }
           );
@@ -90,16 +85,13 @@ class MigrationManager {
   }
 
   convertServicePricing(service) {
-    // Convert old price string to new pricing structure
     const oldPrice = service.price || '';
     
-    // Try to extract numeric value from price string
     const numericMatch = oldPrice.match(/[\d,]+/);
     const hasNumericPrice = numericMatch && !oldPrice.toLowerCase().includes('negotiat');
     
     if (hasNumericPrice) {
-      // Convert to fixed pricing
-      const price = parseInt(numericMatch[0].replace(/,/g, ''));
+      const price = parseInt(numericMatch[0].replace(/,/g, ''), 10);
       return {
         type: 'fixed',
         basePrice: price,
@@ -108,7 +100,6 @@ class MigrationManager {
         description: `Converted from: ${oldPrice}`
       };
     } else if (this.supportsBreakdown(service.category)) {
-      // Convert supported categories to categorized pricing with default categories
       return {
         type: 'categorized',
         categories: this.getDefaultCategories(service.category),
@@ -116,7 +107,6 @@ class MigrationManager {
         description: 'Converted to categorized pricing - please update categories as needed'
       };
     } else {
-      // Convert to negotiate pricing
       return {
         type: 'negotiate',
         currency: 'NGN',
@@ -169,7 +159,6 @@ class MigrationManager {
         try {
           this.migrationStats.bookings.processed++;
           
-          // Convert booking to simplified structure
           const updatedBooking = this.convertBookingStructure(booking);
           
           await mongoose.connection.db.collection('bookings').updateOne(
@@ -204,10 +193,8 @@ class MigrationManager {
   }
 
   convertBookingStructure(booking) {
-    // Determine new status based on old status
     const newStatus = this.convertBookingStatus(booking.status);
     
-    // Create agreement structure
     const agreement = {
       contractAccepted: {
         customer: false,
@@ -222,7 +209,6 @@ class MigrationManager {
       bothPartiesAccepted: false
     };
 
-    // Create simplified status history
     const statusHistory = [{
       status: newStatus,
       changedBy: booking.artisan,
@@ -230,7 +216,6 @@ class MigrationManager {
       reason: 'Migrated from old system'
     }];
 
-    // Initialize dispute as not disputed
     const dispute = {
       isDisputed: false
     };
@@ -240,9 +225,8 @@ class MigrationManager {
       agreement,
       dispute,
       statusHistory,
-      // Keep existing fields that are still relevant
       scheduledDate: booking.scheduledDate || {
-        startDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) // Default to 1 week from now
+        startDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
       },
       location: booking.location || {},
       messages: booking.messages || [],
@@ -255,7 +239,6 @@ class MigrationManager {
   }
 
   convertBookingStatus(oldStatus) {
-    // Map old complex statuses to new simple ones
     const statusMapping = {
       'pending': 'in_progress',
       'confirmed': 'in_progress',
@@ -263,7 +246,7 @@ class MigrationManager {
       'pending_review': 'in_progress',
       'completed': 'completed',
       'cancelled': 'cancelled',
-      'disputed': 'in_progress', // Disputes are now handled separately
+      'disputed': 'in_progress',
       'expired': 'cancelled'
     };
 
@@ -271,7 +254,6 @@ class MigrationManager {
   }
 
   getFieldsToRemove() {
-    // Remove all payment-related and complex status fields
     return {
       pricing: "",
       paymentTerms: "",
@@ -282,8 +264,7 @@ class MigrationManager {
       paymentDetails: "",
       refundAmount: "",
       refundProcessed: "",
-      milestones: "", // Remove complex milestone system
-      // Add any other payment-related fields you want to remove
+      milestones: ""
     };
   }
 
@@ -299,9 +280,8 @@ class MigrationManager {
         try {
           this.migrationStats.serviceRequests.processed++;
           
-          // Add selectedCategory field for categorized services
           const updateData = {
-            selectedCategory: null // Will be set when customer makes new requests
+            selectedCategory: null
           };
 
           await mongoose.connection.db.collection('servicerequests').updateOne(
@@ -335,7 +315,6 @@ class MigrationManager {
     try {
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
       
-      // Export collections to backup
       const services = await mongoose.connection.db.collection('services').find({}).toArray();
       const bookings = await mongoose.connection.db.collection('bookings').find({}).toArray();
       const serviceRequests = await mongoose.connection.db.collection('servicerequests').find({}).toArray();
@@ -347,7 +326,6 @@ class MigrationManager {
         serviceRequests
       };
 
-      // In a real environment, you'd save this to a file or backup service
       console.log(`✅ Backup created with ${services.length + bookings.length + serviceRequests.length} total documents`);
       console.log(`   📁 Backup timestamp: ${timestamp}`);
       
@@ -363,13 +341,11 @@ class MigrationManager {
     console.log('\n🔍 Validating migration results...');
     
     try {
-      // Check services
       const servicesWithPricing = await mongoose.connection.db.collection('services').countDocuments({
         'pricing.type': { $exists: true }
       });
       const totalServices = await mongoose.connection.db.collection('services').countDocuments({});
       
-      // Check bookings
       const bookingsWithAgreement = await mongoose.connection.db.collection('bookings').countDocuments({
         'agreement': { $exists: true }
       });
@@ -401,18 +377,14 @@ class MigrationManager {
     try {
       await this.connect();
       
-      // Create backup
       await this.createBackup();
       
-      // Run migrations
       await this.migrateServices();
       await this.migrateBookings();
       await this.migrateServiceRequests();
       
-      // Validate results
       const isValid = await this.validateMigration();
       
-      // Print final summary
       this.printFinalSummary(isValid);
       
       await this.disconnect();
@@ -436,7 +408,6 @@ class MigrationManager {
   }
 }
 
-// ========== EXECUTION ==========
 async function runMigration() {
   const migrationManager = new MigrationManager();
   
@@ -449,7 +420,6 @@ async function runMigration() {
   }
 }
 
-// Run if this file is executed directly
 if (import.meta.url === `file://${process.argv[1]}`) {
   runMigration();
 }
