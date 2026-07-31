@@ -3,6 +3,8 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { getMyWork, confirmBooking, startWork, completeWork } from '../../api/bookings';
+import SimpleHeader from '../layout/SimpleHeader';
+import Footer from '../layout/Footer';
 
 const MyWork = () => {
   const { userType, logout } = useAuth();
@@ -147,43 +149,7 @@ const MyWork = () => {
 
   return (
     <div className="flex flex-col min-h-screen">
-      {/* Header */}
-      <header className="bg-black text-white sticky top-0 z-50">
-        <div className="py-4">
-          <div className="container mx-auto px-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center">
-                <span onClick={() => navigate('/')} className="text-red-500 text-5xl select-none font-bold cursor-pointer">𐐒</span>
-                <span onClick={() => navigate('/')} className="text-white text-4xl select-none font-bold cursor-pointer">B</span>
-                <span onClick={() => navigate('/')} className="text-red-500 text-2xl select-none cursor-pointer font-semibold ml-5">BizBridge</span>
-              </div>
-
-              <div className="flex items-center space-x-6">
-                <div className="text-xs cursor-pointer hover:text-red-400" onClick={() => navigate('/dashboard')}>
-                  <div>Your</div>
-                  <div className="font-bold">Dashboard</div>
-                </div>
-                <div className="text-xs cursor-pointer hover:text-red-400" onClick={() => navigate('/ServicesManagement')}>
-                  <div>Your</div>
-                  <div className="font-bold">Services</div>
-                </div>
-                <div className="text-xs cursor-pointer hover:text-red-400" onClick={() => navigate('/service-requests/inbox')}>
-                  <div>Service</div>
-                  <div className="font-bold">Requests</div>
-                </div>
-                <div className="text-xs cursor-pointer hover:text-red-400" onClick={() => navigate('/profile')}>
-                  <div>Your</div>
-                  <div className="font-bold">Profile</div>
-                </div>
-                <div className="text-xs cursor-pointer hover:text-red-400" onClick={handleLogout}>
-                  <div>Sign</div>
-                  <div className="font-bold">Out</div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </header>
+      <SimpleHeader activePage="" />
 
       {/* Main Content */}
       <main className="flex-1 bg-gray-50 py-8">
@@ -478,19 +444,7 @@ const MyWork = () => {
         </div>
       </main>
 
-      {/* Footer */}
-      <footer className="bg-black text-white py-8 mt-12">
-        <div className="container mx-auto px-4">
-          <div className="text-center">
-            <p>&copy; {new Date().getFullYear()} BizBridge. All rights reserved.</p>
-            <div className="mt-2 flex flex-wrap justify-center">
-              <span onClick={() => navigate('/terms')} className="text-red-400 hover:text-red-500 mx-2 cursor-pointer">Terms of Service</span>
-              <span onClick={() => navigate('/privacy')} className="text-red-400 hover:text-red-500 mx-2 cursor-pointer">Privacy Policy</span>
-              <span onClick={() => navigate('/contact')} className="text-red-400 hover:text-red-500 mx-2 cursor-pointer">Contact Us</span>
-            </div>
-          </div>
-        </div>
-      </footer>
+      <Footer variant="simple" />
     </div>
   );
 };

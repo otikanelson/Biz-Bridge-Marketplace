@@ -1,6 +1,8 @@
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import SimpleHeader from '../layout/SimpleHeader';
+import Footer from '../layout/Footer';
 
 const NotFound = () => {
   const navigate = useNavigate();
@@ -8,27 +10,7 @@ const NotFound = () => {
 
   return (
     <div className="flex flex-col min-h-screen">
-      {/* Header */}
-      <header className="bg-black text-white p-4">
-        <div className="container mx-auto flex justify-between items-center">
-          <div className="flex items-center">
-            <span onClick={() => navigate('/')} className="text-red-500 text-5xl select-none font-bold cursor-pointer">𐐒</span>
-            <span onClick={() => navigate('/')} className="text-white text-4xl select-none font-bold cursor-pointer">B</span>
-            <span onClick={() => navigate('/')} className="text-red-500 text-2xl select-none cursor-pointer font-semibold ml-5">BizBridge</span>
-          </div>
-          <nav className="flex space-x-8">
-            <span onClick={() => navigate('/')} className="hover:text-red-400 cursor-pointer">Home</span>
-            {!isAuthenticated ? (
-              <>
-                <span onClick={() => navigate('/login')} className="hover:text-red-400 cursor-pointer">Login</span>
-                <span onClick={() => navigate('/login?tab=artisanSignup')} className="hover:text-red-400 cursor-pointer">Get Your Service List</span>
-              </>
-            ) : (
-              <span onClick={() => navigate('/dashboard')} className="hover:text-red-400 cursor-pointer">Dashboard</span>
-            )}
-          </nav>
-        </div>
-      </header>
+      <SimpleHeader activePage="" />
 
       {/* Main Content */}
       <div className="bg-white flex-grow flex items-center justify-center py-12 px-4">
@@ -75,14 +57,7 @@ const NotFound = () => {
         </div>
       </div>
 
-      {/* Footer */}
-      <footer className="bg-black text-white py-8 mt-auto">
-        <div className="container mx-auto px-4">
-          <div className="text-center">
-            <p>&copy; {new Date().getFullYear()} BizBridge. All rights reserved.</p>
-          </div>
-        </div>
-      </footer>
+      <Footer variant="simple" />
     </div>
   );
 };

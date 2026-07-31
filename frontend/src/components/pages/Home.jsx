@@ -9,8 +9,9 @@ import abstractArt from '../../assets/abstractArt.jpg';
 import announcement from '../../assets/announcement.png';
 import ServiceCard from '../../components/cards/ServiceCard';
 import { getFeaturedServices } from '../../api/search';
+import AppHeader from '../layout/AppHeader';
+import Footer from '../layout/Footer';
 
-// Stock hero image (Unsplash, free to use / no attribution required)
 const heroImage =
   'https://images.unsplash.com/photo-1736143157411-0a70fe999ecb?q=80&w=1920&auto=format&fit=crop';
 
@@ -18,22 +19,16 @@ const HomePage = () => {
   const navigate = useNavigate();
   const { isAuthenticated, userType, logout } = useAuth();
 
-  // One fetch, three views: the backend flags each service with
-  // `featured.isFeatured` / `popular.isPopular`, so we split client-side
-  // instead of hitting three different endpoints.
   const [allActiveServices, setAllActiveServices] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  // Search states
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('');
   const [selectedLocation, setSelectedLocation] = useState('');
 
-  // Mobile menu state
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  // Job categories
   const categories = [
     'Woodworking', 'Pottery', 'Jewelry Making', 'Textile Art',
     'Leathercraft', 'Metalwork', 'Basket Weaving', 'Beadwork',
@@ -41,13 +36,11 @@ const HomePage = () => {
     'Soap Making', 'Candle Making', 'Hair Braiding & Styling'
   ];
 
-  // Short chip list — the subset shown as quick-tap pills on mobile
   const quickCategories = [
     'Woodworking', 'Pottery', 'Jewelry Making', 'Textile Art',
     'Metalwork', 'Hair Braiding & Styling', 'Basket Weaving', 'Embroidery'
   ];
 
-  // Lagos LGAs
   const locations = [
     'Agege', 'Ajeromi-Ifelodun', 'Alimosho', 'Amuwo-Odofin', 'Badagry',
     'Epe', 'Eti-Osa', 'Ibeju-Lekki', 'Ifako-Ijaiye', 'Ikeja',
@@ -55,7 +48,6 @@ const HomePage = () => {
     'Ojo', 'Oshodi-Isolo', 'Shomolu', 'Surulere', 'Yaba'
   ];
 
-  // Closes the mobile menu, then navigates — used by all mobile menu links
   const goTo = (path) => {
     setMobileMenuOpen(false);
     navigate(path);
@@ -96,8 +88,6 @@ const HomePage = () => {
       setIsLoading(true);
       setError(null);
       try {
-        // Pull a larger batch once; each service carries its own
-        // featured.isFeatured / popular.isPopular flags from the schema.
         const response = await getFeaturedServices(30);
 
         if (response.success && response.services && response.services.length > 0) {
@@ -163,7 +153,7 @@ const HomePage = () => {
     }
   };
 
-  // Reusable renderer so All / Popular / Featured sections stay in sync
+
   const renderServiceGrid = (list, emptyTitle, emptyBody) => {
     if (isLoading) {
       return (
@@ -188,7 +178,7 @@ const HomePage = () => {
     }
     if (list.length > 0) {
       return (
-        <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4">
           {list.map(service => (
             <div key={service._id || service.id}>
               <ServiceCard service={service} showControls={false} />
@@ -213,322 +203,18 @@ const HomePage = () => {
 
   return (
     <div className="flex flex-col min-h-screen">
-      {/* ✅ HEADER — sticky, not fixed, so it always pushes page content down by its real height. */}
-      <header className="bg-black text-white w-full sticky top-0 z-50">
+      <AppHeader
+        searchQuery={searchQuery}
+        setSearchQuery={setSearchQuery}
+        selectedCategory={selectedCategory}
+        setSelectedCategory={setSelectedCategory}
+        selectedLocation={selectedLocation}
+        setSelectedLocation={setSelectedLocation}
+        onSearch={handleSearch}
+        activePage="home"
+      />
 
-        {/* ══════════════ MOBILE HEADER (Amazon-style, 3 stacked bars) ══════════════ */}
-        <div className="md:hidden">
-          {/* Bar 1: hamburger, logo, account, bookings */}
-          <div className="flex items-center justify-between px-2 py-2 gap-1 bg-black">
-            <button
-              onClick={() => setMobileMenuOpen((open) => !open)}
-              className="p-2 text-white active:bg-white/10 rounded-md transition flex-shrink-0"
-              aria-label="Toggle menu"
-              aria-expanded={mobileMenuOpen}
-              aria-controls="mobile-nav-panel"
-            >
-              {mobileMenuOpen ? (
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              ) : (
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-                </svg>
-              )}
-            </button>
 
-            <div className="flex items-center cursor-pointer flex-shrink-0" onClick={() => navigate('/')}>
-              <span className="text-red-500 text-xl select-none font-bold">𐐒</span>
-              <span className="text-white text-lg select-none font-bold">B</span>
-              <span className="text-red-500 text-xs select-none font-semibold ml-1">BizBridge</span>
-            </div>
-
-            <div className="flex-1" />
-
-            {/* Account icon + one-line greeting, tappable */}
-            <button
-              onClick={() => navigate(isAuthenticated ? '/dashboard' : '/login')}
-              className="flex flex-col items-center px-1.5 py-1 active:bg-white/10 rounded-md flex-shrink-0"
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-              </svg>
-              <span className="text-[9px] leading-tight whitespace-nowrap">
-                {isAuthenticated ? 'Account' : 'Sign in'}
-              </span>
-            </button>
-
-            {/* "Cart"-equivalent: Bookings / Services */}
-            <button
-              onClick={() => navigate(
-                !isAuthenticated ? '/login'
-                : userType === 'artisan' ? '/ServicesManagement'
-                : '/bookings/my-bookings'
-              )}
-              className="flex flex-col items-center px-1.5 py-1 active:bg-white/10 rounded-md flex-shrink-0"
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7h-3V6a4 4 0 00-8 0v1H6a1 1 0 00-1 1v11a2 2 0 002 2h10a2 2 0 002-2V8a1 1 0 00-1-1zM9 6a3 3 0 016 0v1H9V6z" />
-              </svg>
-              <span className="text-[9px] leading-tight whitespace-nowrap">
-                {userType === 'artisan' ? 'Services' : 'Bookings'}
-              </span>
-            </button>
-          </div>
-
-          {/* Bar 2: single-row search, category picker folded into a leading select */}
-          <div className="px-2 pb-2 bg-black">
-            <div className="flex w-full rounded-md overflow-hidden bg-white">
-              <select
-                value={selectedCategory}
-                onChange={(e) => setSelectedCategory(e.target.value)}
-                aria-label="Category"
-                className="bg-gray-100 text-black text-xs px-2 border-r border-gray-300 focus:outline-none max-w-[84px]"
-              >
-                <option value="">All</option>
-                {categories.map((category) => (
-                  <option key={category} value={category}>{category}</option>
-                ))}
-              </select>
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                onKeyPress={handleKeyPress}
-                placeholder="Search BizBridge"
-                className="flex-1 min-w-0 px-2 py-2 text-black text-sm focus:outline-none"
-              />
-              <button
-                onClick={handleSearch}
-                className="bg-yellow-400 active:bg-yellow-300 px-3 flex-shrink-0"
-                aria-label="Search"
-              >
-                <svg className="w-5 h-5 text-black" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                </svg>
-              </button>
-            </div>
-          </div>
-
-          {/* Bar 3: thin strip — "All" + scrollable category/quick-link pills */}
-          <div className="bg-neutral-900 border-t border-white/10">
-            <div className="flex items-center gap-1 overflow-x-auto px-2 py-1.5 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
-              <button
-                onClick={() => setMobileMenuOpen(true)}
-                className="flex-shrink-0 flex items-center gap-1 text-xs font-semibold px-2 py-1 whitespace-nowrap"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-                </svg>
-                All
-              </button>
-              <span className="w-px h-4 bg-white/20 flex-shrink-0" />
-              {quickCategories.map((category) => (
-                <button
-                  key={category}
-                  onClick={() => handleQuickCategory(category)}
-                  className="flex-shrink-0 text-xs font-medium px-2 py-1 whitespace-nowrap active:text-red-400 transition"
-                >
-                  {category}
-                </button>
-              ))}
-              <button
-                onClick={handleAdClick}
-                className="flex-shrink-0 text-xs font-semibold px-2 py-1 whitespace-nowrap text-yellow-400"
-              >
-                Sell Your Crafts
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* ══════════════ DESKTOP HEADER (unchanged layout) ══════════════ */}
-        <div className="hidden md:block py-2">
-          <div className="container mx-auto px-4 flex items-center justify-between gap-x-4">
-            <div className="flex items-center cursor-pointer" onClick={() => navigate('/')}>
-              <span className="text-red-500 text-4xl select-none font-bold">𐐒</span>
-              <span className="text-white text-3xl select-none font-bold">B</span>
-              <span className="text-red-500 text-lg select-none font-semibold ml-3">BizBridge</span>
-            </div>
-
-            {/* ✅ SEARCH BAR */}
-            <div className="flex-1 max-w-3xl mx-8">
-              <div className="flex w-full">
-                <select
-                  value={selectedCategory}
-                  onChange={(e) => setSelectedCategory(e.target.value)}
-                  className="bg-gray-200 text-black px-3 py-2 rounded-l-md border-r border-gray-300 focus:outline-none text-sm min-w-[140px]"
-                >
-                  <option value="">All Categories</option>
-                  {categories.map((category) => (
-                    <option key={category} value={category}>{category}</option>
-                  ))}
-                </select>
-                <input
-                  type="text"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  onKeyPress={handleKeyPress}
-                  placeholder="Search for services, artisans, or crafts..."
-                  className="flex-1 px-4 py-2 text-black focus:outline-none text-sm"
-                />
-                <select
-                  value={selectedLocation}
-                  onChange={(e) => setSelectedLocation(e.target.value)}
-                  className="bg-gray-200 text-black px-3 py-2 border-l border-gray-300 focus:outline-none text-sm min-w-[120px]"
-                >
-                  <option value="">All LGAs</option>
-                  {locations.map((location) => (
-                    <option key={location} value={location}>{location}</option>
-                  ))}
-                </select>
-                <button
-                  onClick={handleSearch}
-                  className="bg-red-500 hover:bg-red-600 px-4 py-2 rounded-r-md transition flex-shrink-0"
-                  aria-label="Search"
-                >
-                  <svg className="w-5 h-5 text-black" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                  </svg>
-                </button>
-              </div>
-            </div>
-
-            {/* Account & Navigation */}
-            <div className="flex items-center space-x-6">
-              {!isAuthenticated ? (
-                <>
-                  <div className="text-center cursor-pointer hover:text-red-400" onClick={() => navigate('/login')}>
-                    <div className="text-xs">Hey, sign up/in</div>
-                    <div className="text-sm font-bold">to Book a service</div>
-                  </div>
-                  <div className="text-center cursor-pointer hover:text-red-400" onClick={() => navigate('/signup?type=artisan')}>
-                    <div className="text-xs">Get your</div>
-                    <div className="text-sm font-bold">Professional service listed</div>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <div className="text-center cursor-pointer" onClick={() => navigate('/dashboard')}>
-                    <div className="text-xs">Hello, {userType}</div>
-                    <div className="text-sm font-bold">Dashboard</div>
-                  </div>
-                  {userType === 'customer' && (
-                    <div className="text-center cursor-pointer" onClick={() => navigate('/bookings/my-bookings')}>
-                      <div className="text-xs">Your</div>
-                      <div className="text-sm font-bold">Bookings</div>
-                    </div>
-                  )}
-                  {userType === 'artisan' && (
-                    <div className="text-center cursor-pointer" onClick={() => navigate('/ServicesManagement')}>
-                      <div className="text-xs">Your</div>
-                      <div className="text-sm font-bold">Services</div>
-                    </div>
-                  )}
-                  <div className="text-center cursor-pointer" onClick={handleLogout}>
-                    <div className="text-xs">Sign</div>
-                    <div className="text-sm font-bold">Out</div>
-                  </div>
-                </>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* Secondary Navigation — desktop only; scrolls horizontally instead of wrapping */}
-        <div className="hidden md:block bg-black border-y-2 border-red-500 py-2">
-          <div className="container mx-auto px-4">
-            <div className="flex items-center space-x-6 text-sm overflow-x-auto whitespace-nowrap">
-              <span className="cursor-pointer hover:text-red-400" onClick={() => navigate('/')}>Home</span>
-              <span className="cursor-pointer hover:text-red-400" onClick={() => navigate('/services')}>All Services</span>
-              <span className="cursor-pointer hover:text-red-400" onClick={() => navigate('/services?category=Woodworking')}>Woodworking</span>
-              <span className="cursor-pointer hover:text-red-400" onClick={() => navigate('/services?category=Metalwork')}>MetalWorks</span>
-              <span className="cursor-pointer hover:text-red-400" onClick={() => navigate('/services?category=Embroidery')}>Embroidery</span>
-              <span className="cursor-pointer hover:text-red-400" onClick={() => navigate('/services?category=Soap & Candle Making')}>Soap Making</span>
-              <span className="cursor-pointer hover:text-red-400" onClick={() => navigate('/services?category=Hair Braiding & Styling')}>Hair Braiding</span>
-              <span className="cursor-pointer hover:text-red-400" onClick={() => navigate('/services?category=Pottery & Ceramics')}>Pottery</span>
-              <span className="cursor-pointer hover:text-red-400" onClick={() => navigate('/services?category=Jewelry Making')}>Jewelry</span>
-              <span className="cursor-pointer hover:text-red-400" onClick={() => navigate('/services?category=Textile Art')}>Textiles</span>
-              <span className="cursor-pointer hover:text-red-400" onClick={handleAdClick}>Sell Your Crafts</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Mobile dropdown menu — full nav + account links, slides down below the header */}
-        {mobileMenuOpen && (
-          <>
-            {/* Backdrop so the panel reads as an overlay, not part of the page flow */}
-            <div
-              className="md:hidden fixed inset-0 top-auto bg-black/40 z-40"
-              style={{ top: 'var(--header-h, 0)' }}
-              onClick={() => setMobileMenuOpen(false)}
-            />
-            <div
-              id="mobile-nav-panel"
-              className="md:hidden relative z-50 bg-black border-t border-red-500 max-h-[75vh] overflow-y-auto animate-[fadeIn_0.15s_ease-out]"
-            >
-              <div className="container mx-auto px-4 py-4">
-                {/* Account section */}
-                <div className="space-y-1 pb-4 mb-4 border-b border-gray-700">
-                  {!isAuthenticated ? (
-                    <>
-                      <div className="cursor-pointer hover:text-red-400 py-2" onClick={() => goTo('/login')}>
-                        <span className="text-xs block">Hey, sign up/in</span>
-                        <span className="text-sm font-bold">to Book a service</span>
-                      </div>
-                      <div className="cursor-pointer hover:text-red-400 py-2" onClick={() => goTo('/signup?type=artisan')}>
-                        <span className="text-xs block">Get your</span>
-                        <span className="text-sm font-bold">Professional service listed</span>
-                      </div>
-                    </>
-                  ) : (
-                    <>
-                      <div className="cursor-pointer py-2" onClick={() => goTo('/dashboard')}>
-                        <span className="text-xs block">Hello, {userType}</span>
-                        <span className="text-sm font-bold">Dashboard</span>
-                      </div>
-                      {userType === 'customer' && (
-                        <div className="cursor-pointer py-2" onClick={() => goTo('/bookings/my-bookings')}>
-                          <span className="text-sm font-bold">Your Bookings</span>
-                        </div>
-                      )}
-                      {userType === 'artisan' && (
-                        <div className="cursor-pointer py-2" onClick={() => goTo('/ServicesManagement')}>
-                          <span className="text-sm font-bold">Your Services</span>
-                        </div>
-                      )}
-                      <div className="cursor-pointer py-2" onClick={handleLogout}>
-                        <span className="text-sm font-bold">Sign Out</span>
-                      </div>
-                    </>
-                  )}
-                </div>
-
-                {/* Nav links — grid of tappable rows instead of a cramped single column */}
-                <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
-                  <span className="cursor-pointer hover:text-red-400 py-2 border-b border-gray-800" onClick={() => goTo('/')}>Home</span>
-                  <span className="cursor-pointer hover:text-red-400 py-2 border-b border-gray-800" onClick={() => goTo('/services')}>All Services</span>
-                  <span className="cursor-pointer hover:text-red-400 py-2 border-b border-gray-800" onClick={() => goTo('/services?category=Woodworking')}>Woodworking</span>
-                  <span className="cursor-pointer hover:text-red-400 py-2 border-b border-gray-800" onClick={() => goTo('/services?category=Metalwork')}>MetalWorks</span>
-                  <span className="cursor-pointer hover:text-red-400 py-2 border-b border-gray-800" onClick={() => goTo('/services?category=Embroidery')}>Embroidery</span>
-                  <span className="cursor-pointer hover:text-red-400 py-2 border-b border-gray-800" onClick={() => goTo('/services?category=Soap & Candle Making')}>Soap Making</span>
-                  <span className="cursor-pointer hover:text-red-400 py-2 border-b border-gray-800" onClick={() => goTo('/services?category=Hair Braiding & Styling')}>Hair Braiding</span>
-                  <span className="cursor-pointer hover:text-red-400 py-2 border-b border-gray-800" onClick={() => goTo('/services?category=Pottery & Ceramics')}>Pottery</span>
-                  <span className="cursor-pointer hover:text-red-400 py-2 border-b border-gray-800" onClick={() => goTo('/services?category=Jewelry Making')}>Jewelry</span>
-                  <span className="cursor-pointer hover:text-red-400 py-2 border-b border-gray-800" onClick={() => goTo('/services?category=Textile Art')}>Textiles</span>
-                  <span
-                    className="cursor-pointer hover:text-red-400 py-2 border-b border-gray-800 col-span-2 text-center font-semibold text-red-400"
-                    onClick={() => { setMobileMenuOpen(false); handleAdClick(); }}
-                  >
-                    Sell Your Crafts
-                  </span>
-                </div>
-              </div>
-            </div>
-          </>
-        )}
-      </header>
 
       {/* Main Content */}
       <main className="flex-grow bg-white">
@@ -901,68 +587,7 @@ const HomePage = () => {
         </div>
       </section>
 
-      {/* Footer */}
-      <footer className="bg-black text-white py-10 sm:py-12">
-        <div className="container mx-auto px-4">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
-            <div className="col-span-2 md:col-span-1">
-              <div className="flex items-center mb-4">
-                <span className="text-red-500 text-3xl font-bold">𐐒</span>
-                <span className="text-white text-2xl font-bold">B</span>
-                <span className="text-red-500 text-lg font-semibold ml-2">BizBridge</span>
-              </div>
-              <p className="text-gray-400 mb-4">
-                Connecting customers with talented African artisans, preserving culture through craft.
-              </p>
-              <div className="flex space-x-4">
-                <div className="w-8 h-8 bg-gray-700 rounded-full flex items-center justify-center hover:bg-red-500 cursor-pointer transition-colors">
-                  <span className="text-sm">f</span>
-                </div>
-                <div className="w-8 h-8 bg-gray-700 rounded-full flex items-center justify-center hover:bg-red-500 cursor-pointer transition-colors">
-                  <span className="text-sm">t</span>
-                </div>
-                <div className="w-8 h-8 bg-gray-700 rounded-full flex items-center justify-center hover:bg-red-500 cursor-pointer transition-colors">
-                  <span className="text-sm">in</span>
-                </div>
-              </div>
-            </div>
-
-            <div>
-              <h4 className="text-base sm:text-lg font-semibold mb-4">For Customers</h4>
-              <ul className="space-y-2 text-gray-400 text-sm sm:text-base">
-                <li><span onClick={() => navigate('/services')} className="hover:text-white transition cursor-pointer">Browse Services</span></li>
-                <li><span onClick={() => navigate('/signup')} className="hover:text-white transition cursor-pointer">Create Account</span></li>
-                <li><span onClick={() => navigate('/login')} className="hover:text-white transition cursor-pointer">Sign In</span></li>
-                <li><span className="hover:text-white transition cursor-pointer">How It Works</span></li>
-              </ul>
-            </div>
-
-            <div>
-              <h4 className="text-base sm:text-lg font-semibold mb-4">For Artisans</h4>
-              <ul className="space-y-2 text-gray-400 text-sm sm:text-base">
-                <li><span onClick={() => navigate('/signup?type=artisan')} className="hover:text-white transition cursor-pointer">Become an Artisan</span></li>
-                <li><span onClick={() => navigate('/login')} className="hover:text-white transition cursor-pointer">Artisan Login</span></li>
-                <li><span onClick={() => navigate('/login')} className="hover:text-white transition cursor-pointer">Seller Resources</span></li>
-                <li><span onClick={() => navigate('/login')} className="hover:text-white transition cursor-pointer">Success Stories</span></li>
-              </ul>
-            </div>
-
-            <div>
-              <h4 className="text-base sm:text-lg font-semibold mb-4">Support</h4>
-              <ul className="space-y-2 text-gray-400 text-sm sm:text-base">
-                <li><span onClick={() => navigate('/contact')} className="hover:text-white transition cursor-pointer">Contact Us</span></li>
-                <li><span onClick={() => navigate('/faq')} className="hover:text-white transition cursor-pointer">Help Center</span></li>
-                <li><span onClick={() => navigate('/privacy')} className="hover:text-white transition cursor-pointer">Privacy Policy</span></li>
-                <li><span onClick={() => navigate('/terms')} className="hover:text-white transition cursor-pointer">Terms of Service</span></li>
-              </ul>
-            </div>
-          </div>
-
-          <div className="border-t border-gray-700 mt-8 pt-8 text-center text-gray-400 text-sm">
-            <p>&copy; {new Date().getFullYear()} BizBridge. All rights reserved. Made with ❤️ for African artisans.</p>
-          </div>
-        </div>
-      </footer>
+      <Footer variant="full" />
     </div>
   );
 };

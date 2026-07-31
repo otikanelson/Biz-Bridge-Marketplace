@@ -131,92 +131,112 @@ const ServiceCard = ({ service, showControls = false }) => {
     return 'Contact';
   };
 
+  const artisanName =
+    service.artisan?.businessName ||
+    service.artisan?.contactName ||
+    service.artisan?.username ||
+    'Unknown';
+
+  const artisanLocation =
+    service.artisan?.location?.city ||
+    service.artisan?.location?.lga ||
+    'Lagos';
+
+  const imageUrl = getServiceImage();
+
   return (
-    <div 
+    <div
       onClick={handleViewDetails}
-      className="bg-white rounded-lg shadow-sm border hover:shadow-lg transition-all duration-200 cursor-pointer overflow-hidden group"
+      className="bg-white rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-all duration-200 cursor-pointer overflow-hidden group"
     >
-      {/* Taller Image */}
-      <div className="relative h-48 overflow-hidden">
-        {getServiceImage() ? (
-          <img 
-            src={getServiceImage()} 
-            alt={service.title}
-            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
-            onError={(e) => {
-              e.target.style.display = 'none';
-              e.target.nextSibling.style.display = 'flex';
-            }}
-          />
-        ) : null}
-        
-        <div 
-          className="w-full h-full bg-gray-200 flex items-center justify-center"
-          style={{ display: getServiceImage() ? 'none' : 'flex' }}
-        >
-          <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-          </svg>
+      {/* ── Mobile: horizontal layout (image left, content right) ── */}
+      {/* ── sm+: vertical card layout ── */}
+
+      {/* IMAGE */}
+      {/* On mobile this sits above nothing — the flex col wraps both parts */}
+      <div className="flex flex-row sm:flex-col">
+
+        {/* Thumbnail — square on mobile, full-width on sm+ */}
+        <div className="relative flex-shrink-0 w-28 h-28 sm:w-full sm:h-40 overflow-hidden">
+          {imageUrl ? (
+            <img
+              src={imageUrl}
+              alt={service.title}
+              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
+              onError={(e) => {
+                e.target.style.display = 'none';
+                if (e.target.nextSibling) e.target.nextSibling.style.display = 'flex';
+              }}
+            />
+          ) : null}
+
+          {/* Fallback placeholder */}
+          <div
+            className="w-full h-full bg-gray-100 flex items-center justify-center"
+            style={{ display: imageUrl ? 'none' : 'flex' }}
+          >
+            <svg className="w-7 h-7 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+            </svg>
+          </div>
+
+          {/* Rating badge — always visible */}
+          {service.ratings?.average > 0 && (
+            <div className="absolute bottom-1.5 right-1.5 bg-white/90 backdrop-blur-sm px-1.5 py-0.5 rounded-full flex items-center gap-0.5 shadow-sm">
+              <span className="text-yellow-400 text-[10px] leading-none">⭐</span>
+              <span className="text-gray-800 text-[10px] font-semibold leading-none">
+                {service.ratings.average.toFixed(1)}
+              </span>
+            </div>
+          )}
         </div>
-        
-        {/* Category Badge */}
-        <div className="absolute top-2 left-2">
-          <span className="bg-black bg-opacity-70 text-white px-2 py-0.5 rounded text-xs font-medium">
+
+        {/* CONTENT */}
+        <div className="flex flex-col justify-between flex-1 p-2.5 sm:p-3 min-w-0">
+
+          {/* Category pill */}
+          <span className="inline-block self-start bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full text-[10px] font-medium truncate max-w-full mb-1">
             {service.category}
           </span>
-        </div>
 
-        {/* Rating Badge */}
-        {service.ratings?.average > 0 && (
-          <div className="absolute top-2 right-2 bg-white bg-opacity-90 px-1.5 py-0.5 rounded flex items-center">
-            <span className="text-yellow-400 text-xs mr-0.5">⭐</span>
-            <span className="text-gray-800 text-xs font-medium">{service.ratings.average.toFixed(1)}</span>
-          </div>
-        )}
-      </div>
+          {/* Title */}
+          <h3 className="font-bold text-gray-900 text-xs sm:text-sm leading-snug line-clamp-2 mb-1">
+            {service.title}
+          </h3>
 
-      {/* Compact Content */}
-      <div className="p-3">
-        {/* Title */}
-        <h3 className="font-bold text-gray-900 text-sm mb-1 line-clamp-1">
-          {service.title}
-        </h3>
-
-        {/* Price */}
-        <div className="mb-2">
-          <span className="text-red-600 font-bold text-base">
+          {/* Price */}
+          <p className="text-red-500 font-extrabold text-sm sm:text-base mb-1.5">
             {getPriceDisplay()}
-          </span>
-        </div>
+          </p>
 
-        {/* Artisan Info - Compact */}
-        <div 
-          onClick={handleViewArtisan}
-          className="flex items-center gap-2 p-2 bg-gray-50 rounded hover:bg-gray-100 transition mb-2"
-        >
-          <ProfilePicture
-            imagePath={service.artisan?.profileImage}
-            name={service.artisan?.contactName || service.artisan?.businessName || service.artisan?.username || 'Artisan'}
-            size="small"
-          />
-          
-          <div className="flex-1 min-w-0">
-            <p className="font-medium text-gray-900 text-xs truncate">
-              {service.artisan?.businessName || service.artisan?.contactName || service.artisan?.username || 'Unknown'}
-            </p>
-            <p className="text-gray-500 text-xs truncate">
-              📍 {service.artisan?.location?.city || service.artisan?.location?.lga || 'Lagos'}
-            </p>
+          {/* Artisan row */}
+          <div
+            onClick={handleViewArtisan}
+            className="flex items-center gap-1.5 mb-2"
+          >
+            <ProfilePicture
+              imagePath={service.artisan?.profileImage}
+              name={artisanName}
+              size="small"
+            />
+            <div className="min-w-0">
+              <p className="font-medium text-gray-800 text-[11px] truncate leading-tight">
+                {artisanName}
+              </p>
+              <p className="text-gray-400 text-[10px] truncate leading-tight">
+                📍 {artisanLocation}
+              </p>
+            </div>
           </div>
-        </div>
 
-        {/* Action Button */}
-        <button
-          onClick={handleViewDetails}
-          className="w-full bg-red-500 hover:bg-red-600 text-white py-1.5 rounded text-xs font-bold transition"
-        >
-          View Details
-        </button>
+          {/* CTA */}
+          <button
+            onClick={(e) => { e.stopPropagation(); handleViewDetails(); }}
+            className="w-full bg-red-500 hover:bg-red-600 active:bg-red-700 text-white py-1.5 rounded-lg text-[11px] sm:text-xs font-bold transition-colors"
+          >
+            View Details
+          </button>
+        </div>
       </div>
     </div>
   );

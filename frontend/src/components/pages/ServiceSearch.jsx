@@ -3,6 +3,8 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import ServiceCard from '../cards/ServiceCard';
 import { searchServices, getAllServices } from '../../api/search';
+import AppHeader from '../layout/AppHeader';
+import Footer from '../layout/Footer';
 
 const ServiceSearch = () => {
   const location = useLocation();
@@ -179,137 +181,16 @@ const ServiceSearch = () => {
 
   return (
     <div className="flex flex-col min-h-screen">
-      {/* ✅ AMAZON-STYLE HEADER WITH SEARCH BAR */}
-      <header className="bg-black text-white w-full top-0 z-10 fixed">
-        {/* Main Header */}
-        <div className="py-2">
-          <div className="container mx-auto px-4 flex items-center justify-between">
-            {/* Logo */}
-            <div className="flex items-center cursor-pointer" onClick={() => navigate('/')}>
-              <span className="text-red-500 text-4xl select-none font-bold">𐐒</span>
-              <span className="text-white text-3xl select-none font-bold">B</span>
-              <span className="text-red-500 text-lg select-none font-semibold ml-3">BizBridge</span>
-            </div>
-
-            {/* ✅ AMAZON-STYLE SEARCH BAR */}
-            <div className="flex-1 max-w-3xl mx-8">
-              <div className="flex">
-                {/* Category Selector */}
-                <select 
-                  value={selectedCategory}
-                  onChange={(e) => setSelectedCategory(e.target.value)}
-                  className="bg-gray-200 text-black px-3 py-2 rounded-l-md border-r border-gray-300 focus:outline-none text-sm min-w-[140px]"
-                >
-                  <option value="">All Categories</option>
-                  {categories.map((category) => (
-                    <option key={category} value={category}>{category}</option>
-                  ))}
-                </select>
-                
-                {/* Search Input */}
-                <input
-                  type="text"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  onKeyPress={handleKeyPress}
-                  placeholder="Search for services, artisans, or crafts..."
-                  className="flex-1 px-4 py-2 text-black focus:outline-none text-sm"
-                />
-                
-                {/* Location Selector */}
-                <select 
-                  value={selectedLocation}
-                  onChange={(e) => setSelectedLocation(e.target.value)}
-                  className="bg-gray-200 text-black px-3 py-2 border-l border-gray-300 focus:outline-none text-sm min-w-[120px]"
-                >
-                  <option value="">All LGAs</option>
-                  {locations.map((location) => (
-                    <option key={location} value={location}>{location}</option>
-                  ))}
-                </select>
-                
-                {/* Search Button */}
-                <button 
-                  onClick={handleSearch}
-                  className="bg-red-500 hover:bg-red-600 px-4 py-2 rounded-r-md transition"
-                >
-                  <svg className="w-5 h-5 text-black" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                  </svg>
-                </button>
-              </div>
-            </div>
-
-            {/* Account & Navigation */}
-            <div className="flex items-center space-x-6">
-              {!isAuthenticated ? (
-                <>
-                  <div className="text-center cursor-pointer hover:text-red-400" onClick={() => navigate('/login')}>
-                    <div className="text-xs">Hey, sign up/in</div>
-                    <div className="text-sm font-bold">to Book a service</div>
-                  </div>
-                  <div className="text-center cursor-pointer hover:text-red-400" onClick={() => navigate('/signup?type=artisan')}>
-                    <div className="text-xs">Get your</div>
-                    <div className="text-sm font-bold">Professional service listed</div>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <div className="text-center cursor-pointer" onClick={() => navigate('/dashboard')}>
-                    <div className="text-xs">Hello, {userType}</div>
-                    <div className="text-sm font-bold">Dashboard</div>
-                  </div>
-                  {userType === 'customer' && (
-                    <div className="text-center cursor-pointer" onClick={() => navigate('/bookings/my-bookings')}>
-                      <div className="text-xs">Your</div>
-                      <div className="text-sm font-bold">Bookings</div>
-                    </div>
-                  )}
-                  {userType === 'artisan' && (
-                    <div className="text-center cursor-pointer" onClick={() => navigate('/ServicesManagement')}>
-                      <div className="text-xs">Your</div>
-                      <div className="text-sm font-bold">Services</div>
-                    </div>
-                  )}
-                  <div className="text-center cursor-pointer" onClick={handleLogout}>
-                    <div className="text-xs">Sign</div>
-                    <div className="text-sm font-bold">Out</div>
-                  </div>
-                </>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* Secondary Navigation */}
-        <div className="bg-black border-y-2 border-red-500 py-2">
-          <div className="container mx-auto px-4">
-            <div className="flex items-center space-x-6 text-sm">
-              <span className="cursor-pointer hover:text-red-400" onClick={() => navigate('/')}>
-                Home
-              </span>
-              <span className="cursor-pointer hover:text-red-400 text-red-400 font-semibold">
-                All Services
-              </span>
-              <span className="cursor-pointer hover:text-red-400" onClick={() => navigate('/services?category=Woodworking')}>
-                Woodworking
-              </span>
-              <span className="cursor-pointer hover:text-red-400" onClick={() => navigate('/services?category=Metalwork')}>
-                Metalwork
-              </span>
-              <span className="cursor-pointer hover:text-red-400" onClick={() => navigate('/services?category=Embroidery')}>
-                Embroidery
-              </span>
-              <span className="cursor-pointer hover:text-red-400" onClick={() => navigate('/services?category=Soap Making')}>
-                Soap Making
-              </span>
-              <span className="cursor-pointer hover:text-red-400" onClick={() => navigate('/services?category=Hair Braiding & Styling')}>
-                Hair Braiding
-              </span>
-            </div>
-          </div>
-        </div>
-      </header>
+      <AppHeader
+        searchQuery={searchQuery}
+        setSearchQuery={setSearchQuery}
+        selectedCategory={selectedCategory}
+        setSelectedCategory={setSelectedCategory}
+        selectedLocation={selectedLocation}
+        setSelectedLocation={setSelectedLocation}
+        onSearch={handleSearch}
+        activePage="services"
+      />
 
       {/* Main Content - Add top padding for fixed header */}
       <div className="bg-gray-50 flex-grow pt-24">
@@ -517,68 +398,7 @@ const ServiceSearch = () => {
           )}
         </div>
       </div>
-            {/* Footer */}
-      <footer className="bg-black text-white py-12">
-        <div className="container mx-auto px-4">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
-            <div>
-              <div className="flex items-center mb-4">
-                <span className="text-red-500 text-3xl font-bold">𐐒</span>
-                <span className="text-white text-2xl font-bold">B</span>
-                <span className="text-red-500 text-lg font-semibold ml-2">BizBridge</span>
-              </div>
-              <p className="text-gray-400 mb-4">
-                Connecting customers with talented African artisans, preserving culture through craft.
-              </p>
-              <div className="flex space-x-4">
-                <div className="w-8 h-8 bg-gray-700 rounded-full flex items-center justify-center hover:bg-red-500 cursor-pointer transition-colors">
-                  <span className="text-sm">f</span>
-                </div>
-                <div className="w-8 h-8 bg-gray-700 rounded-full flex items-center justify-center hover:bg-red-500 cursor-pointer transition-colors">
-                  <span className="text-sm">t</span>
-                </div>
-                <div className="w-8 h-8 bg-gray-700 rounded-full flex items-center justify-center hover:bg-red-500 cursor-pointer transition-colors">
-                  <span className="text-sm">in</span>
-                </div>
-              </div>
-            </div>
-            
-            <div>
-              <h4 className="text-lg font-semibold mb-4">For Customers</h4>
-              <ul className="space-y-2 text-gray-400">
-                <li><span onClick={() => navigate('/services')} className="hover:text-white transition cursor-pointer">Browse Services</span></li>
-                <li><span onClick={() => navigate('/signup')} className="hover:text-white transition cursor-pointer">Create Account</span></li>
-                <li><span onClick={() => navigate('/login')} className="hover:text-white transition cursor-pointer">Sign In</span></li>
-                <li><span className="hover:text-white transition cursor-pointer">How It Works</span></li>
-              </ul>
-            </div>
-            
-            <div>
-              <h4 className="text-lg font-semibold mb-4">For Artisans</h4>
-              <ul className="space-y-2 text-gray-400">
-                <li><span onClick={() => navigate('/signup?type=artisan')} className="hover:text-white transition cursor-pointer">Become an Artisan</span></li>
-                <li><span onClick={() => navigate('/login')} className="hover:text-white transition cursor-pointer">Artisan Login</span></li>
-                <li><span className="hover:text-white transition cursor-pointer">Seller Resources</span></li>
-                <li><span className="hover:text-white transition cursor-pointer">Success Stories</span></li>
-              </ul>
-            </div>
-            
-            <div>
-              <h4 className="text-lg font-semibold mb-4">Support</h4>
-              <ul className="space-y-2 text-gray-400">
-                <li><span className="hover:text-white transition cursor-pointer">Contact Us</span></li>
-                <li><span className="hover:text-white transition cursor-pointer">Help Center</span></li>
-                <li><span className="hover:text-white transition cursor-pointer">Privacy Policy</span></li>
-                <li><span className="hover:text-white transition cursor-pointer">Terms of Service</span></li>
-              </ul>
-            </div>
-          </div>
-          
-          <div className="border-t border-gray-700 mt-8 pt-8 text-center text-gray-400">
-            <p>&copy; {new Date().getFullYear()} BizBridge. All rights reserved. Made with ❤️ for African artisans.</p>
-          </div>
-        </div>
-      </footer>
+      <Footer variant="full" />
     </div>
   );
 };

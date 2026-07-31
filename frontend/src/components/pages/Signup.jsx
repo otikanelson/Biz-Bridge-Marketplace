@@ -2,6 +2,8 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import SimpleHeader from '../layout/SimpleHeader';
+import Footer from '../layout/Footer';
 
 // Lagos LGAs for location dropdown
 const LAGOS_LGAS = [
@@ -322,36 +324,7 @@ const Signup = () => {
   
   return (
     <div className="flex flex-col min-h-screen">
-      {/* Header */}
-      <header className="bg-black text-white w-full top-0 z-10 fixed border-red-400 border-b-2">
-        {/* Main Header */}
-        <div className="py-2">
-          <div className="container mx-auto px-4 flex items-center justify-between">
-            {/* Logo */}
-            <div className="flex items-center cursor-pointer" onClick={() => navigate('/')}>
-              <span className="text-red-500 text-4xl select-none font-bold">𐐒</span>
-              <span className="text-white text-3xl select-none font-bold">B</span>
-              <span className="text-red-500 text-lg select-none font-semibold ml-3">BizBridge</span>
-            </div>
-
-
-            {/* Navigation */}
-            <div className="flex items-center space-x-6">
-              <div className="flex items-center space-x-1 cursor-pointer hover:text-red-400" onClick={() => navigate('/profile')}>
-              </div>
-                <span className="cursor-pointer hover:text-red-400 text-sm" onClick={() => navigate('/')}>
-                  Home
-                </span>
-                <span className="cursor-pointer hover:text-red-400 text-sm" onClick={() => navigate('/Login')}>
-                  Login
-                </span>
-                <span className="cursor-pointer text-red-400 text-sm">
-                  Register
-                </span>
-              </div>
-          </div>
-        </div>
-      </header>
+      <SimpleHeader activePage="" />
       
       {/* Main Content */}
       <div className="bg-white flex-grow py-12">
@@ -664,14 +637,7 @@ const Signup = () => {
         </div>
       </div>
       
-      {/* Footer */}
-      <footer className="bg-black text-white py-8">
-        <div className="container mx-auto px-4">
-          <div className="text-center">
-            <p>&copy; {new Date().getFullYear()} BizBridge. All rights reserved.</p>
-          </div>
-        </div>
-      </footer>
+      <Footer variant="simple" />
     </div>
   );
 };
