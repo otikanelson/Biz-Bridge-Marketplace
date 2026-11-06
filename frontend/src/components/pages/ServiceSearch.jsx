@@ -181,8 +181,6 @@ const ServiceSearch = () => {
 
   // Get current search params for display
   const currentSearchParams = getSearchParams();
-
-  return (
     <div className="flex flex-col min-h-screen">
       <AppHeader
         searchQuery={searchQuery}
@@ -193,6 +191,7 @@ const ServiceSearch = () => {
         setSelectedLocation={setSelectedLocation}
         onSearch={handleSearch}
         activePage="services"
+        activeCategory={currentSearchParams.category}
       />
 
       {/* Main Content with Gradient Background like Home page */}

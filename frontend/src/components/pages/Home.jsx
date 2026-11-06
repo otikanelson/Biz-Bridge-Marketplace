@@ -218,6 +218,7 @@ const HomePage = () => {
         setSelectedLocation={setSelectedLocation}
         onSearch={handleSearch}
         activePage="home"
+        activeCategory=""
       />
 
       <main className="flex-grow bg-white">

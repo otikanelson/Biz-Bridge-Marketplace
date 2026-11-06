@@ -33,6 +33,7 @@ const AppHeader = ({
   setSelectedLocation = () => {},
   onSearch = () => {},
   activePage = '',
+  activeCategory = '', // NEW: Track active category
 }) => {
   const navigate = useNavigate();
   const { isAuthenticated, userType, logout } = useAuth();
@@ -299,17 +300,22 @@ const AppHeader = ({
       <div className="hidden md:block bg-black border-y-2 border-red-500 py-2">
         <div className="container mx-auto px-4">
           <div className="flex items-center space-x-6 text-sm overflow-x-auto whitespace-nowrap">
-            {secondaryLinks.map(({ label, path, key }) => (
-              <span
-                key={key}
-                onClick={() => navigate(path)}
-                className={`cursor-pointer transition ${
-                  activePage === key ? 'text-red-400 font-semibold' : 'hover:text-red-400'
-                }`}
-              >
-                {label}
-              </span>
-            ))}
+            {secondaryLinks.map(({ label, path, key }) => {
+              const categoryParam = new URLSearchParams(path.split('?')[1]).get('category');
+              const isActive = activePage === key || (categoryParam && activeCategory === categoryParam);
+              
+              return (
+                <span
+                  key={key}
+                  onClick={() => navigate(path)}
+                  className={`cursor-pointer transition ${
+                    isActive ? 'text-red-400 font-semibold' : 'hover:text-red-400'
+                  }`}
+                >
+                  {label}
+                </span>
+              );
+            })}
             <span
               className="cursor-pointer hover:text-red-400"
               onClick={handleAdClick}
@@ -370,17 +376,22 @@ const AppHeader = ({
 
               {/* Nav grid */}
               <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
-                {secondaryLinks.map(({ label, path, key }) => (
-                  <span
-                    key={key}
-                    onClick={() => goTo(path)}
-                    className={`cursor-pointer py-2 border-b border-gray-800 transition ${
-                      activePage === key ? 'text-red-400 font-semibold' : 'hover:text-red-400'
-                    }`}
-                  >
-                    {label}
-                  </span>
-                ))}
+                {secondaryLinks.map(({ label, path, key }) => {
+                  const categoryParam = new URLSearchParams(path.split('?')[1]).get('category');
+                  const isActive = activePage === key || (categoryParam && activeCategory === categoryParam);
+                  
+                  return (
+                    <span
+                      key={key}
+                      onClick={() => goTo(path)}
+                      className={`cursor-pointer py-2 border-b border-gray-800 transition ${
+                        isActive ? 'text-red-400 font-semibold' : 'hover:text-red-400'
+                      }`}
+                    >
+                      {label}
+                    </span>
+                  );
+                })}
                 <span
                   className="cursor-pointer hover:text-red-400 py-2 border-b border-gray-800 col-span-2 text-center font-semibold text-yellow-400"
                   onClick={() => { setMobileMenuOpen(false); handleAdClick(); }}
