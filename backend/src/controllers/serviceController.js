@@ -530,6 +530,8 @@ export const getSupportedCategorizedPricing = async (req, res) => {
 // @access  Public
 export const searchServicesWithPricing = async (req, res) => {
   try {
+    console.log('🔍 Search request query params:', req.query);
+    
     const {
       category,
       pricingType,
@@ -539,13 +541,17 @@ export const searchServicesWithPricing = async (req, res) => {
       tags,
       artisanId,
       limit = 20,
-      page = 1
+      page = 1,
+      sort = 'newest'
     } = req.query;
 
     // Build search parameters
     const searchParams = {};
     
-    if (category) searchParams.category = category;
+    if (category) {
+      console.log('🏷️ Searching by category:', category);
+      searchParams.category = category;
+    }
     if (pricingType) searchParams.pricingType = pricingType;
     if (location) searchParams.location = location;
     if (artisanId) searchParams.artisanId = artisanId;
@@ -556,8 +562,12 @@ export const searchServicesWithPricing = async (req, res) => {
       if (maxPrice) searchParams.priceRange.max = parseInt(maxPrice);
     }
 
+    console.log('🔍 Search params sent to model:', searchParams);
+
     // Use the new search method from the model
     let services = await Service.searchWithPricing(searchParams);
+
+    console.log(`✅ Found ${services.length} services from database`);
 
     // Apply tag filtering if specified
     if (tags) {
@@ -565,6 +575,26 @@ export const searchServicesWithPricing = async (req, res) => {
       services = services.filter(service => 
         service.tags.some(tag => tagArray.includes(tag))
       );
+    }
+
+    // Apply sorting
+    if (sort) {
+      services = services.sort((a, b) => {
+        switch (sort) {
+          case 'newest':
+            return new Date(b.createdAt) - new Date(a.createdAt);
+          case 'oldest':
+            return new Date(a.createdAt) - new Date(b.createdAt);
+          case 'price_low':
+            return (a.pricing.basePrice || 0) - (b.pricing.basePrice || 0);
+          case 'price_high':
+            return (b.pricing.basePrice || 0) - (a.pricing.basePrice || 0);
+          case 'rating':
+            return (b.ratings?.average || 0) - (a.ratings?.average || 0);
+          default:
+            return 0;
+        }
+      });
     }
 
     // Apply pagination
@@ -579,12 +609,14 @@ export const searchServicesWithPricing = async (req, res) => {
       supportsCategorizedPricing: service.supportsCategorizedPricing
     }));
 
+    console.log(`📤 Returning ${servicesWithDisplayPrice.length} services to frontend`);
+
     res.status(200).json({
       success: true,
       count: paginatedServices.length,
       total: services.length,
-      page: parseInt(page),
-      pages: Math.ceil(services.length / limit),
+      currentPage: parseInt(page),
+      totalPages: Math.ceil(services.length / limit),
       services: servicesWithDisplayPrice
     });
   } catch (error) {

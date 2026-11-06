@@ -251,8 +251,12 @@ ServiceSchema.statics.getPopularServices = function(limit = 6) {
 };
 
 ServiceSchema.statics.searchWithPricing = function(searchParams) {
+  console.log('🔍 Model searchWithPricing called with:', searchParams);
   const query = { isActive: true };
-  if (searchParams.category) query.category = searchParams.category;
+  if (searchParams.category) {
+    console.log('🏷️ Adding category to query:', searchParams.category);
+    query.category = searchParams.category;
+  }
   if (searchParams.pricingType) query['pricing.type'] = searchParams.pricingType;
   if (searchParams.location) query['locations.lga'] = new RegExp(searchParams.location, 'i');
   if (searchParams.priceRange && searchParams.priceRange.min !== undefined) {
@@ -261,6 +265,7 @@ ServiceSchema.statics.searchWithPricing = function(searchParams) {
       ...(searchParams.priceRange.max && { $lte: searchParams.priceRange.max })
     };
   }
+  console.log('🔍 Final MongoDB query:', JSON.stringify(query, null, 2));
   return this.find(query).populate('artisan', 'name email profileImage ratings');
 };
 
