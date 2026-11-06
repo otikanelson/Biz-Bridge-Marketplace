@@ -181,6 +181,8 @@ const ServiceSearch = () => {
 
   // Get current search params for display
   const currentSearchParams = getSearchParams();
+  
+  return (
     <div className="flex flex-col min-h-screen">
       <AppHeader
         searchQuery={searchQuery}

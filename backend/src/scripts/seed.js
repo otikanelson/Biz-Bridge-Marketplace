@@ -259,9 +259,7 @@ const seedDatabase = async () => {
     await User.deleteMany({});
     await Service.deleteMany({});
 
-    console.log('🔐 Hashing default credentials safely...');
-    const salt = await bcrypt.genSalt(10);
-    const encryptedPassword = await bcrypt.hash(DEFAULT_PASSWORD, salt);
+    console.log('💡 Using plain password - User model will hash it automatically...');
 
     const insertedServices = [];
 
@@ -272,7 +270,7 @@ const seedDatabase = async () => {
       
       const createdUser = await User.create({
         ...userFields,
-        password: encryptedPassword
+        password: DEFAULT_PASSWORD  // ✅ Pass plain password - model will hash it
       });
 
       console.log(`✅ Created artisan: ${createdUser.username}`);
@@ -292,7 +290,7 @@ const seedDatabase = async () => {
     for (const userData of usersData) {
       const createdUser = await User.create({
         ...userData,
-        password: encryptedPassword
+        password: DEFAULT_PASSWORD  // ✅ Pass plain password - model will hash it
       });
       console.log(`✅ Created user: ${createdUser.username}`);
     }
