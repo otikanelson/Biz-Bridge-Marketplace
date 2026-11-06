@@ -369,7 +369,7 @@ const ServiceSearch = () => {
                 ) : (
                   <div className="text-center py-12 sm:py-20">
                     <div className="max-w-md mx-auto text-white">
-                      <div className="text-6xl sm:text-8xl mb-6">🔍</div>
+                      <div className="text-6xl sm:text-4xl mb-6">🔍</div>
                       <h3 className="text-xl sm:text-2xl font-semibold mb-4">No services found</h3>
                       <p className="text-white/80 mb-8 leading-relaxed text-sm sm:text-base px-4">
                         {currentSearchParams.search || currentSearchParams.category || currentSearchParams.location

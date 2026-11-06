@@ -69,15 +69,15 @@ const AppHeader = ({
   };
 
   const secondaryLinks = [
-    { label: 'All Services', path: '/services',                                      key: 'services'    },
-    { label: 'Woodworking',  path: '/services?category=Woodworking',                 key: 'woodworking' },
-    { label: 'MetalWorks',   path: '/services?category=Metalwork',                   key: 'metalwork'   },
-    { label: 'Embroidery',   path: '/services?category=Embroidery',                  key: 'embroidery'  },
-    { label: 'Soap Making',  path: '/services?category=Soap & Candle Making',        key: 'soap'        },
-    { label: 'Hair Braiding',path: '/services?category=Hair Braiding & Styling',     key: 'hair'        },
-    { label: 'Pottery',      path: '/services?category=Pottery & Ceramics',          key: 'pottery'     },
-    { label: 'Jewelry',      path: '/services?category=Jewelry Making',              key: 'jewelry'     },
-    { label: 'Textiles',     path: '/services?category=Textile Art',                 key: 'textiles'    },
+    { label: 'All Services', path: '/services',                                            key: 'services'    },
+    { label: 'Woodworking',  path: '/services?category=Woodworking',                       key: 'woodworking' },
+    { label: 'MetalWorks',   path: '/services?category=Metalwork',                         key: 'metalwork'   },
+    { label: 'Embroidery',   path: '/services?category=Embroidery',                        key: 'embroidery'  },
+    { label: 'Soap Making',  path: '/services?category=Soap%20%26%20Candle%20Making',      key: 'soap'        },
+    { label: 'Hair Braiding',path: '/services?category=Hair%20Braiding%20%26%20Styling',   key: 'hair'        },
+    { label: 'Pottery',      path: '/services?category=Pottery%20%26%20Ceramics',          key: 'pottery'     },
+    { label: 'Jewelry',      path: '/services?category=Jewelry%20Making',                  key: 'jewelry'     },
+    { label: 'Textiles',     path: '/services?category=Textile%20Art',                     key: 'textiles'    },
   ];
 
   return (
