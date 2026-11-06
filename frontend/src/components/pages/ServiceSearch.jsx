@@ -27,12 +27,15 @@ const ServiceSearch = () => {
   // State for filters and sorting
   const [sortBy, setSortBy] = useState('newest');
 
-  // Job categories for search
+  // Job categories for search - Match backend categories exactly
   const categories = [
-    'Woodworking', 'Pottery', 'Jewelry Making', 'Textile Art', 
-    'Leathercraft', 'Metalwork', 'Basket Weaving', 'Beadwork',
-    'Calabash Decoration', 'Glass Blowing', 'Leather Shoes', 'Embroidery',
-    'Soap Making', 'Candle Making', 'Hair Braiding & Styling'
+    'Woodworking', 'Pottery & Ceramics', 'Leathercraft', 'Textile Art',
+    'Jewelry Making', 'Metalwork', 'Glass Art', 'Traditional Clothing',
+    'Painting & Drawing', 'Sculpture', 'Basket Weaving', 'Beadwork',
+    'Paper Crafts', 'Soap & Candle Making', 'Calabash Carving',
+    'Musical Instruments', 'Hair Braiding & Styling', 'Furniture Restoration',
+    'Shoemaking', 'Sign Writing', 'Tie & Dye', 'Adire Textile',
+    'Food Preservation', 'Batik', 'Embroidery', 'Photography', 'Other'
   ];
 
   // Lagos LGAs for search
@@ -192,210 +195,211 @@ const ServiceSearch = () => {
         activePage="services"
       />
 
-      {/* Main Content - Add top padding for fixed header */}
-      <div className="bg-gray-50 flex-grow pt-24">
+      {/* Main Content with Gradient Background like Home page */}
+      <div className="flex-grow bg-gradient-to-r from-red-500 to-orange-800">
         <div className="container mx-auto px-4 py-8">
-          {/* Results Header */}
-          <div className="mb-8">
-            <div className="flex justify-between items-start mb-4">
-              <div>
-                <h1 className="text-4xl font-bold text-gray-800 mb-2">
-                  {currentSearchParams.search ? 'Search Results' : 'All Services'}
-                </h1>
-                {!isLoading && (
-                  <p className="text-gray-600 text-lg">
-                    {totalResults === 0 ? 
-                      'No services found' : 
-                      `${totalResults} ${totalResults === 1 ? 'service' : 'services'} found`}
-                  </p>
-                )}
-                {(currentSearchParams.category || currentSearchParams.location || currentSearchParams.search) && (
-                  <div className="flex flex-wrap gap-2 mt-3">
-                    {currentSearchParams.search && (
-                      <span className="bg-red-100 text-red-800 px-3 py-1 rounded-full text-sm font-medium">
-                        Search: "{currentSearchParams.search}"
-                      </span>
-                    )}
-                    {currentSearchParams.category && (
-                      <span className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm font-medium">
-                        Category: {currentSearchParams.category}
-                      </span>
-                    )}
-                    {currentSearchParams.location && (
-                      <span className="bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm font-medium">
-                        Location: {currentSearchParams.location}
-                      </span>
-                    )}
-                  </div>
-                )}
-              </div>
+          <div className="bg-white bg-opacity-10 backdrop-blur-sm rounded-lg p-4 sm:p-6">
+            {/* Results Header */}
+            <div className="mb-6">
+              <div className="flex flex-col md:flex-row md:justify-between md:items-start gap-4 mb-4">
+                <div className="text-white">
+                  <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold mb-2">
+                    {currentSearchParams.search ? 'Search Results' : 'All Services'}
+                  </h1>
+                  {!isLoading && (
+                    <p className="text-white/90 text-base sm:text-lg">
+                      {totalResults === 0 ? 
+                        'No services found' : 
+                        `${totalResults} ${totalResults === 1 ? 'service' : 'services'} found`}
+                    </p>
+                  )}
+                  {(currentSearchParams.category || currentSearchParams.location || currentSearchParams.search) && (
+                    <div className="flex flex-wrap gap-2 mt-3">
+                      {currentSearchParams.search && (
+                        <span className="bg-white/20 text-white px-3 py-1 rounded-full text-xs sm:text-sm font-medium backdrop-blur-sm">
+                          Search: "{currentSearchParams.search}"
+                        </span>
+                      )}
+                      {currentSearchParams.category && (
+                        <span className="bg-white/20 text-white px-3 py-1 rounded-full text-xs sm:text-sm font-medium backdrop-blur-sm">
+                          Category: {currentSearchParams.category}
+                        </span>
+                      )}
+                      {currentSearchParams.location && (
+                        <span className="bg-white/20 text-white px-3 py-1 rounded-full text-xs sm:text-sm font-medium backdrop-blur-sm">
+                          Location: {currentSearchParams.location}
+                        </span>
+                      )}
+                    </div>
+                  )}
+                </div>
 
-              {/* Sort Controls */}
-              <div className="flex items-center space-x-4">
+                {/* Sort Controls */}
                 <div className="flex items-center space-x-2">
-                  <label className="text-sm text-gray-600">Sort by:</label>
+                  <label className="text-xs sm:text-sm text-white font-medium whitespace-nowrap">Sort by:</label>
                   <select
                     value={sortBy}
                     onChange={(e) => handleSortChange(e.target.value)}
-                    className="border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white"
+                    className="border border-white/30 rounded-lg px-3 py-2 text-sm bg-white/20 text-white backdrop-blur-sm focus:outline-none focus:ring-2 focus:ring-white/50"
                   >
-                    <option value="newest">Newest First</option>
-                    <option value="oldest">Oldest First</option>
-                    <option value="price_low">Price: Low to High</option>
-                    <option value="price_high">Price: High to Low</option>
-                    <option value="rating">Highest Rated</option>
+                    <option value="newest" className="text-black">Newest First</option>
+                    <option value="oldest" className="text-black">Oldest First</option>
+                    <option value="price_low" className="text-black">Price: Low to High</option>
+                    <option value="price_high" className="text-black">Price: High to Low</option>
+                    <option value="rating" className="text-black">Highest Rated</option>
                   </select>
                 </div>
               </div>
             </div>
-          </div>
 
-          {/* Error Message */}
-          {error && (
-            <div className="mb-8 bg-red-50 border-l-4 border-red-500 p-6 rounded-lg">
-              <div className="flex items-center">
-                <div className="flex-shrink-0">
-                  <svg className="w-6 h-6 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                </div>
-                <div className="ml-3">
-                  <p className="text-red-700 font-medium">Something went wrong</p>
-                  <p className="text-red-600 text-sm mt-1">{error}</p>
-                  <button 
-                    onClick={performSearch}
-                    className="mt-3 text-red-600 hover:text-red-800 underline text-sm font-medium"
-                  >
-                    Try Again
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Loading State */}
-          {isLoading ? (
-            <div className="flex justify-center py-20">
-              <div className="text-center">
-                <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-red-500 mx-auto mb-4"></div>
-                <p className="text-gray-600">Loading services...</p>
-              </div>
-            </div>
-          ) : (
-            <>
-              {/* Services Grid */}
-              {services.length > 0 ? (
-                <>
-                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8 mb-12">
-                    {services.map(service => (
-                      <ServiceCard 
-                        key={service._id || service.id} 
-                        service={service}
-                        showControls={false}
-                      />
-                    ))}
+            {/* Error Message */}
+            {error && (
+              <div className="mb-6 bg-white/20 backdrop-blur-sm border-l-4 border-white p-4 sm:p-6 rounded-lg">
+                <div className="flex items-start">
+                  <div className="flex-shrink-0">
+                    <svg className="w-5 h-5 sm:w-6 sm:h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
                   </div>
+                  <div className="ml-3 text-white">
+                    <p className="font-medium text-sm sm:text-base">Something went wrong</p>
+                    <p className="text-white/80 text-xs sm:text-sm mt-1">{error}</p>
+                    <button 
+                      onClick={performSearch}
+                      className="mt-3 text-white hover:text-white/80 underline text-xs sm:text-sm font-medium"
+                    >
+                      Try Again
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
 
-                  {/* Pagination */}
-                  {totalPages > 1 && (
-                    <div className="flex justify-center">
-                      <div className="flex items-center space-x-2">
-                        {/* Previous Button */}
-                        <button
-                          onClick={() => handlePageChange(currentPage - 1)}
-                          disabled={currentPage === 1}
-                          className={`px-4 py-2 rounded-lg font-medium ${
-                            currentPage === 1
-                              ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                              : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-300'
-                          }`}
-                        >
-                          Previous
-                        </button>
+            {/* Loading State */}
+            {isLoading ? (
+              <div className="flex justify-center py-12 sm:py-20">
+                <div className="text-center">
+                  <div className="animate-spin rounded-full h-12 w-12 sm:h-16 sm:w-16 border-b-4 border-white mx-auto mb-4"></div>
+                  <p className="text-white text-sm sm:text-base">Loading services...</p>
+                </div>
+              </div>
+            ) : (
+              <>
+                {/* Services Grid - matching Home page layout */}
+                {services.length > 0 ? (
+                  <>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4 mb-8">
+                      {services.map(service => (
+                        <div key={service._id || service.id}>
+                          <ServiceCard 
+                            service={service}
+                            showControls={false}
+                          />
+                        </div>
+                      ))}
+                    </div>
 
-                        {/* Page Numbers */}
-                        {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                          const pageNum = i + 1;
-                          return (
-                            <button
-                              key={pageNum}
-                              onClick={() => handlePageChange(pageNum)}
-                              className={`px-4 py-2 rounded-lg font-medium ${
-                                currentPage === pageNum
-                                  ? 'bg-red-500 text-white'
-                                  : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-300'
-                              }`}
-                            >
-                              {pageNum}
-                            </button>
-                          );
-                        })}
+                    {/* Pagination */}
+                    {totalPages > 1 && (
+                      <div className="flex justify-center mt-8">
+                        <div className="flex items-center space-x-2">
+                          {/* Previous Button */}
+                          <button
+                            onClick={() => handlePageChange(currentPage - 1)}
+                            disabled={currentPage === 1}
+                            className={`px-3 sm:px-4 py-2 rounded-lg font-medium text-sm sm:text-base ${
+                              currentPage === 1
+                                ? 'bg-white/10 text-white/40 cursor-not-allowed'
+                                : 'bg-white text-red-500 hover:bg-white/90'
+                            }`}
+                          >
+                            Previous
+                          </button>
 
-                        {totalPages > 5 && (
-                          <>
-                            <span className="px-2 text-gray-500">...</span>
-                            <button
-                              onClick={() => handlePageChange(totalPages)}
-                              className={`px-4 py-2 rounded-lg font-medium ${
-                                currentPage === totalPages
-                                  ? 'bg-red-500 text-white'
-                                  : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-300'
-                              }`}
-                            >
-                              {totalPages}
-                            </button>
-                          </>
+                          {/* Page Numbers */}
+                          {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                            const pageNum = i + 1;
+                            return (
+                              <button
+                                key={pageNum}
+                                onClick={() => handlePageChange(pageNum)}
+                                className={`px-3 sm:px-4 py-2 rounded-lg font-medium text-sm sm:text-base ${
+                                  currentPage === pageNum
+                                    ? 'bg-white text-red-500'
+                                    : 'bg-white/20 text-white hover:bg-white/30 backdrop-blur-sm'
+                                }`}
+                              >
+                                {pageNum}
+                              </button>
+                            );
+                          })}
+
+                          {totalPages > 5 && (
+                            <>
+                              <span className="px-2 text-white text-sm sm:text-base">...</span>
+                              <button
+                                onClick={() => handlePageChange(totalPages)}
+                                className={`px-3 sm:px-4 py-2 rounded-lg font-medium text-sm sm:text-base ${
+                                  currentPage === totalPages
+                                    ? 'bg-white text-red-500'
+                                    : 'bg-white/20 text-white hover:bg-white/30 backdrop-blur-sm'
+                                }`}
+                              >
+                                {totalPages}
+                              </button>
+                            </>
+                          )}
+
+                          {/* Next Button */}
+                          <button
+                            onClick={() => handlePageChange(currentPage + 1)}
+                            disabled={currentPage === totalPages}
+                            className={`px-3 sm:px-4 py-2 rounded-lg font-medium text-sm sm:text-base ${
+                              currentPage === totalPages
+                                ? 'bg-white/10 text-white/40 cursor-not-allowed'
+                                : 'bg-white text-red-500 hover:bg-white/90'
+                            }`}
+                          >
+                            Next
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <div className="text-center py-12 sm:py-20">
+                    <div className="max-w-md mx-auto text-white">
+                      <div className="text-6xl sm:text-8xl mb-6">🔍</div>
+                      <h3 className="text-xl sm:text-2xl font-semibold mb-4">No services found</h3>
+                      <p className="text-white/80 mb-8 leading-relaxed text-sm sm:text-base px-4">
+                        {currentSearchParams.search || currentSearchParams.category || currentSearchParams.location
+                          ? 'Try adjusting your search criteria or browse all services.'
+                          : 'No services are available at the moment. Check back later!'}
+                      </p>
+                      <div className="space-y-3">
+                        {(currentSearchParams.search || currentSearchParams.category || currentSearchParams.location) && (
+                          <button
+                            onClick={() => navigate('/services')}
+                            className="bg-white text-red-500 px-6 sm:px-8 py-3 rounded-lg hover:bg-white/90 transition font-medium text-sm sm:text-base"
+                          >
+                            Browse All Services
+                          </button>
                         )}
-
-                        {/* Next Button */}
-                        <button
-                          onClick={() => handlePageChange(currentPage + 1)}
-                          disabled={currentPage === totalPages}
-                          className={`px-4 py-2 rounded-lg font-medium ${
-                            currentPage === totalPages
-                              ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                              : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-300'
-                          }`}
-                        >
-                          Next
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                </>
-              ) : (
-                <div className="text-center py-20">
-                  <div className="max-w-md mx-auto">
-                    <div className="text-8xl mb-6">🔍</div>
-                    <h3 className="text-2xl font-semibold text-gray-800 mb-4">No services found</h3>
-                    <p className="text-gray-600 mb-8 leading-relaxed">
-                      {currentSearchParams.search || currentSearchParams.category || currentSearchParams.location
-                        ? 'Try adjusting your search criteria or browse all services.'
-                        : 'No services are available at the moment. Check back later!'}
-                    </p>
-                    <div className="space-y-3">
-                      {(currentSearchParams.search || currentSearchParams.category || currentSearchParams.location) && (
-                        <button
-                          onClick={() => navigate('/services')}
-                          className="bg-red-500 text-white px-8 py-3 rounded-lg hover:bg-red-600 transition font-medium"
-                        >
-                          Browse All Services
-                        </button>
-                      )}
-                      <div>
-                        <button
-                          onClick={() => navigate('/')}
-                          className="text-red-500 hover:text-red-600 font-medium"
-                        >
-                          ← Back to Home
-                        </button>
+                        <div>
+                          <button
+                            onClick={() => navigate('/')}
+                            className="text-white hover:text-white/80 font-medium text-sm sm:text-base"
+                          >
+                            ← Back to Home
+                          </button>
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
-              )}
-            </>
-          )}
+                )}
+              </>
+            )}
+          </div>
         </div>
       </div>
       <Footer variant="full" />

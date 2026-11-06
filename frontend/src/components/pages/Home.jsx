@@ -31,14 +31,17 @@ const HomePage = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const categories = [
-    'Woodworking', 'Pottery', 'Jewelry Making', 'Textile Art',
-    'Leathercraft', 'Metalwork', 'Basket Weaving', 'Beadwork',
-    'Calabash Decoration', 'Glass Blowing', 'Leather Shoes', 'Embroidery',
-    'Soap Making', 'Candle Making', 'Hair Braiding & Styling'
+    'Woodworking', 'Pottery & Ceramics', 'Leathercraft', 'Textile Art',
+    'Jewelry Making', 'Metalwork', 'Glass Art', 'Traditional Clothing',
+    'Painting & Drawing', 'Sculpture', 'Basket Weaving', 'Beadwork',
+    'Paper Crafts', 'Soap & Candle Making', 'Calabash Carving',
+    'Musical Instruments', 'Hair Braiding & Styling', 'Furniture Restoration',
+    'Shoemaking', 'Sign Writing', 'Tie & Dye', 'Adire Textile',
+    'Food Preservation', 'Batik', 'Embroidery', 'Photography', 'Other'
   ];
 
   const quickCategories = [
-    'Woodworking', 'Pottery', 'Jewelry Making', 'Textile Art',
+    'Woodworking', 'Pottery & Ceramics', 'Jewelry Making', 'Textile Art',
     'Metalwork', 'Hair Braiding & Styling', 'Basket Weaving', 'Embroidery'
   ];
 

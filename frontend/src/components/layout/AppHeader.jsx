@@ -3,14 +3,17 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 
 const CATEGORIES = [
-  'Woodworking', 'Pottery', 'Jewelry Making', 'Textile Art',
-  'Leathercraft', 'Metalwork', 'Basket Weaving', 'Beadwork',
-  'Calabash Decoration', 'Glass Blowing', 'Leather Shoes', 'Embroidery',
-  'Soap Making', 'Candle Making', 'Hair Braiding & Styling',
+  'Woodworking', 'Pottery & Ceramics', 'Leathercraft', 'Textile Art',
+  'Jewelry Making', 'Metalwork', 'Glass Art', 'Traditional Clothing',
+  'Painting & Drawing', 'Sculpture', 'Basket Weaving', 'Beadwork',
+  'Paper Crafts', 'Soap & Candle Making', 'Calabash Carving',
+  'Musical Instruments', 'Hair Braiding & Styling', 'Furniture Restoration',
+  'Shoemaking', 'Sign Writing', 'Tie & Dye', 'Adire Textile',
+  'Food Preservation', 'Batik', 'Embroidery', 'Photography', 'Other'
 ];
 
 const QUICK_CATEGORIES = [
-  'Woodworking', 'Pottery', 'Jewelry Making', 'Textile Art',
+  'Woodworking', 'Pottery & Ceramics', 'Jewelry Making', 'Textile Art',
   'Metalwork', 'Hair Braiding & Styling', 'Basket Weaving', 'Embroidery',
 ];
 
@@ -66,15 +69,15 @@ const AppHeader = ({
   };
 
   const secondaryLinks = [
-    { label: 'All Services', path: '/services',                              key: 'services'    },
-    { label: 'Woodworking',  path: '/services?category=Woodworking',         key: 'woodworking' },
-    { label: 'MetalWorks',   path: '/services?category=Metalwork',           key: 'metalwork'   },
-    { label: 'Embroidery',   path: '/services?category=Embroidery',          key: 'embroidery'  },
-    { label: 'Soap Making',  path: '/services?category=Soap & Candle Making',key: 'soap'        },
-    { label: 'Hair Braiding',path: '/services?category=Hair Braiding & Styling', key: 'hair'   },
-    { label: 'Pottery',      path: '/services?category=Pottery & Ceramics',  key: 'pottery'     },
-    { label: 'Jewelry',      path: '/services?category=Jewelry Making',      key: 'jewelry'     },
-    { label: 'Textiles',     path: '/services?category=Textile Art',         key: 'textiles'    },
+    { label: 'All Services', path: '/services',                                      key: 'services'    },
+    { label: 'Woodworking',  path: '/services?category=Woodworking',                 key: 'woodworking' },
+    { label: 'MetalWorks',   path: '/services?category=Metalwork',                   key: 'metalwork'   },
+    { label: 'Embroidery',   path: '/services?category=Embroidery',                  key: 'embroidery'  },
+    { label: 'Soap Making',  path: '/services?category=Soap & Candle Making',        key: 'soap'        },
+    { label: 'Hair Braiding',path: '/services?category=Hair Braiding & Styling',     key: 'hair'        },
+    { label: 'Pottery',      path: '/services?category=Pottery & Ceramics',          key: 'pottery'     },
+    { label: 'Jewelry',      path: '/services?category=Jewelry Making',              key: 'jewelry'     },
+    { label: 'Textiles',     path: '/services?category=Textile Art',                 key: 'textiles'    },
   ];
 
   return (
