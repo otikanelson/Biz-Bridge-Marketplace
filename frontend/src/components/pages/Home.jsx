@@ -236,7 +236,7 @@ const HomePage = () => {
             </>
           ) : error ? (
             <div className="text-center py-12">
-              <h3 className="text-xl font-semibold mb-2 text-gray-900">Unable to load content</h3>
+              <h3 className="text-xl font-semibold mb-2 text-gray-900">Something went wrong</h3>
               <p className="text-gray-600 mb-4">{error}</p>
               <button
                 onClick={handleRetry}

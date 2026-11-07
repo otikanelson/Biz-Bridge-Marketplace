@@ -221,9 +221,16 @@ process.on('SIGINT', async () => {
 
 // Start server locally or export for serverless
 const PORT = process.env.PORT || 5000;
-if (process.env.NODE_ENV !== 'production') {
+
+// Only skip listening if we're in a serverless environment (Vercel)
+// Local production builds should still listen
+const isServerless = process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME;
+
+if (!isServerless) {
   app.listen(PORT, () => {
     console.log(`🚀 BizBridge Server running on port ${PORT}`);
+    console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
+    console.log(`🗄️  Database: ${mongoose.connection.readyState === 1 ? 'Connected' : 'Connecting...'}`);
   });
 }
 
