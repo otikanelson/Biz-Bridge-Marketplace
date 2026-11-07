@@ -105,7 +105,8 @@ const HomePage = () => {
         const response = await axios.get(`${API_URL}/api/services/home-rails`);
         
         if (response.data.success) {
-          setRailsData(response.data.rails);
+          // API returns {success: true, data: {...}} not {success: true, rails: {...}}
+          setRailsData(response.data.data);
         } else {
           setError('Unable to load content');
         }
@@ -247,10 +248,10 @@ const HomePage = () => {
             </div>
           ) : railsData ? (
             <>
-              {/* Hero Rail - Featured Services */}
-              {railsData.featured?.length > 0 && (
+              {/* Hero Rail - Featured Services (using top rated if no featured) */}
+              {railsData.topRated?.length > 0 && (
                 <Rail title="Featured Services">
-                  {railsData.featured.map(service => (
+                  {railsData.topRated.slice(0, 5).map(service => (
                     <HeroCard key={service._id} service={service} badge="FEATURED" />
                   ))}
                 </Rail>
@@ -263,7 +264,7 @@ const HomePage = () => {
                     <CategoryCard
                       key={cat._id || index}
                       category={cat._id}
-                      image={cat.sampleImage}
+                      image={cat.services?.[0]?.image}
                       count={cat.count}
                     />
                   ))}

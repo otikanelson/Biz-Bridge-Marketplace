@@ -1,0 +1,46 @@
+.location-capture {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.location-capture__remote {
+  padding: 0.75rem;
+  background-color: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.5rem;
+}
+
+.location-capture__saved {
+  margin-bottom: 0.5rem;
+}
+
+.location-capture__field {
+  /* No additional styling needed - uses Tailwind */
+}
+
+.location-capture__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.location-capture__error {
+  padding: 0.75rem;
+  background-color: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 0.5rem;
+  color: #dc2626;
+  font-size: 0.875rem;
+}
+
+@media (max-width: 640px) {
+  .location-capture__actions {
+    flex-direction: column;
+  }
+  
+  .location-capture__actions button {
+    width: 100%;
+    justify-content: center;
+  }
+}

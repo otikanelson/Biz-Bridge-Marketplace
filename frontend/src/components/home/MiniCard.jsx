@@ -22,7 +22,14 @@ const MiniCard = ({ service }) => {
     }
   };
 
-  const imageUrl = getServiceImageUrl(service);
+  // Handle both image formats
+  const imageUrl = service.image || (service.images && service.images[0]) || 'https://via.placeholder.com/400x300?text=No+Image';
+
+  // Get price from various possible formats
+  const price = service.basePrice || service.pricing?.basePrice;
+
+  // Get rating info
+  const rating = service.ratings || service.rating;
 
   return (
     <div
@@ -45,13 +52,13 @@ const MiniCard = ({ service }) => {
         
         <div className="mini-card__footer">
           <div className="mini-card__price">
-            ₦{service.pricing?.basePrice?.toLocaleString() || 'N/A'}
+            {price ? `₦${price.toLocaleString()}` : 'Contact'}
           </div>
           
-          {service.rating?.average > 0 && (
+          {rating?.average > 0 && (
             <div className="mini-card__rating">
               <Star size={12} fill="currentColor" />
-              {service.rating.average.toFixed(1)}
+              {rating.average.toFixed(1)}
             </div>
           )}
         </div>

@@ -6,6 +6,7 @@ import { createService, updateService, getServiceById } from '../../api/services
 import ImageUpload from '../common/ImageUpload';
 import JobSelection from '../pages/JobSelection';
 import LocationSelection from '../pages/LocationSelection';
+import AdvertBuilder from '../service/AdvertBuilder';
 
 // Default categories for categorized pricing
 const DEFAULT_CATEGORIES = {
@@ -356,7 +357,7 @@ const ServicesAdd = () => {
   // Step navigation
   const handleNext = () => {
     if (validateStep(currentStep)) {
-      setCurrentStep(prev => Math.min(5, prev + 1));
+      setCurrentStep(prev => Math.min(6, prev + 1));
     } else {
       window.scrollTo(0, 0);
     }
@@ -404,9 +405,28 @@ const ServicesAdd = () => {
       
       setSubmitSuccess(true);
       
-      setTimeout(() => {
-        navigate('/ServicesManagement');
-      }, 3000);
+      // Get the service ID from response
+      const savedServiceId = response.service?._id || response.data?._id || id;
+      
+      // Offer to create advert or go to management
+      if (!isEditMode && savedServiceId) {
+        // For new services, ask if they want to add an advert
+        setTimeout(() => {
+          const wantsAdvert = window.confirm(
+            'Service published successfully! Would you like to create a rich advert for your service (optional)?'
+          );
+          if (wantsAdvert) {
+            navigate(`/ServicesAdd/${savedServiceId}`);
+            setCurrentStep(6);
+          } else {
+            navigate('/ServicesManagement');
+          }
+        }, 1500);
+      } else {
+        setTimeout(() => {
+          navigate('/ServicesManagement');
+        }, 3000);
+      }
     } catch (error) {
       console.error('❌ Error saving service:', error);
       setSubmitError(error.message || 'Failed to save service. Please try again.');
@@ -929,18 +949,76 @@ const ServicesAdd = () => {
                   >
                     Previous
                   </button>
+                  <div className="flex gap-3">
+                    <button
+                      type="button"
+                      onClick={handleSubmit}
+                      disabled={isSubmitting}
+                      className={`px-6 py-3 rounded-lg transition-colors ${
+                        isSubmitting
+                          ? 'bg-gray-400 text-gray-700 cursor-not-allowed'
+                          : 'bg-red-500 text-white hover:bg-red-600'
+                      }`}
+                    >
+                      {isSubmitting ? 'Publishing...' : (isEditMode ? 'Update Service' : 'Publish Service')}
+                    </button>
+                    {isEditMode && (
+                      <button
+                        type="button"
+                        onClick={() => setCurrentStep(6)}
+                        className="px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+                      >
+                        Edit Advert →
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Step 6: Service Advert (Optional) */}
+            {currentStep === 6 && (
+              <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8">
+                <div className="mb-6">
+                  <h2 className="text-xl font-semibold text-gray-900 mb-2">Service Advert (Optional)</h2>
+                  <p className="text-gray-600 text-sm">
+                    Create a rich, visual advert for your service similar to Amazon's A+ Content. 
+                    This appears on your service page to help customers understand what you offer.
+                  </p>
+                </div>
+
+                <AdvertBuilder 
+                  serviceId={id}
+                  onSave={(advertData) => {
+                    console.log('Advert saved:', advertData);
+                    // The AdvertBuilder handles saving internally via API
+                  }}
+                />
+
+                <div className="flex justify-between mt-8">
                   <button
                     type="button"
-                    onClick={handleSubmit}
-                    disabled={isSubmitting}
-                    className={`px-6 py-3 rounded-lg transition-colors ${
-                      isSubmitting
-                        ? 'bg-gray-400 text-gray-700 cursor-not-allowed'
-                        : 'bg-red-500 text-white hover:bg-red-600'
-                    }`}
+                    onClick={handlePrevious}
+                    className="px-6 py-3 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors"
                   >
-                    {isSubmitting ? 'Publishing...' : (isEditMode ? 'Update Service' : 'Publish Service')}
+                    Previous
                   </button>
+                  <div className="flex gap-3">
+                    <button
+                      type="button"
+                      onClick={() => navigate('/ServicesManagement')}
+                      className="px-6 py-3 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition-colors"
+                    >
+                      Skip & Finish
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => navigate('/ServicesManagement')}
+                      className="px-6 py-3 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors"
+                    >
+                      Save & Finish
+                    </button>
+                  </div>
                 </div>
               </div>
             )}

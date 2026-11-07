@@ -1,7 +1,8 @@
-// src/components/forms/ServiceRequestForm.jsx - Day 7: Updated for New Pricing System
+// src/components/forms/ServiceRequestForm.jsx - Updated with Location Capture
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { API_URL } from '../../api/config';
+import LocationCapture from '../location/LocationCapture';
 
 // API function for creating service requests (assuming this exists in your services)
 const createServiceRequest = async (requestData) => {
@@ -32,6 +33,8 @@ const ServiceRequestForm = ({ service, artisan, onClose, onSuccess }) => {
   const navigate = useNavigate();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const [savedAddresses, setSavedAddresses] = useState([]);
+  const [loadingAddresses, setLoadingAddresses] = useState(true);
   
   const [formData, setFormData] = useState({
     customerMessage: '',
@@ -49,7 +52,11 @@ const ServiceRequestForm = ({ service, artisan, onClose, onSuccess }) => {
       isFlexible: true
     },
     location: {
-      meetingLocation: '',
+      lga: '',
+      locality: '',
+      address: '',
+      landmark: '',
+      coordinates: null,
       isRemote: false
     }
   });
@@ -61,6 +68,62 @@ const ServiceRequestForm = ({ service, artisan, onClose, onSuccess }) => {
       setFormData(prev => ({ ...prev, selectedCategory: '' }));
     }
   }, [service]);
+
+  // Load saved addresses
+  useEffect(() => {
+    const loadSavedAddresses = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        const response = await fetch(`${API_URL}/users/me/addresses`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          setSavedAddresses(data.addresses || []);
+        }
+      } catch (err) {
+        console.error('Error loading saved addresses:', err);
+      } finally {
+        setLoadingAddresses(false);
+      }
+    };
+
+    loadSavedAddresses();
+  }, []);
+
+  // Handle location changes
+  const handleLocationChange = (newLocation) => {
+    setFormData(prev => ({
+      ...prev,
+      location: newLocation
+    }));
+    if (error) setError('');
+  };
+
+  // Handle saving address
+  const handleSaveAddress = async (addressData) => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${API_URL}/users/me/addresses`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(addressData)
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setSavedAddresses(data.addresses || []);
+      }
+    } catch (err) {
+      console.error('Error saving address:', err);
+    }
+  };
 
   // Handle input changes
   const handleInputChange = (e) => {
@@ -199,10 +262,13 @@ const ServiceRequestForm = ({ service, artisan, onClose, onSuccess }) => {
           flexibility: formData.timeline.isFlexible ? 'flexible' : 'fixed'
         },
         
-        // Location (backend expects location.lga)
+        // Location (backend expects full location object)
         location: {
-          lga: formData.location.meetingLocation || 'Lagos', // Default to Lagos if not specified
-          address: formData.location.meetingLocation,
+          lga: formData.location.lga,
+          locality: formData.location.locality,
+          address: formData.location.address,
+          landmark: formData.location.landmark,
+          coordinates: formData.location.coordinates,
           isRemote: formData.location.isRemote
         },
         
@@ -436,15 +502,15 @@ const ServiceRequestForm = ({ service, artisan, onClose, onSuccess }) => {
           {/* Meeting Location */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Preferred Meeting Location
+              Service Location *
             </label>
-            <input
-              type="text"
-              name="location.meetingLocation"
-              value={formData.location.meetingLocation}
-              onChange={handleInputChange}
-              placeholder="e.g., My home in Ikeja, Your workshop, etc."
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500"
+            <LocationCapture
+              value={formData.location}
+              onChange={handleLocationChange}
+              savedAddresses={savedAddresses}
+              onSaveAddress={handleSaveAddress}
+              allowRemote={true}
+              error={error && !formData.location.lga ? 'Please select a location' : ''}
             />
           </div>
 

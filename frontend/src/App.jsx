@@ -104,6 +104,11 @@ function App() {
                 <ServicesAdd />
               </ProtectedRoute>
             } />
+            <Route path="/ServicesAdd/:id" element={
+              <ProtectedRoute allowedUserTypes={['artisan']}>
+                <ServicesAdd />
+              </ProtectedRoute>
+            } />
             <Route path="/ServicesManagement" element={
               <ProtectedRoute allowedUserTypes={['artisan']}>
                 <ServicesManagement />
