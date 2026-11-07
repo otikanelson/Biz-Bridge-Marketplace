@@ -22,10 +22,8 @@ if (!MONGO_URI) {
   process.exit(1);
 }
 
-if (MONGO_URI.includes('mongodb+srv://') && MONGO_URI.includes('cluster0.pnsx1ps.mongodb.net')) {
-  console.log('⚠️ Local DNS protocol restriction detected. Activating direct connection fallback...');
-  MONGO_URI = 'mongodb://Nelson:W9qVs0r44OFqa3n8@ac-movygpe-shard-00-00.pnsx1ps.mongodb.net:27017,ac-movygpe-shard-00-01.pnsx1ps.mongodb.net:27017,ac-movygpe-shard-00-02.pnsx1ps.mongodb.net:27017/bizbridge?ssl=true&replicaSet=atlas-4iw6s3-shard-0&authSource=admin&appName=Cluster0';
-}
+// ⚠️ SECURITY WARNING: DO NOT hardcode credentials
+// Always use environment variables for database connections
 
 // Artisans Data (2 artisans)
 const artisansData = [

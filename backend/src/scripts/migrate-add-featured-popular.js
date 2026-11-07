@@ -26,17 +26,18 @@ class MigrationManager {
   }
 
   async connect() {
-    // Prioritize environment configuration variable over local fallback
-    let connectionUri = process.env.MONGODB_URI || process.env.MONGO_URI || 'mongodb://localhost:27017/bizbridge';
+    // Prioritize environment configuration variable
+    let connectionUri = process.env.MONGODB_URI || process.env.MONGO_URI;
 
-    // FORCE fallback directly inside the connection cycle to completely bypass local router blocks
-    if (connectionUri.includes('cluster0.pnsx1ps.mongodb.net')) {
-      console.log('⚠️ Local DNS protocol restriction detected. Swapping to raw shard connection array...');
-      connectionUri = 'mongodb://Nelson:W9qVs0r44OFqa3n8@ac-movygpe-shard-00-00.pnsx1ps.mongodb.net:27017,ac-movygpe-shard-00-01.pnsx1ps.mongodb.net:27017,ac-movygpe-shard-00-02.pnsx1ps.mongodb.net:27017/bizbridge?ssl=true&replicaSet=atlas-4iw6s3-shard-0&authSource=admin&appName=Cluster0';
+    if (!connectionUri) {
+      throw new Error('❌ MONGODB_URI or MONGO_URI environment variable is not set');
     }
 
+    // ⚠️ SECURITY WARNING: DO NOT hardcode credentials
+    // Always use environment variables for database connections
+
     try {
-      console.log('🔄 Attempting Connection to MongoDB Atlas Cluster...');
+      console.log('🔄 Attempting Connection to MongoDB...');
       await mongoose.connect(connectionUri, {
         serverSelectionTimeoutMS: 10000, 
         socketTimeoutMS: 45000,

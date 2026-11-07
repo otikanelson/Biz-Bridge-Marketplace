@@ -1,0 +1,135 @@
+.rail {
+  position: relative;
+  margin: 2rem 0;
+}
+
+.rail__header {
+  margin-bottom: 1rem;
+  padding: 0 1rem;
+}
+
+.rail__title {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #1a1a1a;
+  margin: 0;
+}
+
+.rail__wrapper {
+  position: relative;
+}
+
+.rail__scroll-container {
+  overflow-x: auto;
+  overflow-y: hidden;
+  scroll-behavior: smooth;
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE/Edge */
+  padding: 0.5rem 1rem 1rem;
+  margin: 0 -1rem; /* Negative margin to offset padding */
+}
+
+.rail__scroll-container::-webkit-scrollbar {
+  display: none; /* Chrome/Safari */
+}
+
+.rail__scroll-container:focus {
+  outline: 2px solid #1e40af;
+  outline-offset: -2px;
+}
+
+.rail__content {
+  display: flex;
+  gap: 1rem;
+  width: fit-content;
+}
+
+/* Arrow buttons */
+.rail__arrow {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 10;
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 50%;
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  transition: all 0.2s ease;
+}
+
+.rail__arrow:hover {
+  background: #f9fafb;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.rail__arrow:active {
+  transform: translateY(-50%) scale(0.95);
+}
+
+.rail__arrow:focus {
+  outline: 2px solid #1e40af;
+  outline-offset: 2px;
+}
+
+.rail__arrow--left {
+  left: 0;
+}
+
+.rail__arrow--right {
+  right: 0;
+}
+
+/* Variant: compact (for smaller cards) */
+.rail--compact .rail__title {
+  font-size: 1.25rem;
+}
+
+.rail--compact .rail__content {
+  gap: 0.75rem;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .rail {
+    margin: 1.5rem 0;
+  }
+
+  .rail__header {
+    padding: 0 0.5rem;
+  }
+
+  .rail__title {
+    font-size: 1.25rem;
+  }
+
+  .rail__scroll-container {
+    padding: 0.5rem 0.5rem 1rem;
+    margin: 0 -0.5rem;
+  }
+
+  .rail__arrow {
+    width: 40px;
+    height: 40px;
+  }
+
+  .rail__arrow svg {
+    width: 20px;
+    height: 20px;
+  }
+}
+
+@media (max-width: 480px) {
+  .rail__title {
+    font-size: 1.125rem;
+  }
+
+  .rail__arrow {
+    display: none; /* Hide arrows on very small screens */
+  }
+}

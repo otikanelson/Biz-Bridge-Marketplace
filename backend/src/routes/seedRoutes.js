@@ -6,15 +6,35 @@ import Service from '../models/service.js';
 
 const router = express.Router();
 
-const SEED_SECRET = process.env.SEED_SECRET || 'bizbridge-seed-2024';
+// ⚠️ SECURITY: Require SEED_SECRET from environment, no default
+const SEED_SECRET = process.env.SEED_SECRET;
 
-// GET /api/seed?secret=bizbridge-seed-2024
-router.get('/', async (req, res) => {
-  try {
-    const { secret } = req.query;
-    if (secret !== SEED_SECRET) {
-      return res.status(403).json({ success: false, message: 'Forbidden' });
-    }
+if (!SEED_SECRET) {
+  console.warn('⚠️ SEED_SECRET not set - seed routes will be disabled');
+}
+
+// Middleware to check if seeding is allowed
+const checkSeedingAllowed = (req, res, next) => {
+  // Disable in production
+  if (process.env.NODE_ENV === 'production') {
+    return res.status(404).json({ success: false, message: 'Not found' });
+  }
+
+  // Require secret
+  if (!SEED_SECRET) {
+    return res.status(503).json({ success: false, message: 'Seeding is disabled' });
+  }
+
+  const { secret } = req.query;
+  if (secret !== SEED_SECRET) {
+    return res.status(403).json({ success: false, message: 'Forbidden' });
+  }
+
+  next();
+};
+
+// GET /api/seed?secret=YOUR_SECRET
+router.get('/', checkSeedingAllowed, async (req, res) => {
 
     const seedEmails = [
       'adebayo@bizbridge.com', 'ngozi@bizbridge.com', 'fatima@bizbridge.com',

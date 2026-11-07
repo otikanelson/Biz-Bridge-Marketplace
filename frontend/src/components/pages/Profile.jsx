@@ -177,52 +177,29 @@ const Profile = () => {
 
   return (
     <div className="flex flex-col min-h-screen">
-      {/* EXACT HEADER PATTERN FROM APP */}
+      {/* Header*/}
       <header className="bg-black text-white w-full top-0 z-10 fixed">
         <div className="py-2">
           <div className="container mx-auto px-4 flex items-center justify-between">
-            {/* Logo - EXACT PATTERN */}
-            <div className="flex items-center cursor-pointer py-3" onClick={() => navigate('/')}>
-              <span className="text-red-500 text-5xl select-none font-bold">𐐒</span>
-              <span className="text-white text-4xl select-none font-bold">B</span>
-              <span className="text-red-500 text-2xl select-none font-semibold ml-5">BizBridge</span>
+            {/* Logo */}
+            <div className="flex items-center cursor-pointer py-1" onClick={() => navigate('/')}>
+              <span className="text-red-500 text-4xl select-none font-bold">𐐒</span>
+              <span className="text-white text-3xl select-none font-bold">B</span>
+              <span className="text-red-500 text-lg select-none font-semibold ml-3">BizBridge</span>
             </div>
 
-            {/* Navigation*/}
-            <div className="flex items-center space-x-6">
-              <div className="text-xs cursor-pointer hover:text-red-400" onClick={() => navigate('/dashboard')}>
-                <div>Your</div>
-                <div className="font-bold">Dashboard</div>
-              </div>
-              {currentUser && currentUser.role === 'customer' && (
-                <div className="text-xs cursor-pointer hover:text-red-400" onClick={() => navigate('/bookings/my-bookings')}>
-                  <div>Your</div>
-                  <div className="font-bold">Bookings</div>
-                </div>
-              )}
-              {currentUser && currentUser.role === 'customer' && (
-                <div className="text-xs cursor-pointer hover:text-red-400" onClick={() => navigate('/customer-requests/history')}>
-                  <div>Your</div>
-                  <div className="font-bold">requests</div>
-                </div>
-              )}
-              {currentUser && currentUser.role === 'artisan' && (
-                <div className="text-xs cursor-pointer hover:text-red-400" onClick={() => navigate('/ServicesManagement')}>
-                  <div>Your</div>
-                  <div className="font-bold">Services</div>
-                </div>
-              )}
-              {currentUser && !context.isOwnProfile && (
-                <div className="text-xs cursor-pointer hover:text-red-400" onClick={() => navigate('/profile')}>
-                  <div>Your</div>
-                  <div className="font-bold">Profile</div>
-                </div>
-              )}
-              <div className="text-xs cursor-pointer hover:text-red-400" onClick={handleLogout}>
-                <div>Sign</div>
-                <div className="font-bold">Out</div>
-              </div>
-            </div>
+            {/* Navigation */}
+            <nav className="flex items-center space-x-6 text-md">
+              <span onClick={() => navigate('/dashboard')} className="text-xs cursor-pointer hover:text-red-400">
+              <div>Your</div>
+              <div className='font-bold'>Dashboard</div></span>
+              <span onClick={() => navigate('/ServicesManagement')} className="text-xs cursor-pointer hover:text-red-400">
+              <div>Your</div>
+              <div className='font-bold'>services</div></span>
+              <span onClick={() => navigate('/profile')} className="text-xs cursor-pointer hover:text-red-400">
+              <div>Sign</div>
+              <div className='font-bold'>out</div></span>
+            </nav>
           </div>
         </div>
       </header>

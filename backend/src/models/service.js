@@ -123,6 +123,23 @@ const ServiceSchema = new mongoose.Schema({
   ratings: {
     average: { type: Number, default: 0 },
     count: { type: Number, default: 0 }
+  },
+
+  // ========== RICH CONTENT / ADVERT SECTION ==========
+  richContent: {
+    enabled: { type: Boolean, default: false },
+    blocks: [{
+      id: { type: String, required: true },
+      type: {
+        type: String,
+        enum: ['banner', 'heading', 'featureStrip', 'imageText', 'gallery'],
+        required: true
+      },
+      order: { type: Number, required: true },
+      data: { type: mongoose.Schema.Types.Mixed, required: true }
+    }],
+    updatedAt: { type: Date, default: Date.now },
+    seeded: { type: Boolean, default: false } // Marks auto-generated content
   }
 }, {
   timestamps: true

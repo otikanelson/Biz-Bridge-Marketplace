@@ -1,0 +1,119 @@
+.promo-card {
+  width: 360px;
+  height: 360px;
+  border-radius: 8px;
+  overflow: hidden;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  padding: 2rem;
+  position: relative;
+}
+
+.promo-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15);
+}
+
+.promo-card:focus {
+  outline: 2px solid #1e40af;
+  outline-offset: 2px;
+}
+
+/* Gradient variants */
+.promo-card--blue {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+}
+
+.promo-card--orange {
+  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+  color: white;
+}
+
+.promo-card--green {
+  background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+  color: white;
+}
+
+.promo-card--purple {
+  background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);
+  color: #1a1a1a;
+}
+
+.promo-card__icon {
+  font-size: 3rem;
+  margin-bottom: 1rem;
+}
+
+.promo-card__title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin: 0 0 0.75rem 0;
+  line-height: 1.3;
+}
+
+.promo-card__description {
+  font-size: 0.875rem;
+  opacity: 0.9;
+  margin: 0 0 1.5rem 0;
+  line-height: 1.5;
+  max-width: 280px;
+}
+
+.promo-card__cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.5rem;
+  background: white;
+  color: #1a1a1a;
+  border-radius: 6px;
+  font-weight: 600;
+  font-size: 0.875rem;
+  text-decoration: none;
+  transition: transform 0.2s ease;
+}
+
+.promo-card--blue .promo-card__cta,
+.promo-card--orange .promo-card__cta,
+.promo-card--green .promo-card__cta {
+  background: white;
+  color: #1a1a1a;
+}
+
+.promo-card--purple .promo-card__cta {
+  background: #1a1a1a;
+  color: white;
+}
+
+.promo-card__cta:hover {
+  transform: scale(1.05);
+}
+
+@media (max-width: 768px) {
+  .promo-card {
+    width: 300px;
+    height: 300px;
+    padding: 1.5rem;
+  }
+
+  .promo-card__icon {
+    font-size: 2.5rem;
+  }
+
+  .promo-card__title {
+    font-size: 1.25rem;
+  }
+
+  .promo-card__description {
+    font-size: 0.8125rem;
+    margin-bottom: 1rem;
+  }
+}

@@ -309,3 +309,178 @@ export const getFeaturedArtisans = async (req, res) => {
     });
   }
 };
+
+// ========== SAVED ADDRESSES MANAGEMENT ==========
+
+// @desc    Get user's saved addresses
+// @route   GET /api/users/me/addresses
+// @access  Private
+export const getSavedAddresses = async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id).select('savedAddresses');
+    
+    res.status(200).json({
+      success: true,
+      addresses: user.savedAddresses || []
+    });
+  } catch (error) {
+    console.error('Get saved addresses error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to retrieve saved addresses',
+      error: error.message
+    });
+  }
+};
+
+// @desc    Add a new saved address
+// @route   POST /api/users/me/addresses
+// @access  Private
+export const addSavedAddress = async (req, res) => {
+  try {
+    const { label, lga, locality, address, landmark, coordinates, isDefault } = req.body;
+
+    // Validation
+    if (!label || !lga) {
+      return res.status(400).json({
+        success: false,
+        message: 'Label and LGA are required'
+      });
+    }
+
+    const user = await User.findById(req.user._id);
+
+    // Check limit
+    if (user.savedAddresses && user.savedAddresses.length >= 5) {
+      return res.status(400).json({
+        success: false,
+        message: 'Maximum 5 saved addresses allowed. Please delete one first.'
+      });
+    }
+
+    // If setting as default, unset other defaults
+    if (isDefault) {
+      user.savedAddresses.forEach(addr => {
+        addr.isDefault = false;
+      });
+    }
+
+    // Add new address
+    user.savedAddresses.push({
+      label,
+      lga,
+      locality,
+      address,
+      landmark,
+      coordinates,
+      isDefault: isDefault || false
+    });
+
+    await user.save();
+
+    res.status(201).json({
+      success: true,
+      message: 'Address saved successfully',
+      addresses: user.savedAddresses
+    });
+  } catch (error) {
+    console.error('Add saved address error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to save address',
+      error: error.message
+    });
+  }
+};
+
+// @desc    Update a saved address
+// @route   PUT /api/users/me/addresses/:addressId
+// @access  Private
+export const updateSavedAddress = async (req, res) => {
+  try {
+    const { addressId } = req.params;
+    const { label, lga, locality, address, landmark, coordinates, isDefault } = req.body;
+
+    const user = await User.findById(req.user._id);
+    const addressIndex = user.savedAddresses.findIndex(
+      addr => addr._id.toString() === addressId
+    );
+
+    if (addressIndex === -1) {
+      return res.status(404).json({
+        success: false,
+        message: 'Address not found'
+      });
+    }
+
+    // If setting as default, unset other defaults
+    if (isDefault) {
+      user.savedAddresses.forEach((addr, idx) => {
+        if (idx !== addressIndex) {
+          addr.isDefault = false;
+        }
+      });
+    }
+
+    // Update address
+    if (label) user.savedAddresses[addressIndex].label = label;
+    if (lga) user.savedAddresses[addressIndex].lga = lga;
+    if (locality !== undefined) user.savedAddresses[addressIndex].locality = locality;
+    if (address !== undefined) user.savedAddresses[addressIndex].address = address;
+    if (landmark !== undefined) user.savedAddresses[addressIndex].landmark = landmark;
+    if (coordinates !== undefined) user.savedAddresses[addressIndex].coordinates = coordinates;
+    if (isDefault !== undefined) user.savedAddresses[addressIndex].isDefault = isDefault;
+
+    await user.save();
+
+    res.status(200).json({
+      success: true,
+      message: 'Address updated successfully',
+      addresses: user.savedAddresses
+    });
+  } catch (error) {
+    console.error('Update saved address error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to update address',
+      error: error.message
+    });
+  }
+};
+
+// @desc    Delete a saved address
+// @route   DELETE /api/users/me/addresses/:addressId
+// @access  Private
+export const deleteSavedAddress = async (req, res) => {
+  try {
+    const { addressId } = req.params;
+
+    const user = await User.findById(req.user._id);
+    const addressIndex = user.savedAddresses.findIndex(
+      addr => addr._id.toString() === addressId
+    );
+
+    if (addressIndex === -1) {
+      return res.status(404).json({
+        success: false,
+        message: 'Address not found'
+      });
+    }
+
+    user.savedAddresses.splice(addressIndex, 1);
+    await user.save();
+
+    res.status(200).json({
+      success: true,
+      message: 'Address deleted successfully',
+      addresses: user.savedAddresses
+    });
+  } catch (error) {
+    console.error('Delete saved address error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to delete address',
+      error: error.message
+    });
+  }
+};

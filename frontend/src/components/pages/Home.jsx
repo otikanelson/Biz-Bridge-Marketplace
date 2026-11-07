@@ -7,21 +7,31 @@ import mosaic from '../../assets/mosaic.jpg';
 import pottery from '../../assets/pottery.jpg';
 import abstractArt from '../../assets/abstractArt.jpg';
 import announcement from '../../assets/announcement.png';
-import ServiceCard from '../../components/cards/ServiceCard';
-import { getFeaturedServices } from '../../api/search';
 import AppHeader from '../layout/AppHeader';
 import Footer from '../layout/Footer';
+import Rail from '../home/Rail';
+import HeroCard from '../home/HeroCard';
+import CategoryCard from '../home/CategoryCard';
+import PromoCard from '../home/PromoCard';
+import MiniCard from '../home/MiniCard';
+import RailSkeleton from '../home/RailSkeleton';
+import useRecentlyViewed from '../../hooks/useRecentlyViewed';
+import axios from 'axios';
 
 
 const heroImage =
   'https://images.unsplash.com/photo-1736143157411-0a70fe999ecb?q=80&w=1920&auto=format&fit=crop';
 
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+
 const HomePage = () => {
   const navigate = useNavigate();
   const { isAuthenticated, userType, logout } = useAuth();
+  const { recentlyViewed } = useRecentlyViewed();
 
-  const [allActiveServices, setAllActiveServices] = useState([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const [railsData, setRailsData] = useState(null);
+  const [recentlyViewedServices, setRecentlyViewedServices] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
 
   const [searchQuery, setSearchQuery] = useState('');
@@ -86,42 +96,49 @@ const HomePage = () => {
     navigate(`/services?category=${encodeURIComponent(category)}`);
   };
 
+  // Load homepage rails data
   useEffect(() => {
-    const loadServices = async () => {
+    const loadRailsData = async () => {
       setIsLoading(true);
       setError(null);
       try {
-        const response = await getFeaturedServices(30);
-
-        if (response.success && response.services && response.services.length > 0) {
-          const processedServices = response.services.map(service => ({
-            ...service,
-            id: service._id || service.id,
-            _id: service._id || service.id
-          }));
-          setAllActiveServices(processedServices);
+        const response = await axios.get(`${API_URL}/api/services/home-rails`);
+        
+        if (response.data.success) {
+          setRailsData(response.data.rails);
         } else {
-          setAllActiveServices([]);
+          setError('Unable to load content');
         }
       } catch (err) {
-        console.error('🏠 Error loading services:', err);
-        setError('Unable to load services');
-        setAllActiveServices([]);
+        console.error('🏠 Error loading rails:', err);
+        setError('Unable to load content');
       } finally {
         setIsLoading(false);
       }
     };
 
-    loadServices();
+    loadRailsData();
   }, []);
 
-  const popularServices = allActiveServices.filter(
-    s => s.isPopular || s.popular?.isPopular || (s.ratings?.average && s.ratings.average >= 4.7)
-  );
+  // Load recently viewed services
+  useEffect(() => {
+    const loadRecentlyViewed = async () => {
+      if (recentlyViewed.length === 0) return;
 
-  const featuredServices = allActiveServices.filter(
-    s => s.isFeatured || s.featured?.isFeatured || s.artisan?.featured?.isFeatured
-  );
+      try {
+        const ids = recentlyViewed.slice(0, 10).join(',');
+        const response = await axios.get(`${API_URL}/api/services/by-ids?ids=${ids}`);
+        
+        if (response.data.success) {
+          setRecentlyViewedServices(response.data.services);
+        }
+      } catch (err) {
+        console.error('Error loading recently viewed:', err);
+      }
+    };
+
+    loadRecentlyViewed();
+  }, [recentlyViewed]);
 
   const handleSearch = () => {
     const searchParams = new URLSearchParams();
@@ -150,61 +167,8 @@ const HomePage = () => {
     navigate('/services');
   };
 
-  const handleAdClick = () => {
-    if (!isAuthenticated) {
-      navigate('/signup?type=artisan');
-    } else if (userType === 'artisan') {
-      navigate('/dashboard');
-    } else {
-      navigate('/signup?type=artisan');
-    }
-  };
-
-  const renderServiceGrid = (list, emptyTitle, emptyBody) => {
-    if (isLoading) {
-      return (
-        <div className="flex justify-center py-12">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white"></div>
-        </div>
-      );
-    }
-    if (error) {
-      return (
-        <div className="text-center py-12">
-          <h3 className="text-xl font-medium mb-2">Unable to load services</h3>
-          <p className="mb-4 opacity-75">{error}</p>
-          <button
-            onClick={() => window.location.reload()}
-            className="bg-white text-red-500 py-2 px-6 rounded hover:bg-gray-100 transition"
-          >
-            Try Again
-          </button>
-        </div>
-      );
-    }
-    if (list.length > 0) {
-      return (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4">
-          {list.map(service => (
-            <div key={service._id || service.id}>
-              <ServiceCard service={service} showControls={false} />
-            </div>
-          ))}
-        </div>
-      );
-    }
-    return (
-      <div className="text-center py-12">
-        <h3 className="text-xl font-medium mb-2">{emptyTitle}</h3>
-        <p className="mb-4 opacity-75">{emptyBody}</p>
-        <button
-          onClick={handleViewAllServices}
-          className="bg-white text-red-500 py-2 px-6 rounded hover:bg-gray-100 transition"
-        >
-          Browse All Services
-        </button>
-      </div>
-    );
+  const handleRetry = () => {
+    window.location.reload();
   };
 
   return (
@@ -263,75 +227,99 @@ const HomePage = () => {
           </div>
         </section>
 
-        {/* ALL SERVICES */}
-        <section className="bg-gradient-to-r from-red-500 to-orange-800 text-white py-8">
-          <div className="container mx-auto px-4">
-            <div className="bg-white bg-opacity-10 backdrop-blur-sm rounded-lg p-4 sm:p-6">
-              <h2 className="text-xl sm:text-2xl font-bold mb-6 text-center">All Services</h2>
-              {renderServiceGrid(
-                allActiveServices,
-                'No services yet',
-                'Check back soon for amazing services from our artisans!'
-              )}
-              {allActiveServices.length > 0 && (
-                <div className="text-center mt-8">
-                  <button
-                    onClick={handleViewAllServices}
-                    className="bg-white text-red-500 py-3 px-8 rounded-lg hover:bg-gray-100 transition font-medium"
-                  >
-                    View All Services
-                  </button>
-                </div>
-              )}
+        {/* PRIMARY RAIL - Featured & Promos */}
+        <section className="container mx-auto px-4 py-8">
+          {isLoading ? (
+            <>
+              <RailSkeleton variant="hero" count={3} />
+              <RailSkeleton variant="category" count={4} />
+            </>
+          ) : error ? (
+            <div className="text-center py-12">
+              <h3 className="text-xl font-semibold mb-2 text-gray-900">Unable to load content</h3>
+              <p className="text-gray-600 mb-4">{error}</p>
+              <button
+                onClick={handleRetry}
+                className="bg-red-500 text-white py-2 px-6 rounded-lg hover:bg-red-600 transition"
+              >
+                Try Again
+              </button>
             </div>
-          </div>
+          ) : railsData ? (
+            <>
+              {/* Hero Rail - Featured Services */}
+              {railsData.featured?.length > 0 && (
+                <Rail title="Featured Services">
+                  {railsData.featured.map(service => (
+                    <HeroCard key={service._id} service={service} badge="FEATURED" />
+                  ))}
+                </Rail>
+              )}
+
+              {/* Categories Rail */}
+              {railsData.categoryTiles?.length > 0 && (
+                <Rail title="Browse by Category">
+                  {railsData.categoryTiles.map((cat, index) => (
+                    <CategoryCard
+                      key={cat._id || index}
+                      category={cat._id}
+                      image={cat.sampleImage}
+                      count={cat.count}
+                    />
+                  ))}
+                </Rail>
+              )}
+            </>
+          ) : null}
         </section>
 
-        {/* POPULAR SERVICES */}
-        <section className="bg-gradient-to-r from-red-500 to-orange-800 text-white pb-4">
+        {/* SECONDARY RAILS */}
+        <section className="bg-gray-50 py-8">
           <div className="container mx-auto px-4">
-            <div className="bg-white bg-opacity-10 backdrop-blur-sm rounded-lg p-4 sm:p-6">
-              <h2 className="text-xl sm:text-2xl font-bold mb-6 text-center">Popular Services</h2>
-              {renderServiceGrid(
-                popularServices.length > 0 ? popularServices : allActiveServices.slice(0, 5),
-                'No popular services yet',
-                'Check back soon — popular picks are updated as bookings come in!'
-              )}
-              {allActiveServices.length > 0 && (
-                <div className="text-center mt-8">
-                  <button
-                    onClick={handleViewAllServices}
-                    className="bg-white text-red-500 py-3 px-8 rounded-lg hover:bg-gray-100 transition font-medium"
-                  >
-                    View All Services
-                  </button>
-                </div>
-              )}
-            </div>
-          </div>
-        </section>
+            {isLoading ? (
+              <>
+                <RailSkeleton variant="mini" count={6} />
+                <RailSkeleton variant="mini" count={6} />
+              </>
+            ) : railsData ? (
+              <>
+                {/* Top Rated */}
+                {railsData.topRated?.length > 0 && (
+                  <Rail title="Top Rated Services" variant="compact">
+                    {railsData.topRated.map(service => (
+                      <MiniCard key={service._id} service={service} />
+                    ))}
+                  </Rail>
+                )}
 
-        {/* FEATURED SERVICES */}
-        <section className="bg-gradient-to-r from-red-500 to-orange-800 text-white py-4">
-          <div className="container mx-auto px-4">
-            <div className="bg-white bg-opacity-10 backdrop-blur-sm rounded-lg p-4 sm:p-6">
-              <h2 className="text-xl sm:text-2xl font-bold mb-6 text-center">Featured Services</h2>
-              {renderServiceGrid(
-                featuredServices.length > 0 ? featuredServices : allActiveServices.slice(0, 5),
-                'No featured services yet',
-                'Check back soon for amazing services from our artisans!'
-              )}
-              {allActiveServices.length > 0 && (
-                <div className="text-center mt-8">
-                  <button
-                    onClick={handleViewAllServices}
-                    className="bg-white text-red-500 py-3 px-8 rounded-lg hover:bg-gray-100 transition font-medium"
-                  >
-                    View All Services
-                  </button>
-                </div>
-              )}
-            </div>
+                {/* New This Week */}
+                {railsData.newThisWeek?.length > 0 && (
+                  <Rail title="New This Week" variant="compact">
+                    {railsData.newThisWeek.map(service => (
+                      <MiniCard key={service._id} service={service} />
+                    ))}
+                  </Rail>
+                )}
+
+                {/* Under Budget */}
+                {railsData.underBudget?.length > 0 && (
+                  <Rail title="Services Under ₦10,000" variant="compact">
+                    {railsData.underBudget.map(service => (
+                      <MiniCard key={service._id} service={service} />
+                    ))}
+                  </Rail>
+                )}
+
+                {/* Recently Viewed */}
+                {recentlyViewedServices.length > 0 && (
+                  <Rail title="Recently Viewed" variant="compact">
+                    {recentlyViewedServices.map(service => (
+                      <MiniCard key={service._id} service={service} />
+                    ))}
+                  </Rail>
+                )}
+              </>
+            ) : null}
           </div>
         </section>
 

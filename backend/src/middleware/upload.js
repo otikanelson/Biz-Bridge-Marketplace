@@ -14,7 +14,8 @@ const createUploadDirs = () => {
     path.join(__dirname, '../../uploads'),
     path.join(__dirname, '../../uploads/profiles'),
     path.join(__dirname, '../../uploads/services'),
-    path.join(__dirname, '../../uploads/cac')
+    path.join(__dirname, '../../uploads/cac'),
+    path.join(__dirname, '../../uploads/content')
   ];
 
   dirs.forEach(dir => {
@@ -71,6 +72,20 @@ const cacStorage = multer.diskStorage({
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
     const ext = path.extname(file.originalname);
     cb(null, `cac-${uniqueSuffix}${ext}`);
+  }
+});
+
+// ✅ CONTENT IMAGE STORAGE (for rich content / adverts)
+const contentStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const uploadPath = path.join(__dirname, '../../uploads/content');
+    cb(null, uploadPath);
+  },
+  filename: (req, file, cb) => {
+    // Create unique filename: content-timestamp-random.ext
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    const ext = path.extname(file.originalname);
+    cb(null, `content-${uniqueSuffix}${ext}`);
   }
 });
 
@@ -145,6 +160,16 @@ export const uploadCACDocument = multer({
   fileFilter: documentFilter,
   limits: {
     fileSize: 10 * 1024 * 1024, // 10MB max for documents
+    files: 1
+  }
+});
+
+// ✅ CONTENT IMAGE UPLOAD CONFIGURATION (for rich content / adverts)
+export const uploadContentImage = multer({
+  storage: contentStorage,
+  fileFilter: imageFilter,
+  limits: {
+    fileSize: 5 * 1024 * 1024, // 5MB max
     files: 1
   }
 });

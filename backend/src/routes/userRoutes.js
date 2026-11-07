@@ -7,7 +7,11 @@ import {
   getMyProfile,
   updateMyProfile,
   uploadProfileImage as uploadImage,
-  getFeaturedArtisans
+  getFeaturedArtisans,
+  getSavedAddresses,
+  addSavedAddress,
+  updateSavedAddress,
+  deleteSavedAddress
 } from '../controllers/userController.js';
 
 const router = express.Router();
@@ -31,6 +35,28 @@ router.put('/me/profile', protect, updateMyProfile);
 // @route   POST /api/users/me/profile/image
 // @access  Private
 router.post('/me/profile/image', protect, uploadProfileImage.single('profileImage'), uploadImage);
+
+// ========== SAVED ADDRESSES ==========
+
+// @desc    Get saved addresses
+// @route   GET /api/users/me/addresses
+// @access  Private
+router.get('/me/addresses', protect, getSavedAddresses);
+
+// @desc    Add a new saved address
+// @route   POST /api/users/me/addresses
+// @access  Private
+router.post('/me/addresses', protect, addSavedAddress);
+
+// @desc    Update a saved address
+// @route   PUT /api/users/me/addresses/:addressId
+// @access  Private
+router.put('/me/addresses/:addressId', protect, updateSavedAddress);
+
+// @desc    Delete a saved address
+// @route   DELETE /api/users/me/addresses/:addressId
+// @access  Private
+router.delete('/me/addresses/:addressId', protect, deleteSavedAddress);
 
 // @desc    Get any user's profile by ID (public view, but context-aware if authenticated)
 // @route   GET /api/users/:userId

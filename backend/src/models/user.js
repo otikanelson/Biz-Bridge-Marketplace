@@ -76,6 +76,51 @@ const UserSchema = new mongoose.Schema({
     lga: String
   },
   
+  // Saved Addresses (max 5)
+  savedAddresses: {
+    type: [{
+      label: {
+        type: String,
+        required: true,
+        trim: true,
+        maxlength: [50, "Address label cannot exceed 50 characters"]
+      },
+      lga: {
+        type: String,
+        required: true,
+        trim: true
+      },
+      locality: {
+        type: String,
+        trim: true
+      },
+      address: {
+        type: String,
+        trim: true,
+        maxlength: [200, "Address cannot exceed 200 characters"]
+      },
+      landmark: {
+        type: String,
+        trim: true,
+        maxlength: [100, "Landmark cannot exceed 100 characters"]
+      },
+      coordinates: {
+        latitude: Number,
+        longitude: Number
+      },
+      isDefault: {
+        type: Boolean,
+        default: false
+      }
+    }],
+    validate: {
+      validator: function(addresses) {
+        return addresses.length <= 5;
+      },
+      message: "Cannot save more than 5 addresses"
+    }
+  },
+  
   // Customer Preferences
   preferences: {
     favoriteCategories: [{

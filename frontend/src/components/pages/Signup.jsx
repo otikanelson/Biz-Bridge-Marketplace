@@ -326,7 +326,7 @@ const Signup = () => {
   
   return (
     <div className="flex flex-col min-h-screen">
-      <SimpleHeader activePage="" />
+      <SimpleHeader activePage={userType === 'customer' ? 'customer' : 'artisan'} />
       
       {/* Main Content */}
       <div className="bg-white flex-grow py-12">

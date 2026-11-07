@@ -1,7 +1,7 @@
 // backend/src/routes/serviceRoutes.js - FIXED Route Order
 import express from 'express';
 import { protect, authorize } from '../middleware/authMiddleware.js';
-import { uploadServiceImages } from '../middleware/upload.js';
+import { uploadServiceImages, uploadContentImage } from '../middleware/upload.js';
 import {
   createService,
   getAllServices,
@@ -13,7 +13,13 @@ import {
   getSupportedCategorizedPricing,
   searchServicesWithPricing,
   getServicesByPricingType,
-  getFeaturedServices // ✅ Add this import
+  getFeaturedServices,
+  updateServiceContent,
+  uploadContentImage as uploadContentImageHandler,
+  deleteServiceContent,
+  getAvailableIcons,
+  getHomeRails,
+  getServicesByIds
 } from '../controllers/serviceController.js';
 
 const router = express.Router();
@@ -31,6 +37,18 @@ router.get('/', getAllServices);
 // @access  Public
 router.get('/featured', getFeaturedServices);
 
+// ✅ HOME RAILS - Must come before /:serviceId
+// @desc    Get all home page rails data in one request
+// @route   GET /api/services/home-rails
+// @access  Public
+router.get('/home-rails', getHomeRails);
+
+// ✅ SERVICES BY IDS - Must come before /:serviceId
+// @desc    Get services by comma-separated IDs
+// @route   GET /api/services/by-ids?ids=a,b,c
+// @access  Public
+router.get('/by-ids', getServicesByIds);
+
 // ✅ SEARCH - Must come before /:serviceId
 // @desc    Search services with pricing filters
 // @route   GET /api/services/search
@@ -47,6 +65,11 @@ router.get('/categories/:category/breakdown', getCategoryBreakdown);
 // @route   GET /api/services/categorized-pricing/supported
 // @access  Public
 router.get('/categorized-pricing/supported', getSupportedCategorizedPricing);
+
+// @desc    Get available icons for content feature strips
+// @route   GET /api/services/content/icons
+// @access  Public
+router.get('/content/icons', getAvailableIcons);
 
 // @desc    Get services by pricing type (fixed/negotiate/categorized)
 // @route   GET /api/services/pricing/:pricingType
@@ -96,5 +119,26 @@ router.put('/:serviceId',
 // @route   DELETE /api/services/:serviceId
 // @access  Private (Artisan owner only)
 router.delete('/:serviceId', authorize('artisan'), deleteService);
+
+// ========== RICH CONTENT / ADVERT ROUTES ==========
+
+// @desc    Update service rich content
+// @route   PUT /api/services/:serviceId/content
+// @access  Private (Artisan owner only)
+router.put('/:serviceId/content', authorize('artisan'), updateServiceContent);
+
+// @desc    Upload content image
+// @route   POST /api/services/:serviceId/content/images
+// @access  Private (Artisan owner only)
+router.post('/:serviceId/content/images', 
+  authorize('artisan'), 
+  uploadContentImage.single('image'),
+  uploadContentImageHandler
+);
+
+// @desc    Delete service rich content
+// @route   DELETE /api/services/:serviceId/content
+// @access  Private (Artisan owner only)
+router.delete('/:serviceId/content', authorize('artisan'), deleteServiceContent);
 
 export default router;

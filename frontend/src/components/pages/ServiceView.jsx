@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import ServiceRequestForm from '../../components/forms/ServiceRequestForm';
+import AdvertContent from '../service/AdvertContent';
+import useRecentlyViewed from '../../hooks/useRecentlyViewed';
 import { API_URL } from '../../api/config';
 
 // API function to get service by ID
@@ -22,6 +24,7 @@ function ServiceView() {
   const { serviceId } = useParams();
   const navigate = useNavigate();
   const { isAuthenticated, userType, logout } = useAuth();
+  const { addRecentlyViewed } = useRecentlyViewed();
   
   const [service, setService] = useState(null);
   const [artisan, setArtisan] = useState(null);
@@ -63,6 +66,10 @@ function ServiceView() {
         if (response && response.success && response.service) {
           setService(response.service);
           setArtisan(response.service.artisan);
+          
+          // Track in recently viewed
+          addRecentlyViewed(serviceId);
+          
           console.log('✅ ServiceView: Service loaded with pricing structure:', {
             title: response.service.title,
             pricingType: response.service.pricing?.type || 'legacy',
@@ -451,7 +458,7 @@ function ServiceView() {
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            {/* Left Column - Service Details */}
+            {/* Left Column - Service Images & Artisan */}
             <div className="lg:col-span-2 space-y-6">
               {/* Service Images */}
               <div className="bg-white rounded-lg shadow-sm overflow-hidden">
@@ -503,13 +510,68 @@ function ServiceView() {
                     ))}
                   </div>
                 )}
+
+                {/* Artisan Information - Below Image */}
+                <div className="p-6 border-t border-gray-200">
+                  <h3 className="text-sm font-medium text-gray-600 mb-3">Service Provider</h3>
+                  
+                  <div className="flex items-center space-x-4 mb-4">
+                    <img
+                      src={getProfileImageUrl(artisan?.profileImage)}
+                      alt={artisan?.contactName || artisan?.businessName}
+                      className="w-16 h-16 rounded-full object-cover"
+                      onError={(e) => {
+                        e.target.src = '/api/placeholder/64/64';
+                      }}
+                    />
+                    <div className="flex-1">
+                      <h4 className="font-semibold text-gray-900 text-lg">
+                        {artisan?.businessName || artisan?.contactName}
+                      </h4>
+                      <p className="text-sm text-gray-600">{artisan?.contactName}</p>
+                      <div className="flex items-center text-sm text-gray-500 mt-1">
+                        <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                        </svg>
+                        {artisan?.city || 'Lagos'}
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => navigate(`/profile/${artisan?._id}`)}
+                      className="bg-gray-100 text-gray-700 py-2 px-4 rounded-lg hover:bg-gray-200 transition text-sm font-medium"
+                    >
+                      View Profile
+                    </button>
+                  </div>
+                </div>
               </div>
 
+              {/* NO PAYMENT PROCESSING WARNING */}
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6">
+                <div className="flex items-start">
+                  <div className="text-yellow-600">
+                    <svg className="w-6 h-6 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                    </svg>
+                  </div>
+                  <div className="ml-3">
+                    <h3 className="text-sm font-medium text-yellow-800">Important Payment Notice</h3>
+                    <div className="text-sm text-yellow-700 mt-1">
+                      <p><strong>BizBridge does not process payments.</strong> All payment arrangements and transactions are made directly between you and the artisan. We facilitate connections and provide dispute resolution support where applicable.</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Right Column - Service Details, Pricing and Action */}
+            <div className="space-y-6">
               {/* Service Information */}
               <div className="bg-white rounded-lg shadow-sm p-6">
                 <div className="flex items-start justify-between mb-4">
                   <div>
-                    <h1 className="text-3xl font-bold text-gray-900 mb-2">{service?.title}</h1>
+                    <h1 className="text-2xl font-bold text-gray-900 mb-2">{service?.title}</h1>
                     <div className="flex items-center text-sm text-gray-600">
                       <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
@@ -538,7 +600,7 @@ function ServiceView() {
 
                 {/* Service Locations */}
                 {service?.locations && service.locations.length > 0 && (
-                  <div className="mb-6">
+                  <div>
                     <h3 className="text-lg font-semibold text-gray-900 mb-2">Service Areas</h3>
                     <div className="flex flex-wrap gap-2">
                       {service.locations.map((location, index) => (
@@ -554,64 +616,8 @@ function ServiceView() {
                 )}
               </div>
 
-              {/* NO PAYMENT PROCESSING WARNING */}
-              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6">
-                <div className="flex items-start">
-                  <div className="text-yellow-600">
-                    <svg className="w-6 h-6 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                    </svg>
-                  </div>
-                  <div className="ml-3">
-                    <h3 className="text-sm font-medium text-yellow-800">Important Payment Notice</h3>
-                    <div className="text-sm text-yellow-700 mt-1">
-                      <p><strong>BizBridge does not process payments.</strong> All payment arrangements and transactions are made directly between you and the artisan. We facilitate connections and provide dispute resolution support where applicable.</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Right Column - Pricing and Action */}
-            <div className="space-y-6">
               {/* Pricing Display */}
               <PricingDisplay />
-
-              {/* Artisan Information */}
-              <div className="bg-white rounded-lg shadow-sm p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">Artisan</h3>
-                
-                <div className="flex items-center space-x-4 mb-4">
-                  <img
-                    src={getProfileImageUrl(artisan?.profileImage)}
-                    alt={artisan?.contactName || artisan?.businessName}
-                    className="w-16 h-16 rounded-full object-cover"
-                    onError={(e) => {
-                      e.target.src = '/api/placeholder/64/64';
-                    }}
-                  />
-                  <div>
-                    <h4 className="font-semibold text-gray-900">
-                      {artisan?.businessName || artisan?.contactName}
-                    </h4>
-                    <p className="text-sm text-gray-600">{artisan?.contactName}</p>
-                    <div className="flex items-center text-sm text-gray-500">
-                      <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                      </svg>
-                      {artisan?.city || 'Lagos'}
-                    </div>
-                  </div>
-                </div>
-
-                <button
-                  onClick={() => navigate(`/profile/${artisan?._id}`)}
-                  className="w-full bg-gray-100 text-gray-700 py-2 px-4 rounded-lg hover:bg-gray-200 transition"
-                >
-                  View Artisan Profile
-                </button>
-              </div>
 
               {/* Action Buttons */}
               <div className="space-y-3">
@@ -644,6 +650,21 @@ function ServiceView() {
               </div>
             </div>
           </div>
+
+          {/* Advert Section - "From the artisan" */}
+          {service?.richContent && service.richContent.enabled && service.richContent.blocks && service.richContent.blocks.length > 0 && (
+            <div className="mt-12">
+              <div className="border-t border-gray-200 pt-8 mb-8">
+                <h2 className="text-3xl font-extrabold tracking-tight text-gray-900 mb-2">
+                  From the artisan
+                </h2>
+                <p className="text-gray-600 text-sm">
+                  Learn more about this service and what makes it special
+                </p>
+              </div>
+              <AdvertContent blocks={service.richContent.blocks} />
+            </div>
+          )}
         </div>
       </div>
 

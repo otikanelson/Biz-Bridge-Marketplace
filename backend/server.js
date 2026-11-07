@@ -19,7 +19,13 @@ import userRoutes from './src/routes/userRoutes.js';
 import profileRoutes from './src/routes/profileRoutes.js';
 import serviceRequestRoutes from './src/routes/serviceRequestRoutes.js';
 import bookingRoutes from './src/routes/bookingRoutes.js';
-import seedRoutes from './src/routes/seedRoutes.js';
+
+// Only load seed routes in non-production environments
+let seedRoutes;
+if (process.env.NODE_ENV !== 'production') {
+  const seedModule = await import('./src/routes/seedRoutes.js');
+  seedRoutes = seedModule.default;
+}
 
 const app = express();
 
@@ -106,7 +112,12 @@ app.use('/api/users', userRoutes);
 app.use('/api/profiles', profileRoutes);
 app.use('/api/service-requests', serviceRequestRoutes);
 app.use('/api/bookings', bookingRoutes);
-app.use('/api/seed', seedRoutes);
+
+// Only register seed routes in non-production
+if (seedRoutes) {
+  app.use('/api/seed', seedRoutes);
+  console.log('ℹ️ Seed routes enabled (non-production)');
+}
 
 // Health check route
 app.get('/api/health', (req, res) => {

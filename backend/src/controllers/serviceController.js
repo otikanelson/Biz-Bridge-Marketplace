@@ -271,6 +271,14 @@ export const getServiceById = async (req, res) => {
       availableCategories: service.pricing.type === 'categorized' ? service.getAvailableCategories() : null
     };
 
+    // Include richContent only if enabled and has blocks
+    if (service.richContent && service.richContent.enabled && service.richContent.blocks && service.richContent.blocks.length > 0) {
+      serviceResponse.richContent = service.richContent;
+    } else {
+      // Don't include richContent in response
+      delete serviceResponse.richContent;
+    }
+
     res.status(200).json({
       success: true,
       service: serviceResponse
@@ -686,30 +694,34 @@ export const getFeaturedServices = async (req, res) => {
     
     console.log(`⭐ Getting featured services, limit: ${limit}`);
     
-    // Get featured services (you can customize this logic)
-    // For now, get the newest services with good ratings
-    const services = await Service.find({ 
+    // Honor featured flags first, then fallback to ratings
+    let services = await Service.find({ 
       isActive: true,
-      'ratings.average': { $gte: 4.0 } // Only services with 4+ stars
+      'featured.isFeatured': true
     })
       .populate('artisan', 'contactName businessName profileImage phoneNumber localGovernmentArea city ratings')
       .sort({ 
-        'ratings.average': -1, // Sort by rating first
-        createdAt: -1 // Then by newest
+        'featured.featuredOrder': 1,  // Sort by featured order first
+        'ratings.average': -1,         // Then by rating
+        createdAt: -1                  // Then by newest
       })
       .limit(parseInt(limit));
 
-    // If not enough highly rated services, fill with newest services
+    // If not enough featured services, fill with highly rated services
     if (services.length < limit) {
       const additionalNeeded = limit - services.length;
       const serviceIds = services.map(s => s._id);
       
       const additionalServices = await Service.find({ 
         isActive: true,
-        _id: { $nin: serviceIds } // Exclude already selected services
+        _id: { $nin: serviceIds },
+        'ratings.average': { $gte: 4.0 }
       })
         .populate('artisan', 'contactName businessName profileImage phoneNumber localGovernmentArea city ratings')
-        .sort({ createdAt: -1 })
+        .sort({ 
+          'ratings.average': -1,
+          createdAt: -1
+        })
         .limit(additionalNeeded);
       
       services.push(...additionalServices);
@@ -838,6 +850,632 @@ export const getMyServices = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to retrieve your services',
+      error: error.message
+    });
+  }
+};
+
+// ========== RICH CONTENT / ADVERT MANAGEMENT ==========
+
+// Allowed icon names for feature strips
+const ALLOWED_ICONS = [
+  'hammer', 'ruler', 'truck', 'shield', 'clock', 'award', 
+  'leaf', 'sparkles', 'palette', 'wrench', 'star', 'heart',
+  'check-circle', 'zap', 'package', 'users'
+];
+
+// Content limits
+const CONTENT_LIMITS = {
+  maxBlocks: 12,
+  maxTitleLength: 80,
+  maxSubtitleLength: 160,
+  maxTextLength: 600,
+  maxFeatureTextLength: 60,
+  maxFeatureItems: 4,
+  maxGalleryImages: 4,
+  minGalleryImages: 2
+};
+
+// Helper function to sanitize text (strip HTML)
+const sanitizeText = (text) => {
+  if (!text) return '';
+  return text.replace(/<[^>]*>/g, '').trim();
+};
+
+// Helper function to validate image URL
+const isValidImageUrl = (url) => {
+  if (!url) return false;
+  return url.startsWith('/uploads/') || url.startsWith('https://');
+};
+
+// Helper function to validate block data
+const validateBlockData = (block, blockIndex) => {
+  const errors = [];
+  
+  if (!block.id || !block.type || block.order === undefined) {
+    errors.push(`Block ${blockIndex}: Missing required fields (id, type, or order)`);
+    return errors;
+  }
+
+  if (!block.data) {
+    errors.push(`Block ${blockIndex}: Missing data field`);
+    return errors;
+  }
+
+  switch (block.type) {
+    case 'banner':
+      if (!isValidImageUrl(block.data.image)) {
+        errors.push(`Block ${blockIndex}: Invalid or missing banner image URL`);
+      }
+      if (block.data.alt && block.data.alt.length > 100) {
+        errors.push(`Block ${blockIndex}: Alt text too long (max 100 characters)`);
+      }
+      break;
+
+    case 'heading':
+      if (!block.data.title) {
+        errors.push(`Block ${blockIndex}: Heading title is required`);
+      } else if (block.data.title.length > CONTENT_LIMITS.maxTitleLength) {
+        errors.push(`Block ${blockIndex}: Title too long (max ${CONTENT_LIMITS.maxTitleLength} characters)`);
+      }
+      if (block.data.subtitle && block.data.subtitle.length > CONTENT_LIMITS.maxSubtitleLength) {
+        errors.push(`Block ${blockIndex}: Subtitle too long (max ${CONTENT_LIMITS.maxSubtitleLength} characters)`);
+      }
+      break;
+
+    case 'featureStrip':
+      if (!Array.isArray(block.data.items) || block.data.items.length === 0) {
+        errors.push(`Block ${blockIndex}: Feature strip must have at least one item`);
+      } else if (block.data.items.length > CONTENT_LIMITS.maxFeatureItems) {
+        errors.push(`Block ${blockIndex}: Too many feature items (max ${CONTENT_LIMITS.maxFeatureItems})`);
+      } else {
+        block.data.items.forEach((item, idx) => {
+          if (!item.icon || !ALLOWED_ICONS.includes(item.icon)) {
+            errors.push(`Block ${blockIndex}, Item ${idx}: Invalid icon. Must be one of: ${ALLOWED_ICONS.join(', ')}`);
+          }
+          if (!item.title || item.title.length > 40) {
+            errors.push(`Block ${blockIndex}, Item ${idx}: Invalid title (required, max 40 characters)`);
+          }
+          if (!item.text || item.text.length > CONTENT_LIMITS.maxFeatureTextLength) {
+            errors.push(`Block ${blockIndex}, Item ${idx}: Invalid text (required, max ${CONTENT_LIMITS.maxFeatureTextLength} characters)`);
+          }
+        });
+      }
+      break;
+
+    case 'imageText':
+      if (!isValidImageUrl(block.data.image)) {
+        errors.push(`Block ${blockIndex}: Invalid or missing image URL`);
+      }
+      if (!block.data.title || block.data.title.length > CONTENT_LIMITS.maxTitleLength) {
+        errors.push(`Block ${blockIndex}: Invalid title (required, max ${CONTENT_LIMITS.maxTitleLength} characters)`);
+      }
+      if (!block.data.text || block.data.text.length > CONTENT_LIMITS.maxTextLength) {
+        errors.push(`Block ${blockIndex}: Invalid text (required, max ${CONTENT_LIMITS.maxTextLength} characters)`);
+      }
+      if (!['left', 'right'].includes(block.data.imagePosition)) {
+        errors.push(`Block ${blockIndex}: Image position must be 'left' or 'right'`);
+      }
+      break;
+
+    case 'gallery':
+      if (!Array.isArray(block.data.images) || 
+          block.data.images.length < CONTENT_LIMITS.minGalleryImages || 
+          block.data.images.length > CONTENT_LIMITS.maxGalleryImages) {
+        errors.push(`Block ${blockIndex}: Gallery must have ${CONTENT_LIMITS.minGalleryImages}-${CONTENT_LIMITS.maxGalleryImages} images`);
+      } else {
+        block.data.images.forEach((img, idx) => {
+          if (!isValidImageUrl(img.image)) {
+            errors.push(`Block ${blockIndex}, Image ${idx}: Invalid image URL`);
+          }
+        });
+      }
+      break;
+
+    default:
+      errors.push(`Block ${blockIndex}: Invalid block type '${block.type}'`);
+  }
+
+  return errors;
+};
+
+// Helper function to sanitize block data
+const sanitizeBlockData = (block) => {
+  const sanitized = { ...block };
+
+  switch (block.type) {
+    case 'heading':
+      sanitized.data.title = sanitizeText(block.data.title);
+      sanitized.data.subtitle = sanitizeText(block.data.subtitle);
+      break;
+
+    case 'featureStrip':
+      sanitized.data.items = block.data.items.map(item => ({
+        icon: item.icon,
+        title: sanitizeText(item.title),
+        text: sanitizeText(item.text)
+      }));
+      break;
+
+    case 'imageText':
+      sanitized.data.title = sanitizeText(block.data.title);
+      sanitized.data.text = sanitizeText(block.data.text);
+      break;
+  }
+
+  return sanitized;
+};
+
+// @desc    Update service rich content
+// @route   PUT /api/services/:serviceId/content
+// @access  Private - Artisan owner only
+export const updateServiceContent = async (req, res) => {
+  try {
+    const { serviceId } = req.params;
+    const { enabled, blocks } = req.body;
+
+    console.log('📝 Updating rich content for service:', serviceId);
+
+    // Find service
+    const service = await Service.findById(serviceId);
+    if (!service) {
+      return res.status(404).json({
+        success: false,
+        message: 'Service not found'
+      });
+    }
+
+    // Check ownership
+    if (service.artisan.toString() !== req.user._id.toString()) {
+      return res.status(403).json({
+        success: false,
+        message: 'Not authorized to update this service content'
+      });
+    }
+
+    // Validate blocks array
+    if (!Array.isArray(blocks)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Blocks must be an array'
+      });
+    }
+
+    if (blocks.length > CONTENT_LIMITS.maxBlocks) {
+      return res.status(400).json({
+        success: false,
+        message: `Maximum ${CONTENT_LIMITS.maxBlocks} blocks allowed`
+      });
+    }
+
+    // Validate each block
+    const allErrors = [];
+    blocks.forEach((block, index) => {
+      const blockErrors = validateBlockData(block, index);
+      allErrors.push(...blockErrors);
+    });
+
+    if (allErrors.length > 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Validation errors found',
+        errors: allErrors
+      });
+    }
+
+    // Sanitize blocks
+    const sanitizedBlocks = blocks.map(sanitizeBlockData);
+
+    // Update service
+    service.richContent = {
+      enabled: enabled === true,
+      blocks: sanitizedBlocks,
+      updatedAt: new Date()
+    };
+
+    await service.save();
+
+    console.log('✅ Rich content updated successfully');
+
+    res.status(200).json({
+      success: true,
+      message: 'Service content updated successfully',
+      richContent: service.richContent
+    });
+  } catch (error) {
+    console.error('❌ Update service content error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to update service content',
+      error: error.message
+    });
+  }
+};
+
+// @desc    Upload content image
+// @route   POST /api/services/:serviceId/content/images
+// @access  Private - Artisan owner only
+export const uploadContentImage = async (req, res) => {
+  try {
+    const { serviceId } = req.params;
+
+    // Find service
+    const service = await Service.findById(serviceId);
+    if (!service) {
+      return res.status(404).json({
+        success: false,
+        message: 'Service not found'
+      });
+    }
+
+    // Check ownership
+    if (service.artisan.toString() !== req.user._id.toString()) {
+      return res.status(403).json({
+        success: false,
+        message: 'Not authorized to upload images for this service'
+      });
+    }
+
+    // Check if file was uploaded
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        message: 'No image file provided'
+      });
+    }
+
+    // Get file URL
+    const imageUrl = getFileUrl(req.file.path);
+
+    console.log('✅ Content image uploaded:', imageUrl);
+
+    res.status(200).json({
+      success: true,
+      message: 'Image uploaded successfully',
+      url: imageUrl
+    });
+  } catch (error) {
+    console.error('❌ Upload content image error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to upload image',
+      error: error.message
+    });
+  }
+};
+
+// @desc    Delete service rich content
+// @route   DELETE /api/services/:serviceId/content
+// @access  Private - Artisan owner only
+export const deleteServiceContent = async (req, res) => {
+  try {
+    const { serviceId } = req.params;
+
+    // Find service
+    const service = await Service.findById(serviceId);
+    if (!service) {
+      return res.status(404).json({
+        success: false,
+        message: 'Service not found'
+      });
+    }
+
+    // Check ownership
+    if (service.artisan.toString() !== req.user._id.toString()) {
+      return res.status(403).json({
+        success: false,
+        message: 'Not authorized to delete this service content'
+      });
+    }
+
+    // Clear rich content
+    service.richContent = {
+      enabled: false,
+      blocks: [],
+      updatedAt: new Date()
+    };
+
+    await service.save();
+
+    console.log('✅ Rich content deleted');
+
+    res.status(200).json({
+      success: true,
+      message: 'Service content deleted successfully'
+    });
+  } catch (error) {
+    console.error('❌ Delete service content error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to delete service content',
+      error: error.message
+    });
+  }
+};
+
+// @desc    Get available icons for feature strips
+// @route   GET /api/services/content/icons
+// @access  Public
+export const getAvailableIcons = async (req, res) => {
+  try {
+    res.status(200).json({
+      success: true,
+      icons: ALLOWED_ICONS,
+      limits: CONTENT_LIMITS
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Failed to retrieve icons',
+      error: error.message
+    });
+  }
+};
+
+// ========== HOME PAGE RAILS ==========
+
+// @desc    Get all data for home page rails in one request
+// @route   GET /api/services/home-rails
+// @access  Public
+export const getHomeRails = async (req, res) => {
+  try {
+    console.log('📊 Fetching home page rails data...');
+
+    // Use aggregation to get everything in one efficient query
+    const results = await Service.aggregate([
+      {
+        $match: { isActive: true }
+      },
+      {
+        $facet: {
+          // Category tiles with top 4 services per category
+          categoryTiles: [
+            {
+              $group: {
+                _id: '$category',
+                count: { $sum: 1 },
+                services: {
+                  $push: {
+                    _id: '$_id',
+                    title: '$title',
+                    image: { $arrayElemAt: ['$images', 0] },
+                    category: '$category',
+                    pricingType: '$pricing.type',
+                    basePrice: '$pricing.basePrice',
+                    ratings: '$ratings'
+                  }
+                }
+              }
+            },
+            {
+              $project: {
+                category: '$_id',
+                count: 1,
+                services: { $slice: ['$services', 4] }
+              }
+            },
+            { $sort: { count: -1 } }
+          ],
+          
+          // Featured services (honor featured flags)
+          featured: [
+            {
+              $match: { 'featured.isFeatured': true }
+            },
+            { $sort: { 'featured.featuredOrder': 1, 'ratings.average': -1 } },
+            { $limit: 6 },
+            {
+              $lookup: {
+                from: 'users',
+                localField: 'artisan',
+                foreignField: '_id',
+                as: 'artisanData'
+              }
+            },
+            {
+              $project: {
+                _id: 1,
+                title: 1,
+                image: { $arrayElemAt: ['$images', 0] },
+                category: 1,
+                pricingType: '$pricing.type',
+                basePrice: '$pricing.basePrice',
+                ratings: 1,
+                artisan: {
+                  businessName: { $arrayElemAt: ['$artisanData.businessName', 0] },
+                  contactName: { $arrayElemAt: ['$artisanData.contactName', 0] }
+                }
+              }
+            }
+          ],
+
+          // Top rated (at least 3 reviews, highest average)
+          topRated: [
+            {
+              $match: {
+                'ratings.count': { $gte: 3 }
+              }
+            },
+            { $sort: { 'ratings.average': -1 } },
+            { $limit: 10 },
+            {
+              $lookup: {
+                from: 'users',
+                localField: 'artisan',
+                foreignField: '_id',
+                as: 'artisanData'
+              }
+            },
+            {
+              $project: {
+                _id: 1,
+                title: 1,
+                image: { $arrayElemAt: ['$images', 0] },
+                category: 1,
+                pricingType: '$pricing.type',
+                basePrice: '$pricing.basePrice',
+                ratings: 1,
+                artisan: {
+                  businessName: { $arrayElemAt: ['$artisanData.businessName', 0] },
+                  contactName: { $arrayElemAt: ['$artisanData.contactName', 0] }
+                }
+              }
+            }
+          ],
+
+          // New this week
+          newThisWeek: [
+            {
+              $match: {
+                createdAt: { $gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) }
+              }
+            },
+            { $sort: { createdAt: -1 } },
+            { $limit: 10 },
+            {
+              $lookup: {
+                from: 'users',
+                localField: 'artisan',
+                foreignField: '_id',
+                as: 'artisanData'
+              }
+            },
+            {
+              $project: {
+                _id: 1,
+                title: 1,
+                image: { $arrayElemAt: ['$images', 0] },
+                category: 1,
+                pricingType: '$pricing.type',
+                basePrice: '$pricing.basePrice',
+                ratings: 1,
+                artisan: {
+                  businessName: { $arrayElemAt: ['$artisanData.businessName', 0] },
+                  contactName: { $arrayElemAt: ['$artisanData.contactName', 0] }
+                }
+              }
+            }
+          ],
+
+          // Under budget (₦50,000)
+          underBudget: [
+            {
+              $match: {
+                'pricing.type': 'fixed',
+                'pricing.basePrice': { $lt: 50000, $gt: 0 }
+              }
+            },
+            { $sort: { 'pricing.basePrice': 1 } },
+            { $limit: 10 },
+            {
+              $lookup: {
+                from: 'users',
+                localField: 'artisan',
+                foreignField: '_id',
+                as: 'artisanData'
+              }
+            },
+            {
+              $project: {
+                _id: 1,
+                title: 1,
+                image: { $arrayElemAt: ['$images', 0] },
+                category: 1,
+                pricingType: '$pricing.type',
+                basePrice: '$pricing.basePrice',
+                ratings: 1,
+                artisan: {
+                  businessName: { $arrayElemAt: ['$artisanData.businessName', 0] },
+                  contactName: { $arrayElemAt: ['$artisanData.contactName', 0] }
+                }
+              }
+            }
+          ]
+        }
+      }
+    ]);
+
+    const data = results[0];
+
+    // Get featured artisan (pick one randomly from featured)
+    const featuredArtisan = data.featured && data.featured.length > 0
+      ? data.featured[Math.floor(Math.random() * Math.min(3, data.featured.length))]
+      : null;
+
+    // Filter out categories with no services
+    const categoryTiles = data.categoryTiles.filter(cat => cat.count > 0);
+
+    console.log(`✅ Home rails data loaded: ${categoryTiles.length} categories, ${data.topRated.length} top rated`);
+
+    // Set cache header (60 seconds)
+    res.set('Cache-Control', 'public, max-age=60');
+
+    res.status(200).json({
+      success: true,
+      data: {
+        categoryTiles,
+        featuredArtisan,
+        topRated: data.topRated,
+        newThisWeek: data.newThisWeek,
+        underBudget: data.underBudget
+      }
+    });
+  } catch (error) {
+    console.error('❌ Get home rails error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to load home page data',
+      error: error.message
+    });
+  }
+};
+
+// @desc    Get services by IDs (for recently viewed, recommendations)
+// @route   GET /api/services/by-ids
+// @access  Public
+export const getServicesByIds = async (req, res) => {
+  try {
+    const { ids } = req.query;
+
+    if (!ids) {
+      return res.status(400).json({
+        success: false,
+        message: 'Service IDs are required'
+      });
+    }
+
+    // Parse and limit to 10 IDs
+    const idArray = ids.split(',').slice(0, 10);
+
+    const services = await Service.find({
+      _id: { $in: idArray },
+      isActive: true
+    })
+      .select('_id title images category pricing ratings')
+      .populate('artisan', 'businessName contactName')
+      .lean();
+
+    // Add display price virtual
+    const servicesWithPrice = services.map(service => ({
+      ...service,
+      image: service.images && service.images[0] ? service.images[0] : null,
+      pricingType: service.pricing?.type,
+      basePrice: service.pricing?.basePrice,
+      artisan: {
+        businessName: service.artisan?.businessName,
+        contactName: service.artisan?.contactName
+      }
+    }));
+
+    res.status(200).json({
+      success: true,
+      services: servicesWithPrice
+    });
+  } catch (error) {
+    console.error('❌ Get services by IDs error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to load services',
       error: error.message
     });
   }

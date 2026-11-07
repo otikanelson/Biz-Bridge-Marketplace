@@ -1,0 +1,137 @@
+.rail-skeleton {
+  margin: 2rem 0;
+}
+
+.rail-skeleton__header {
+  margin-bottom: 1rem;
+  padding: 0 1rem;
+}
+
+.rail-skeleton__title {
+  height: 32px;
+  width: 200px;
+  background: linear-gradient(90deg, #f3f4f6 25%, #e5e7eb 50%, #f3f4f6 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: 4px;
+}
+
+.rail-skeleton__content {
+  display: flex;
+  gap: 1rem;
+  padding: 0.5rem 1rem;
+  overflow: hidden;
+}
+
+.card-skeleton {
+  flex-shrink: 0;
+  border-radius: 8px;
+  background: white;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+}
+
+.card-skeleton--hero {
+  width: 360px;
+  height: 360px;
+}
+
+.card-skeleton--category {
+  width: 280px;
+  height: 360px;
+}
+
+.card-skeleton--mini {
+  width: 220px;
+  height: 240px;
+}
+
+.card-skeleton__image {
+  width: 100%;
+  background: linear-gradient(90deg, #f3f4f6 25%, #e5e7eb 50%, #f3f4f6 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+.card-skeleton--hero .card-skeleton__image {
+  height: 100%;
+}
+
+.card-skeleton--category .card-skeleton__image {
+  height: 240px;
+}
+
+.card-skeleton--mini .card-skeleton__image {
+  height: 140px;
+}
+
+.card-skeleton__content {
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.card-skeleton--mini .card-skeleton__content {
+  padding: 0.75rem;
+}
+
+.card-skeleton__line {
+  height: 16px;
+  background: linear-gradient(90deg, #f3f4f6 25%, #e5e7eb 50%, #f3f4f6 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: 4px;
+}
+
+.card-skeleton__line--title {
+  width: 80%;
+  height: 20px;
+}
+
+.card-skeleton__line--short {
+  width: 60%;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+@media (max-width: 768px) {
+  .rail-skeleton {
+    margin: 1.5rem 0;
+  }
+
+  .rail-skeleton__header {
+    padding: 0 0.5rem;
+  }
+
+  .rail-skeleton__title {
+    height: 28px;
+    width: 150px;
+  }
+
+  .rail-skeleton__content {
+    padding: 0.5rem 0.5rem;
+  }
+
+  .card-skeleton--hero {
+    width: 300px;
+    height: 300px;
+  }
+
+  .card-skeleton--category {
+    width: 240px;
+    height: 320px;
+  }
+
+  .card-skeleton--mini {
+    width: 180px;
+    height: 200px;
+  }
+}

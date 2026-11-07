@@ -95,7 +95,7 @@ const Login = () => {
 
   return (
     <div className="flex flex-col min-h-screen">
-      <SimpleHeader activePage="" />
+      <SimpleHeader activePage="login" />
 
       {/* Main Content */}
       <div className="bg-white flex-grow py-12">

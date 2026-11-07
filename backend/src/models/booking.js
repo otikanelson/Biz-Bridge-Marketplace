@@ -194,15 +194,45 @@ const BookingSchema = new mongoose.Schema({
 
   // ========== LOCATION ==========
   location: {
-    address: String,
-    lga: String,
-    state: {
+    lga: {
       type: String,
-      default: 'Lagos'
+      required: [true, "LGA is required"],
+      trim: true
+    },
+    locality: {
+      type: String,
+      trim: true
+    },
+    address: {
+      type: String,
+      trim: true,
+      maxlength: [200, "Address cannot exceed 200 characters"]
+    },
+    landmark: {
+      type: String,
+      trim: true,
+      maxlength: [100, "Landmark cannot exceed 100 characters"]
     },
     coordinates: {
-      latitude: Number,
-      longitude: Number
+      latitude: {
+        type: Number,
+        min: [-90, "Latitude must be between -90 and 90"],
+        max: [90, "Latitude must be between -90 and 90"]
+      },
+      longitude: {
+        type: Number,
+        min: [-180, "Longitude must be between -180 and 180"],
+        max: [180, "Longitude must be between -180 and 180"]
+      }
+    },
+    isRemote: {
+      type: Boolean,
+      default: false
+    },
+    accessNotes: {
+      type: String,
+      trim: true,
+      maxlength: [200, "Access notes cannot exceed 200 characters"]
     }
   },
 
