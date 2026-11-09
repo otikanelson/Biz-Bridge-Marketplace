@@ -17,7 +17,7 @@ import MiniCard from '../home/MiniCard';
 import RailSkeleton from '../home/RailSkeleton';
 import useRecentlyViewed from '../../hooks/useRecentlyViewed';
 import axios from 'axios';
-import { API_BASE_URL } from '../../config/api';
+import { API_URL } from '../../config/api';
 
 
 const heroImage =
@@ -101,7 +101,7 @@ const HomePage = () => {
       setIsLoading(true);
       setError(null);
       try {
-        const response = await axios.get(`${API_BASE_URL}/api/services/home-rails`);
+        const response = await axios.get(`${API_URL}/services/home-rails`);
         
         if (response.data.success) {
           // API returns {success: true, data: {...}} not {success: true, rails: {...}}
@@ -127,7 +127,7 @@ const HomePage = () => {
 
       try {
         const ids = recentlyViewed.slice(0, 10).join(',');
-        const response = await axios.get(`${API_BASE_URL}/api/services/by-ids?ids=${ids}`);
+        const response = await axios.get(`${API_URL}/services/by-ids?ids=${ids}`);
         
         if (response.data.success) {
           setRecentlyViewedServices(response.data.services);

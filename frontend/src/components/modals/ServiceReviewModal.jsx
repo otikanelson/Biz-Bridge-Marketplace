@@ -1,5 +1,6 @@
 // frontend/src/components/modals/ServiceReviewModal.jsx - Modal for customers to review services
 import React, { useState } from 'react';
+import { API_URL } from '../../config/api';
 
 const ServiceReviewModal = ({ booking, onClose, onReviewSubmitted }) => {
   const [rating, setRating] = useState(0);
@@ -31,7 +32,7 @@ const ServiceReviewModal = ({ booking, onClose, onReviewSubmitted }) => {
     setError('');
 
     try {
-      const response = await fetch(`/api/bookings/${booking._id}/review`, {
+      const response = await fetch(`${API_URL}/bookings/${booking._id}/review`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
