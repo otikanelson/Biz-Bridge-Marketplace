@@ -237,7 +237,7 @@ function ServiceView() {
                   Categories
                 </span>
                 <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs font-medium rounded-full">
-                  ⭐ Protected
+                  Protected
                 </span>
               </div>
             </div>
