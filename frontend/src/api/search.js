@@ -1,7 +1,6 @@
 // frontend/src/api/search.js
 import axios from 'axios';
-
-const API_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api";
+import { API_URL } from './config';
 
 // Search services for customers (uses the search endpoint)
 export const searchServices = async (searchParams) => {

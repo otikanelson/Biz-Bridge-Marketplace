@@ -1,1 +1,4 @@
-export const API_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api";
+// API configuration - DO NOT import directly, use ../config/api instead
+import { API_URL as CONFIG_API_URL } from '../config/api';
+
+export const API_URL = CONFIG_API_URL;

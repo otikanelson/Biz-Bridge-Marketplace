@@ -1,7 +1,6 @@
 // frontend/src/api/auth.js
 import axios from 'axios';
-
-const API_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api";
+import { API_URL } from './config';
 
 // Set auth token for requests
 export const setAuthToken = (token) => {

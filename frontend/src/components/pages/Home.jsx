@@ -17,12 +17,11 @@ import MiniCard from '../home/MiniCard';
 import RailSkeleton from '../home/RailSkeleton';
 import useRecentlyViewed from '../../hooks/useRecentlyViewed';
 import axios from 'axios';
+import { API_BASE_URL } from '../../config/api';
 
 
 const heroImage =
   'https://images.unsplash.com/photo-1736143157411-0a70fe999ecb?q=80&w=1920&auto=format&fit=crop';
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
 const HomePage = () => {
   const navigate = useNavigate();
@@ -102,7 +101,7 @@ const HomePage = () => {
       setIsLoading(true);
       setError(null);
       try {
-        const response = await axios.get(`${API_URL}/api/services/home-rails`);
+        const response = await axios.get(`${API_BASE_URL}/api/services/home-rails`);
         
         if (response.data.success) {
           // API returns {success: true, data: {...}} not {success: true, rails: {...}}
@@ -128,7 +127,7 @@ const HomePage = () => {
 
       try {
         const ids = recentlyViewed.slice(0, 10).join(',');
-        const response = await axios.get(`${API_URL}/api/services/by-ids?ids=${ids}`);
+        const response = await axios.get(`${API_BASE_URL}/api/services/by-ids?ids=${ids}`);
         
         if (response.data.success) {
           setRecentlyViewedServices(response.data.services);

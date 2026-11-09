@@ -1,5 +1,5 @@
 // imageUrl.js - Centralized image URL handling
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+import { API_BASE_URL } from '../config/api';
 
 /**
  * Get properly formatted service image URL from a service object or path
@@ -17,7 +17,7 @@ export const getServiceImageUrl = (serviceOrPath) => {
       if (typeof images === 'string') {
         const imagePath = images;
         if (imagePath.startsWith('http')) return imagePath;
-        return `${API_URL}${imagePath.startsWith('/') ? imagePath : '/' + imagePath}`;
+        return `${API_BASE_URL}${imagePath.startsWith('/') ? imagePath : '/' + imagePath}`;
       }
       
       // Handle if images is an array
@@ -25,7 +25,7 @@ export const getServiceImageUrl = (serviceOrPath) => {
         const imagePath = images[0];
         if (!imagePath) return 'https://via.placeholder.com/400x300?text=No+Image';
         if (imagePath.startsWith('http')) return imagePath;
-        return `${API_URL}${imagePath.startsWith('/') ? imagePath : '/' + imagePath}`;
+        return `${API_BASE_URL}${imagePath.startsWith('/') ? imagePath : '/' + imagePath}`;
       }
       
       return 'https://via.placeholder.com/400x300?text=No+Image';
@@ -35,7 +35,7 @@ export const getServiceImageUrl = (serviceOrPath) => {
     if (typeof serviceOrPath === 'string' && serviceOrPath) {
       const imagePath = serviceOrPath;
       if (imagePath.startsWith('http')) return imagePath;
-      return `${API_URL}${imagePath.startsWith('/') ? imagePath : '/' + imagePath}`;
+      return `${API_BASE_URL}${imagePath.startsWith('/') ? imagePath : '/' + imagePath}`;
     }
     
     return 'https://via.placeholder.com/400x300?text=No+Image';
@@ -54,7 +54,7 @@ export const getProfileImageUrl = (imagePath) => {
   try {
     if (!imagePath) return 'https://via.placeholder.com/80x80?text=No+Image';
     if (imagePath.startsWith('http')) return imagePath;
-    return `${API_URL}${imagePath.startsWith('/') ? imagePath : '/' + imagePath}`;
+    return `${API_BASE_URL}${imagePath.startsWith('/') ? imagePath : '/' + imagePath}`;
   } catch (error) {
     console.error('Error in getProfileImageUrl:', error);
     return 'https://via.placeholder.com/80x80?text=Error';
